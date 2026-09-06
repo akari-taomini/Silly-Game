@@ -1,28 +1,38 @@
 /*
- * SillyTavern 小游戏中心
+ * Silly Game · SillyTavern 小游戏扩展
  * 只使用少量自定义样式，颜色/背景/边框尽量继承 SillyTavern 当前主题变量。
  */
 
 #st-mini-game-center-launcher {
-    position: fixed;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    z-index: 999997;
-}
-
-#st-mini-game-center-launcher.stgc-launcher {
-    width: 42px;
-    height: 42px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--SmartThemeBodyColor, inherit);
-    background: var(--SmartThemeBlurTintColor, var(--black30a, rgba(0,0,0,.3)));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
-    box-shadow: 0 4px 14px var(--black30a, rgba(0,0,0,.25));
-    backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
-    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
+    position: fixed !important;
+    left: auto;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 2147483000 !important;
+    width: 48px !important;
+    height: 48px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    cursor: grab;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -webkit-touch-callout: none !important;
+    touch-action: none !important;
+    color: var(--SmartThemeBodyColor, inherit) !important;
+    background: var(--SmartThemeBlurTintColor, var(--black50a, rgba(0,0,0,.35))) !important;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 5px 18px var(--black50a, rgba(0,0,0,.30)) !important;
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+    overflow: hidden;
 }
 
 #st-mini-game-center-launcher.stgc-launcher:hover {
@@ -30,7 +40,62 @@
 }
 
 #st-mini-game-center-launcher.stgc-launcher:active {
-    transform: scale(.95);
+    cursor: grabbing;
+}
+
+#st-mini-game-center-launcher.in-use {
+    opacity: .22 !important;
+    pointer-events: none !important;
+}
+
+#st-mini-game-center-launcher.is-hidden {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+#st-mini-game-center-restore {
+    position: fixed !important;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2147483001 !important;
+    width: 18px !important;
+    height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--SmartThemeBodyColor, inherit) !important;
+    background: var(--SmartThemeBlurTintColor, var(--black50a, rgba(0,0,0,.35))) !important;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+    border-left: 0 !important;
+    border-radius: 0 9px 9px 0 !important;
+    box-shadow: 0 3px 12px var(--black50a, rgba(0,0,0,.24)) !important;
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 7px));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 7px));
+    cursor: pointer;
+    user-select: none !important;
+    touch-action: manipulation !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+
+#st-mini-game-center-restore.show {
+    display: flex !important;
+}
+
+#st-mini-game-center-restore:hover {
+    filter: brightness(1.08);
+}
+
+#st-mini-game-center-launcher .stgc-launcher-icon {
+    width: 24px;
+    height: 24px;
+    display: block;
+    flex: 0 0 auto;
+    pointer-events: none;
 }
 
 #st-mini-game-center {
@@ -66,7 +131,9 @@
     box-shadow: 0 12px 40px var(--black50a, rgba(0,0,0,.35));
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
+    border-radius: 12px;
 }
+
 
 #st-mini-game-center .stgc-header {
     min-height: 40px;
@@ -131,6 +198,77 @@
 #st-mini-game-center .stgc-btn-icon {
     width: 34px;
     padding: 0;
+}
+
+#st-mini-game-center .stgc-header-settings {
+    margin-left: auto;
+}
+
+#st-mini-game-center .stgc-settings-dialog {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--black30a, rgba(0,0,0,.28));
+    border-radius: inherit;
+}
+
+#st-mini-game-center .stgc-settings-box {
+    width: min(420px, 100%);
+    padding: 14px;
+    color: var(--SmartThemeBodyColor, inherit);
+    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, inherit));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: var(--SmartThemeBorderRadius, 8px);
+    box-shadow: 0 12px 36px var(--black50a, rgba(0,0,0,.30));
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+}
+
+#st-mini-game-center .stgc-settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+#st-mini-game-center .stgc-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 0;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.22));
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.22));
+}
+
+#st-mini-game-center .stgc-setting-copy {
+    min-width: 0;
+}
+
+#st-mini-game-center .stgc-setting-name {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#st-mini-game-center .stgc-setting-desc,
+#st-mini-game-center .stgc-setting-note {
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+    opacity: .68;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+#st-mini-game-center .stgc-setting-note {
+    margin-top: 9px;
+}
+
+#st-mini-game-center .stgc-toggle.active {
+    outline: 1px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
 }
 
 #st-mini-game-center .stgc-menu-grid {
@@ -610,4 +748,16 @@
 #st-mini-game-center .game-direction-btn:disabled {
     opacity: .45;
     cursor: default;
+}
+
+
+@media (max-width: 640px) {
+    #st-mini-game-center-launcher {
+        width: 50px !important;
+        height: 50px !important;
+    }
+
+    #st-mini-game-center .stgc-settings-dialog {
+        padding: 10px;
+    }
 }

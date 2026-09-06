@@ -2,6 +2,8 @@
     'use strict';
 
     const APP_ID = 'st-mini-game-center';
+    const LAUNCHER_POSITION_KEY = 'stgc-launcher-position-v1';
+    const LAUNCHER_HIDDEN_KEY = 'stgc-launcher-hidden-v1';
 
     const state = {
         currentGame: null,
@@ -29,18 +31,182 @@
         state.cleanup = null;
     }
 
+    function getViewportSize() {
+        return {
+            width: Math.max(window.innerWidth || 360, 240),
+            height: Math.max(window.innerHeight || 640, 240),
+        };
+    }
+
+    function getLauncherSize() {
+        const launcher = document.getElementById(`${APP_ID}-launcher`);
+        if (!launcher) return { width: 48, height: 48 };
+        const rect = launcher.getBoundingClientRect();
+        return {
+            width: Math.max(rect.width || 48, 48),
+            height: Math.max(rect.height || 48, 48),
+        };
+    }
+
+    function clampLauncherPosition(x, y) {
+        const viewport = getViewportSize();
+        const size = getLauncherSize();
+        const margin = 8;
+        return {
+            x: Math.min(Math.max(x, margin), Math.max(margin, viewport.width - size.width - margin)),
+            y: Math.min(Math.max(y, margin), Math.max(margin, viewport.height - size.height - margin)),
+        };
+    }
+
+    function getStoredLauncherPosition() {
+        try {
+            const raw = localStorage.getItem(LAUNCHER_POSITION_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!Number.isFinite(parsed?.x) || !Number.isFinite(parsed?.y)) return null;
+            return { x: parsed.x, y: parsed.y };
+        } catch {
+            return null;
+        }
+    }
+
+    function setLauncherPosition(x, y, save = true) {
+        const launcher = document.getElementById(`${APP_ID}-launcher`);
+        if (!launcher) return;
+        const position = clampLauncherPosition(x, y);
+        launcher.style.left = `${position.x}px`;
+        launcher.style.top = `${position.y}px`;
+        launcher.style.right = 'auto';
+        launcher.style.bottom = 'auto';
+        if (save) {
+            try {
+                localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify(position));
+            } catch { /* localStorage unavailable: position still works for this session */ }
+        }
+    }
+
+    function resetLauncherPosition() {
+        const viewport = getViewportSize();
+        const size = getLauncherSize();
+        setLauncherPosition(
+            viewport.width - size.width - 18,
+            viewport.height - size.height - 118,
+        );
+    }
+
+    function isLauncherHidden() {
+        try {
+            return localStorage.getItem(LAUNCHER_HIDDEN_KEY) === '1';
+        } catch {
+            return false;
+        }
+    }
+
+    function setLauncherHidden(hidden) {
+        const launcher = document.getElementById(`${APP_ID}-launcher`);
+        if (!launcher) return;
+        launcher.classList.toggle('is-hidden', hidden);
+        launcher.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        launcher.tabIndex = hidden ? -1 : 0;
+        const restore = document.getElementById(`${APP_ID}-restore`);
+        if (restore) restore.classList.toggle('show', hidden);
+        try {
+            localStorage.setItem(LAUNCHER_HIDDEN_KEY, hidden ? '1' : '0');
+        } catch { /* ignore */ }
+    }
+
+    function toggleLauncherHidden() {
+        setLauncherHidden(!isLauncherHidden());
+    }
+
     function injectLauncher() {
         if (document.getElementById(`${APP_ID}-launcher`)) return;
 
-        const launcher = el('button', {
+        const launcher = el('div', {
             id: `${APP_ID}-launcher`,
-            class: 'stgc-launcher menu_button',
-            title: '小游戏中心',
-            'aria-label': '打开小游戏中心',
+            class: 'stgc-launcher',
+            role: 'button',
+            tabindex: '0',
+            title: 'Silly Game',
+            'aria-label': '打开 Silly Game',
         });
-        launcher.innerHTML = '<i class="fa-solid fa-gamepad" aria-hidden="true"></i>';
-        launcher.addEventListener('click', openCenter);
-        document.body.append(launcher);
+        launcher.innerHTML = '<svg class="stgc-launcher-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 3.8 2.8l1.1 4a3 3 0 0 1-5.7 1.8L15 14H9l-1.2 2.6a3 3 0 0 1-5.7-1.8l1.1-4A4 4 0 0 1 7 8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5v4M6 12.5h4M16.5 11.5h.01M19 14h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+        let drag = null;
+        launcher.addEventListener('pointerdown', event => {
+            if (event.button !== undefined && event.button !== 0) return;
+            const rect = launcher.getBoundingClientRect();
+            drag = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                originX: rect.left,
+                originY: rect.top,
+                moved: false,
+            };
+            launcher.setPointerCapture?.(event.pointerId);
+        });
+
+        launcher.addEventListener('pointermove', event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+            drag.moved = true;
+            setLauncherPosition(drag.originX + dx, drag.originY + dy, false);
+            event.preventDefault();
+        });
+
+        const endDrag = event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const wasMoved = drag.moved;
+            drag = null;
+            if (wasMoved) {
+                const rect = launcher.getBoundingClientRect();
+                setLauncherPosition(rect.left, rect.top, true);
+                event.preventDefault();
+                return;
+            }
+            openCenter();
+        };
+
+        launcher.addEventListener('pointerup', endDrag);
+        launcher.addEventListener('pointercancel', event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            drag = null;
+        });
+        launcher.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openCenter();
+            }
+        });
+
+        const restore = el('div', {
+            id: `${APP_ID}-restore`,
+            class: 'stgc-restore-handle',
+            role: 'button',
+            tabindex: '0',
+            title: '显示 Silly Game 悬浮按钮',
+            'aria-label': '显示 Silly Game 悬浮按钮',
+            text: 'S',
+        });
+        restore.addEventListener('click', () => setLauncherHidden(false));
+        restore.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setLauncherHidden(false);
+            }
+        });
+        document.body.append(launcher, restore);
+
+        const stored = getStoredLauncherPosition();
+        if (stored) setLauncherPosition(stored.x, stored.y, false);
+        else {
+            // Wait one frame so the launcher has a measurable size.
+            requestAnimationFrame(resetLauncherPosition);
+        }
+        setLauncherHidden(isLauncherHidden());
     }
 
     function ensureRoot() {
@@ -64,6 +230,7 @@
     function openCenter() {
         cleanupGame();
         const root = ensureRoot();
+        document.getElementById(`${APP_ID}-launcher`)?.classList.add('in-use');
         root.classList.add('show');
         root.setAttribute('aria-hidden', 'false');
         renderHome();
@@ -74,31 +241,44 @@
         const root = document.getElementById(APP_ID);
         if (!root) return;
         root.classList.remove('show');
+        document.getElementById(`${APP_ID}-launcher`)?.classList.remove('in-use');
         root.setAttribute('aria-hidden', 'true');
         state.currentGame = null;
     }
 
-    function buildHeader({ back = false, title = '小游戏中心' } = {}) {
+    function buildHeader({ back = false, title = 'Silly Game', settings = false } = {}) {
         const header = el('header', { class: 'stgc-header' });
 
         if (back) {
             const backBtn = el('button', {
                 class: 'stgc-btn stgc-btn-quiet',
                 type: 'button',
-                title: '返回小游戏中心',
+                title: '返回 Silly Game',
             });
-            backBtn.innerHTML = '<i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>游戏中心</span>';
+            backBtn.innerHTML = '<i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>Silly Game</span>';
             backBtn.addEventListener('click', () => openCenter());
             header.append(backBtn);
         } else {
             header.append(el('div', { class: 'stgc-title', text: title }));
         }
 
+        if (settings) {
+            const settingsBtn = el('button', {
+                class: 'stgc-btn stgc-btn-icon stgc-header-settings',
+                type: 'button',
+                title: '悬浮按钮设置',
+                'aria-label': '悬浮按钮设置',
+            });
+            settingsBtn.innerHTML = '<i class="fa-solid fa-gear" aria-hidden="true"></i>';
+            settingsBtn.addEventListener('click', showLauncherSettings);
+            header.append(settingsBtn);
+        }
+
         const closeBtn = el('button', {
             class: 'stgc-btn stgc-btn-icon',
             type: 'button',
             title: '关闭',
-            'aria-label': '关闭小游戏中心',
+            'aria-label': '关闭 Silly Game',
         });
         closeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
         closeBtn.addEventListener('click', closeCenter);
@@ -107,16 +287,66 @@
         return header;
     }
 
+    function showLauncherSettings() {
+        const root = ensureRoot();
+        const existing = root.querySelector('.stgc-settings-dialog');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const dialog = el('div', { class: 'stgc-settings-dialog', role: 'dialog', 'aria-label': 'Silly Game 悬浮按钮设置' });
+        const box = el('div', { class: 'stgc-settings-box' });
+        const header = el('div', { class: 'stgc-settings-header' });
+        header.append(
+            el('div', { class: 'stgc-title', text: '悬浮按钮' }),
+            el('button', { class: 'stgc-btn stgc-btn-icon', type: 'button', text: '×', title: '关闭设置' }),
+        );
+        header.lastChild.addEventListener('click', () => dialog.remove());
+
+        const currentHidden = isLauncherHidden();
+        const row = el('div', { class: 'stgc-setting-row' });
+        const copy = el('div', { class: 'stgc-setting-copy' });
+        copy.append(
+            el('div', { class: 'stgc-setting-name', text: '隐藏悬浮按钮' }),
+            el('div', { class: 'stgc-setting-desc', text: '隐藏后会收成屏幕边缘的小把手；电脑也可用 Alt + G 恢复。' }),
+        );
+        const toggle = el('button', {
+            class: `stgc-btn stgc-toggle ${currentHidden ? 'active' : ''}`,
+            type: 'button',
+            text: currentHidden ? '已隐藏' : '显示中',
+        });
+        toggle.addEventListener('click', () => {
+            const hidden = !isLauncherHidden();
+            setLauncherHidden(hidden);
+            toggle.classList.toggle('active', hidden);
+            toggle.textContent = hidden ? '已隐藏' : '显示中';
+        });
+        row.append(copy, toggle);
+
+        const reset = el('button', { class: 'stgc-btn', type: 'button' });
+        reset.innerHTML = '<i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i><span>恢复悬浮按钮默认位置</span>';
+        reset.addEventListener('click', resetLauncherPosition);
+
+        const shortcut = el('div', { class: 'stgc-setting-note', text: '提示：悬浮按钮可以直接拖到任意位置，手机和电脑都支持；位置会自动记住。' });
+        box.append(header, row, reset, shortcut);
+        dialog.append(box);
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog) dialog.remove();
+        });
+        root.append(dialog);
+    }
+
     function renderHome() {
         cleanupGame();
         const root = ensureRoot();
         root.innerHTML = '';
 
         const panel = el('section', { class: 'stgc-panel stgc-home-panel' });
-        const header = buildHeader();
+        const header = buildHeader({ title: 'Silly Game', settings: true });
         const intro = el('div', { class: 'stgc-intro' });
         intro.append(
-            el('div', { class: 'stgc-title stgc-home-title', text: '小游戏中心' }),
+            el('div', { class: 'stgc-title stgc-home-title', text: 'Silly Game' }),
             el('div', {
                 class: 'stgc-subtitle',
                 text: '随手玩一局，不打扰聊天。界面跟随 SillyTavern 当前主题。',
@@ -520,7 +750,7 @@
                 won: !!saved.won,
             };
         } catch (error) {
-            console.warn('[小游戏中心] 读取 2048 存档失败', error);
+            console.warn('[Silly Game] 读取 2048 存档失败', error);
             return null;
         }
     }
@@ -530,7 +760,7 @@
         try {
             localStorage.setItem(GAME2048_STORAGE_KEY, JSON.stringify(state.game2048));
         } catch (error) {
-            console.warn('[小游戏中心] 保存 2048 存档失败', error);
+            console.warn('[Silly Game] 保存 2048 存档失败', error);
         }
     }
 
@@ -538,7 +768,7 @@
         try {
             localStorage.removeItem(GAME2048_STORAGE_KEY);
         } catch (error) {
-            console.warn('[小游戏中心] 清除 2048 存档失败', error);
+            console.warn('[Silly Game] 清除 2048 存档失败', error);
         }
     }
 
@@ -1410,7 +1640,22 @@
 
     function init() {
         injectLauncher();
-        console.log('[小游戏中心] loaded');
+        document.addEventListener('keydown', event => {
+            if (event.altKey && event.key.toLowerCase() === 'g') {
+                event.preventDefault();
+                event.stopPropagation();
+                const launcher = document.getElementById(`${APP_ID}-launcher`);
+                if (launcher?.classList.contains('is-hidden')) setLauncherHidden(false);
+                else openCenter();
+            }
+        }, true);
+        window.addEventListener('resize', () => {
+            const launcher = document.getElementById(`${APP_ID}-launcher`);
+            if (!launcher || launcher.classList.contains('is-hidden')) return;
+            const rect = launcher.getBoundingClientRect();
+            setLauncherPosition(rect.left, rect.top, true);
+        });
+        console.log('[Silly Game] loaded');
     }
 
     if (document.readyState === 'loading') {
