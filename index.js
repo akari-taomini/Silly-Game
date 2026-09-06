@@ -694,6 +694,7 @@
             fixed,
             selected: -1,
             mistakes: 0,
+            errors: Array(81).fill(false),
             complete: false,
             level,
             startedAt: Date.now(),
@@ -704,14 +705,17 @@
     function sudokuHasConflict(game, index, value) {
         const row = Math.floor(index / 9);
         const col = index % 9;
+
         for (let x = 0; x < 9; x++) {
             const i = row * 9 + x;
             if (i !== index && game.puzzle[i] === value) return true;
         }
+
         for (let y = 0; y < 9; y++) {
             const i = y * 9 + col;
             if (i !== index && game.puzzle[i] === value) return true;
         }
+
         const br = Math.floor(row / 3) * 3;
         const bc = Math.floor(col / 3) * 3;
         for (let y = br; y < br + 3; y++) {
@@ -720,20 +724,37 @@
                 if (i !== index && game.puzzle[i] === value) return true;
             }
         }
+
         return false;
     }
 
     function sudokuSet(index, value) {
         const game = state.sudoku;
-        if (!game || game.complete || game.fixed[index]) return;
+        if (!game || game.complete || game.fixed[index]) return false;
 
-        if (value !== 0 && sudokuHasConflict(game, index, value)) {
-            game.mistakes++;
-            return false;
+        game.errors[index] = false;
+
+        if (value === 0) {
+            game.puzzle[index] = 0;
+            return true;
         }
 
+        // 允许玩家填入数字，但真正的正确性必须以答案盘为准。
+        // 这样即使数字当前不与周围冲突，填错答案也会立刻显示错误。
+        const conflict = sudokuHasConflict(game, index, value);
+        const correct = value === game.solution[index];
+
         game.puzzle[index] = value;
+
+        if (!correct || conflict) {
+            game.errors[index] = true;
+            game.mistakes++;
+        }
+
         game.complete = game.puzzle.every((v, i) => v === game.solution[i]);
+        if (game.complete) {
+            game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+        }
         return true;
     }
 
@@ -757,6 +778,7 @@
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
         reset.addEventListener('click', () => {
+            // 原地重置：只换游戏数据，不重建 UI。
             state.sudoku = generateSudoku(difficulty.value);
             draw();
         });
@@ -764,11 +786,15 @@
         info.append(status);
         toolbar.append(info, difficulty, reset);
 
-        const board = el('div', { class: 'sudoku-board', role: 'grid', 'aria-label': '数独棋盘' });
+        const board = el('div', {
+            class: 'sudoku-board',
+            role: 'grid',
+            'aria-label': '数独棋盘',
+        });
         const keypad = el('div', { class: 'sudoku-keypad', 'aria-label': '数独数字键盘' });
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '点击格子后输入数字 · 电脑可直接按 1–9 / Delete · 手机使用数字键盘',
+            text: '点击格子后输入数字 · 红色表示填错 · 电脑可按 1–9 / Delete · 手机使用数字键盘',
         });
 
         for (let n = 1; n <= 9; n++) {
@@ -781,6 +807,7 @@
             });
             keypad.append(btn);
         }
+
         const erase = el('button', { class: 'stgc-btn sudoku-key sudoku-erase', type: 'button' });
         erase.innerHTML = '<i class="fa-solid fa-eraser" aria-hidden="true"></i><span>擦除</span>';
         erase.addEventListener('click', () => {
@@ -802,6 +829,8 @@
 
         const onKey = event => {
             if (state.currentGame !== 'sudoku') return;
+            if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+
             const key = event.key;
             if (/^[1-9]$/.test(key)) {
                 event.preventDefault();
@@ -849,15 +878,18 @@
                 const value = game.puzzle[index];
                 const row = Math.floor(index / 9);
                 const col = index % 9;
-                const cell = el('button', {
+                const cell = el('div', {
                     class: 'sudoku-cell',
-                    type: 'button',
                     role: 'gridcell',
+                    tabindex: '-1',
                     'aria-label': `第 ${row + 1} 行，第 ${col + 1} 列${value ? `，数字 ${value}` : '，空格'}`,
                 });
 
+                // 使用普通 div 而不是 button，彻底避开 SillyTavern/主题对 button 的全局伪元素和背景样式覆盖。
                 if (game.fixed[index]) cell.classList.add('fixed');
                 if (game.selected === index) cell.classList.add('selected');
+                if (game.errors[index]) cell.classList.add('error');
+
                 if (game.selected >= 0) {
                     const selectedRow = Math.floor(game.selected / 9);
                     const selectedCol = game.selected % 9;
@@ -865,7 +897,8 @@
                     if (Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(col / 3) === Math.floor(selectedCol / 3)) {
                         cell.classList.add('related');
                     }
-                    if (value && value === game.puzzle[game.selected]) cell.classList.add('same-number');
+                    const selectedValue = game.puzzle[game.selected];
+                    if (value && selectedValue && value === selectedValue) cell.classList.add('same-number');
                 }
 
                 if (col === 2 || col === 5) cell.classList.add('box-right');

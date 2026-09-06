@@ -434,7 +434,7 @@
     width: min(500px, 100%);
     margin: 2px auto 12px;
     display: grid;
-    grid-template-columns: repeat(9, 1fr);
+    grid-template-columns: repeat(9, minmax(0, 1fr));
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
     background: var(--SmartThemeBorderColor, rgba(127,127,127,.45));
     border-radius: var(--SmartThemeBorderRadius, 6px);
@@ -443,21 +443,36 @@
     user-select: none;
 }
 
+/* 数独格子不用 button，避免酒馆主题对按钮的全局样式污染。 */
 #st-mini-game-center .sudoku-cell {
-    aspect-ratio: 1;
+    position: relative;
     min-width: 0;
-    padding: 0;
+    aspect-ratio: 1;
     display: grid;
     place-items: center;
-    color: var(--SmartThemeBodyColor, inherit);
+    margin: 0;
+    padding: 0;
+    color: var(--SmartThemeBodyColor, #222) !important;
     background: var(--SmartThemeBodyBgColor, transparent);
     border: 0;
-    border-right: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.30));
-    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.30));
-    font-size: clamp(16px, 4.7vw, 28px);
+    border-right: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.28));
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.28));
+    font-family: inherit !important;
+    font-size: clamp(16px, 4.7vw, 28px) !important;
     font-weight: 500;
+    line-height: 1 !important;
+    text-align: center;
+    text-shadow: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
     cursor: pointer;
-    transition: background-color .08s ease;
+    transition: background-color .08s ease, color .08s ease;
+}
+
+#st-mini-game-center .sudoku-cell::before,
+#st-mini-game-center .sudoku-cell::after {
+    content: none !important;
+    display: none !important;
 }
 
 #st-mini-game-center .sudoku-cell.fixed {
@@ -465,16 +480,23 @@
 }
 
 #st-mini-game-center .sudoku-cell.related {
-    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.10));
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
 }
 
 #st-mini-game-center .sudoku-cell.selected {
-    background: var(--SmartThemeQuoteColor, rgba(127,127,127,.18));
+    background: var(--SmartThemeQuoteColor, rgba(127,127,127,.17));
     box-shadow: inset 0 0 0 2px var(--customThemeColor, var(--SmartThemeBodyColor, currentColor));
+    z-index: 2;
 }
 
 #st-mini-game-center .sudoku-cell.same-number {
     background: var(--SmartThemeQuoteColor, rgba(127,127,127,.14));
+}
+
+#st-mini-game-center .sudoku-cell.error {
+    color: var(--SmartThemeQuoteColor, #c62828) !important;
+    background: rgba(198, 40, 40, .10);
+    font-weight: 800;
 }
 
 #st-mini-game-center .sudoku-cell.box-right {
