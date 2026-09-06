@@ -30,7 +30,7 @@
         const launcher = el('button', {
             id: `${APP_ID}-launcher`,
             class: 'stgc-launcher',
-            title: '小游戏中心',
+            title: 'Silly Game',
             text: '🎮'
         });
         launcher.addEventListener('click', openCenter);
@@ -74,7 +74,7 @@
 
         const games = [
             { id: 'mines', icon: '💣', name: '扫雷', desc: '经典扫雷，支持触屏标记' },
-            { id: '2048', icon: '🔢', name: '2048', desc: '滑动合并数字，冲击高分' },
+            { id: '2048', icon: '🔢', name: '2048', desc: '滑动合并数字' },
             { id: 'sokoban', icon: '📦', name: '推箱子', desc: '把箱子推到目标点' },
         ];
 
@@ -154,7 +154,54 @@
 
         return { size, mineCount, cells, gameOver: false, won: false, flags: 0, mode: 'open' };
     }
+function minesChord(index) {
+    const s = state.mines;
+    if (s.gameOver || s.won) return;
 
+    const cell = s.cells[index];
+
+    // 必须是已经翻开的数字格
+    if (!cell.open || cell.count === 0) return;
+
+    const x = index % s.size;
+    const y = Math.floor(index / s.size);
+
+    const neighbors = [];
+
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+
+            const nx = x + dx;
+            const ny = y + dy;
+
+            if (
+                nx >= 0 &&
+                nx < s.size &&
+                ny >= 0 &&
+                ny < s.size
+            ) {
+                neighbors.push(ny * s.size + nx);
+            }
+        }
+    }
+
+    // 统计周围旗子数量
+    const flagCount = neighbors.filter(
+        i => s.cells[i].flag
+    ).length;
+
+    // 只有旗子数量等于数字时，才自动展开
+    if (flagCount !== cell.count) return;
+
+    for (const i of neighbors) {
+        const target = s.cells[i];
+
+        if (!target.open && !target.flag) {
+            minesReveal(i);
+        }
+    }
+}
     function minesReveal(index) {
         const s = state.mines;
         if (s.gameOver || s.won) return;
