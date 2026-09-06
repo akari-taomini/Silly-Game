@@ -295,11 +295,22 @@ function minesChord(index) {
                     draw();
                 });
 
-                btn.addEventListener('click', () => {
-                    if (state.mines.mode === 'flag') minesFlag(index);
-                    else minesReveal(index);
-                    draw();
-                });
+btn.addEventListener('click', () => {
+    if (state.mines.mode === 'flag') {
+        minesFlag(index);
+    } else {
+        const cell = state.mines.cells[index];
+
+        // 已经翻开的数字格：执行自动展开
+        if (cell.open && cell.count > 0) {
+            minesChord(index);
+        } else {
+            minesReveal(index);
+        }
+    }
+
+    draw();
+});
 
                 board.append(btn);
             });
