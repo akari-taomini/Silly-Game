@@ -99,15 +99,27 @@
 }
 
 #st-mini-game-center {
-    position: fixed;
-    inset: 0;
-    z-index: 999996;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 999996 !important;
     display: none;
     align-items: center;
     justify-content: center;
     padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
     background: var(--black50a, rgba(0,0,0,.5));
     box-sizing: border-box;
+    overflow: auto;
+    overscroll-behavior: contain;
 }
 
 #st-mini-game-center.show {
@@ -570,6 +582,12 @@
 
 
 @media (max-width: 640px) {
+    #st-mini-game-center {
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100svh;
+    }
+
     #st-mini-game-center .stgc-difficulty-bar {
         gap: 3px;
     }
@@ -583,13 +601,17 @@
         width: min(500px, 100%);
     }
     #st-mini-game-center {
-        padding: 8px;
-        align-items: flex-end;
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100dvh !important;
+        min-height: 100svh;
     }
 
     #st-mini-game-center .stgc-panel {
+        width: min(680px, calc(100vw - 16px));
         max-height: calc(100dvh - 16px);
-        margin-bottom: env(safe-area-inset-bottom);
+        margin: auto !important;
     }
 
     #st-mini-game-center .stgc-menu-grid {
