@@ -12,6 +12,7 @@
         game2048: null,
         sokoban: null,
         sudoku: null,
+        spider: null,
     };
 
     function el(tag, attrs = {}, children = []) {
@@ -359,6 +360,7 @@
             { id: '2048', icon: 'fa-hashtag', name: '2048', desc: '方向键 / 滑动 · 自动保存' },
             { id: 'sokoban', icon: 'fa-box', name: '推箱子', desc: '11 个关卡 · 方向键 / WASD' },
             { id: 'sudoku', icon: 'fa-table-cells', name: '数独', desc: '9×9 数字逻辑 · 多种难度' },
+            { id: 'spider', icon: 'fa-spider', name: '蜘蛛纸牌', desc: '1 / 2 / 4 花色 · 撤销与提示' },
         ];
 
         for (const game of games) {
@@ -394,6 +396,7 @@
             '2048': '2048',
             sokoban: '推箱子',
             sudoku: '数独',
+            spider: '蜘蛛纸牌',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -405,6 +408,7 @@
         else if (game === '2048') render2048(body);
         else if (game === 'sokoban') renderSokoban(body);
         else if (game === 'sudoku') renderSudoku(body);
+        else if (game === 'spider') renderSpider(body);
     }
 
     /* ==================== Minesweeper ==================== */
@@ -574,6 +578,24 @@
     function renderMinesweeper(body) {
         state.mines = createMinesweeper('normal');
 
+        // 扫雷视野：棋盘本体可以放大，外层视口只显示局部；
+        // 上下左右按钮每次移动一格，方便手机微调视野。
+        let mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
+        let mineCellSize = 32;
+
+        function getMineCellSize(size) {
+            if (size >= 24) return 24;
+            if (size >= 20) return 26;
+            if (size >= 16) return 28;
+            return 32;
+        }
+
+        function getMineMaxZoom(size) {
+            if (size >= 24) return 2.25;
+            if (size >= 20) return 2.5;
+            return 3;
+        }
+
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar' });
         const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '难度' });
         difficultyBar.append(difficultyLabel);
@@ -587,8 +609,10 @@
             btn.dataset.difficulty = id;
             btn.addEventListener('click', () => {
                 state.mines = createMinesweeper(id);
+                mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
                 updateDifficultyButtons();
                 draw();
+                centerMineView();
             });
             difficultyBar.append(btn);
         }
@@ -606,7 +630,9 @@
         // 原地重置：只换状态，不重新建立 UI。
         resetBtn.addEventListener('click', () => {
             state.mines = createMinesweeper(state.mines.difficulty);
+            mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
             draw();
+            centerMineView();
         });
 
         modeBtn.addEventListener('click', () => {
@@ -614,15 +640,84 @@
             updateToolbar();
         });
 
+        const mineViewport = el('div', { class: 'mine-viewport', role: 'region', 'aria-label': '扫雷可视区域' });
         const board = el('div', { class: 'mine-board', role: 'grid', 'aria-label': '扫雷棋盘' });
+        mineViewport.append(board);
+
+        const mineViewTools = el('div', { class: 'mine-view-tools' });
+        const zoomMinus = el('button', { class: 'stgc-btn stgc-btn-icon', type: 'button', text: '−', title: '缩小视野' });
+        const zoomText = el('span', { class: 'stgc-pill mine-zoom-text' });
+        const zoomPlus = el('button', { class: 'stgc-btn stgc-btn-icon', type: 'button', text: '+', title: '放大视野' });
+        const zoomReset = el('button', { class: 'stgc-btn stgc-btn-quiet', type: 'button', text: '回到中心', title: '回到棋盘中心' });
+        mineViewTools.append(zoomMinus, zoomText, zoomPlus, zoomReset);
+
+        const minePan = el('div', { class: 'mine-pan-controls', 'aria-label': '微调扫雷视野' });
+        const panUp = el('button', { class: 'stgc-btn game-direction-btn', type: 'button', text: '↑', title: '视野向上' });
+        const panLeft = el('button', { class: 'stgc-btn game-direction-btn', type: 'button', text: '←', title: '视野向左' });
+        const panDown = el('button', { class: 'stgc-btn game-direction-btn', type: 'button', text: '↓', title: '视野向下' });
+        const panRight = el('button', { class: 'stgc-btn game-direction-btn', type: 'button', text: '→', title: '视野向右' });
+        minePan.append(panUp, panLeft, panDown, panRight);
+
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '左键翻开 · 右键标记 · 已翻开的数字在旗子数正确时可再次点击展开 · 第一手不会踩雷',
+            text: '棋盘可放大查看局部 · 上下左右按钮每次微调一格 · 左键翻开 · 右键标记 · 数字可再次点击展开',
         });
 
         info.append(timer, mineCounter);
         head.append(info, modeBtn, resetBtn);
-        body.append(difficultyBar, head, board, hint);
+        body.append(difficultyBar, head, mineViewTools, mineViewport, minePan, hint);
+
+        function mineStep() {
+            return Math.max(12, Math.round(mineCellSize * 0.95));
+        }
+
+        function scrollMineView(dx, dy) {
+            mineViewport.scrollBy({ left: dx * mineStep(), top: dy * mineStep(), behavior: 'smooth' });
+        }
+
+        function centerMineView() {
+            const maxLeft = Math.max(0, mineViewport.scrollWidth - mineViewport.clientWidth);
+            const maxTop = Math.max(0, mineViewport.scrollHeight - mineViewport.clientHeight);
+            mineViewport.scrollTo({ left: maxLeft / 2, top: maxTop / 2, behavior: 'smooth' });
+        }
+
+        function setMineZoom(nextZoom, keepCenter = true) {
+            const s = state.mines;
+            const oldZoom = mineZoom;
+            const maxZoom = getMineMaxZoom(s.size);
+            mineZoom = Math.max(0.9, Math.min(maxZoom, Math.round(nextZoom * 20) / 20));
+
+            if (mineZoom === oldZoom) return;
+
+            const centerX = mineViewport.scrollLeft + mineViewport.clientWidth / 2;
+            const centerY = mineViewport.scrollTop + mineViewport.clientHeight / 2;
+            const ratio = mineZoom / oldZoom;
+            draw();
+
+            if (keepCenter) {
+                mineViewport.scrollLeft = Math.max(0, centerX * ratio - mineViewport.clientWidth / 2);
+                mineViewport.scrollTop = Math.max(0, centerY * ratio - mineViewport.clientHeight / 2);
+            }
+        }
+
+        zoomMinus.addEventListener('click', () => setMineZoom(mineZoom - 0.25));
+        zoomPlus.addEventListener('click', () => setMineZoom(mineZoom + 0.25));
+        zoomReset.addEventListener('click', centerMineView);
+        panUp.addEventListener('click', () => scrollMineView(0, -1));
+        panLeft.addEventListener('click', () => scrollMineView(-1, 0));
+        panDown.addEventListener('click', () => scrollMineView(0, 1));
+        panRight.addEventListener('click', () => scrollMineView(1, 0));
+
+        const onMineViewKey = event => {
+            if (state.currentGame !== 'mines' || !state.mines) return;
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+            const keyMoves = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+            const move = keyMoves[event.key];
+            if (!move) return;
+            event.preventDefault();
+            scrollMineView(...move);
+        };
+        document.addEventListener('keydown', onMineViewKey, true);
 
         const tick = window.setInterval(() => {
             if (!state.mines || state.mines.gameOver || state.mines.won || !state.mines.startedAt) return;
@@ -630,10 +725,21 @@
             updateToolbar();
         }, 1000);
 
-        const onContext = event => {
-            if (!board.contains(event.target)) return;
-            event.preventDefault();
+        // 手机上的长按可能同时触发 contextmenu + click，导致标记一次又被取消。
+        // 只让桌面右键承担“快速标记”，触屏一律交给“标记模式”处理。
+        let lastTouchAt = 0;
+        const onPointerDown = event => {
+            if (event.pointerType === 'touch') lastTouchAt = Date.now();
         };
+        const onContext = event => {
+            const cellElement = event.target.closest?.('.mine-cell');
+            if (!cellElement || !board.contains(cellElement)) return;
+            event.preventDefault();
+            if (Date.now() - lastTouchAt < 800) return;
+            minesToggleFlag(Number(cellElement.dataset.index));
+            draw();
+        };
+        board.addEventListener('pointerdown', onPointerDown);
         board.addEventListener('contextmenu', onContext);
 
         const onKey = event => {
@@ -648,8 +754,10 @@
 
         state.cleanup = () => {
             window.clearInterval(tick);
+            board.removeEventListener('pointerdown', onPointerDown);
             board.removeEventListener('contextmenu', onContext);
             document.removeEventListener('keydown', onKey);
+            document.removeEventListener('keydown', onMineViewKey, true);
         };
 
         function updateDifficultyButtons() {
@@ -664,13 +772,23 @@
             timer.textContent = status ? `${status} · ${formatTime(s.time)}` : formatTime(s.time);
             mineCounter.textContent = `地雷 ${s.mineCount - s.flags}`;
             modeBtn.classList.toggle('active', s.mode === 'flag');
+            board.classList.toggle('flag-mode', s.mode === 'flag');
+            modeBtn.innerHTML = s.mode === 'flag'
+                ? '<i class="fa-solid fa-flag" aria-hidden="true"></i><span>标记模式：开</span>'
+                : '<i class="fa-solid fa-flag" aria-hidden="true"></i><span>标记模式：关</span>';
         }
 
         function draw() {
             const s = state.mines;
             board.innerHTML = '';
-            board.style.gridTemplateColumns = `repeat(${s.size}, minmax(0, 1fr))`;
+            mineCellSize = Math.max(20, Math.round(getMineCellSize(s.size) * mineZoom));
+            board.style.gridTemplateColumns = `repeat(${s.size}, ${mineCellSize}px)`;
+            board.style.gridTemplateRows = `repeat(${s.size}, ${mineCellSize}px)`;
+            board.style.width = `${s.size * mineCellSize}px`;
+            board.style.height = `${s.size * mineCellSize}px`;
             board.dataset.size = String(s.size);
+            mineViewport.dataset.size = String(s.size);
+            zoomText.textContent = `${Math.round(mineZoom * 100)}%`;
 
             s.cells.forEach((cell, index) => {
                 const btn = el('button', {
@@ -678,6 +796,7 @@
                     type: 'button',
                     role: 'gridcell',
                 });
+                btn.dataset.index = String(index);
 
                 if (cell.flag && !cell.open) {
                     btn.innerHTML = '<i class="fa-solid fa-flag" aria-hidden="true"></i>';
@@ -689,12 +808,6 @@
                     btn.textContent = String(cell.count);
                     btn.dataset.n = String(cell.count);
                 }
-
-                btn.addEventListener('contextmenu', event => {
-                    event.preventDefault();
-                    minesToggleFlag(index);
-                    draw();
-                });
 
                 btn.addEventListener('click', () => {
                     const current = state.mines.cells[index];
@@ -717,6 +830,8 @@
 
         updateDifficultyButtons();
         draw();
+        // 初次打开也从棋盘中心开始，尤其适合大师/地狱难度。
+        requestAnimationFrame(centerMineView);
     }
 
     /* ==================== 2048 ==================== */
@@ -1626,6 +1741,397 @@
                     }
                     board.append(tile);
                 }
+            }
+        }
+
+        draw();
+    }
+
+
+    /* ==================== Spider Solitaire ==================== */
+
+    const SPIDER_LEVELS = {
+        one: { label: '1 花色', suits: ['♠'], suitCount: 1 },
+        two: { label: '2 花色', suits: ['♠', '♥'], suitCount: 2 },
+        four: { label: '4 花色', suits: ['♠', '♥', '♣', '♦'], suitCount: 4 },
+    };
+
+    function spiderShuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function spiderBuildDeck(levelKey = 'one') {
+        const level = SPIDER_LEVELS[levelKey] || SPIDER_LEVELS.one;
+        const copies = 8 / level.suitCount;
+        const deck = [];
+        let id = 0;
+        for (const suit of level.suits) {
+            for (let copy = 0; copy < copies; copy++) {
+                for (let rank = 1; rank <= 13; rank++) {
+                    deck.push({ id: id++, suit, rank, faceUp: false });
+                }
+            }
+        }
+        return spiderShuffle(deck);
+    }
+
+    function newSpiderGame(levelKey = 'one') {
+        const level = SPIDER_LEVELS[levelKey] || SPIDER_LEVELS.one;
+        const deck = spiderBuildDeck(levelKey);
+        const tableau = Array.from({ length: 10 }, () => []);
+
+        // 104 张牌：前 4 列各 6 张，其余 6 列各 5 张，共 54 张入台面；剩余 50 张入发牌堆。
+        for (let col = 0; col < 10; col++) {
+            const count = col < 4 ? 6 : 5;
+            for (let i = 0; i < count; i++) {
+                const card = deck.pop();
+                card.faceUp = i === count - 1;
+                tableau[col].push(card);
+            }
+        }
+
+        return {
+            level: levelKey,
+            tableau,
+            stock: deck,
+            completed: 0,
+            moves: 0,
+            score: 500,
+            mistakes: 0,
+            selected: null,
+            hint: null,
+            startedAt: Date.now(),
+            time: 0,
+            won: false,
+            history: [],
+            message: '',
+        };
+    }
+
+    function spiderSnapshot(game) {
+        return JSON.stringify({
+            tableau: game.tableau,
+            stock: game.stock,
+            completed: game.completed,
+            moves: game.moves,
+            score: game.score,
+            mistakes: game.mistakes,
+            time: game.time,
+            won: game.won,
+        });
+    }
+
+    function spiderSaveHistory(game) {
+        game.history.push(spiderSnapshot(game));
+        if (game.history.length > 60) game.history.shift();
+        game.selected = null;
+        game.hint = null;
+    }
+
+    function spiderUndo() {
+        const game = state.spider;
+        if (!game || !game.history.length) return false;
+        const raw = game.history.pop();
+        const restored = JSON.parse(raw);
+        Object.assign(game, restored, { selected: null, hint: null });
+        return true;
+    }
+
+    function spiderFindCard(game, column, index) {
+        return game.tableau[column]?.[index] || null;
+    }
+
+    function spiderCanMoveSequence(game, column, index) {
+        const pile = game.tableau[column];
+        if (!pile || index < 0 || index >= pile.length) return false;
+        const first = pile[index];
+        if (!first.faceUp) return false;
+        for (let i = index; i < pile.length - 1; i++) {
+            const a = pile[i];
+            const b = pile[i + 1];
+            if (!b.faceUp || b.suit !== a.suit || b.rank !== a.rank - 1) return false;
+        }
+        return true;
+    }
+
+    function spiderGetMoveLength(game, column, index) {
+        if (!spiderCanMoveSequence(game, column, index)) return 0;
+        return game.tableau[column].length - index;
+    }
+
+    function spiderCanPlace(game, fromColumn, index, toColumn) {
+        if (fromColumn === toColumn) return false;
+        const source = game.tableau[fromColumn];
+        const target = game.tableau[toColumn];
+        if (!source || !target || index < 0 || index >= source.length) return false;
+        if (!spiderCanMoveSequence(game, fromColumn, index)) return false;
+        if (target.length === 0) return true;
+        const moving = source[index];
+        const top = target[target.length - 1];
+        return top.faceUp && top.rank === moving.rank + 1;
+    }
+
+    function spiderRevealTop(game, column) {
+        const pile = game.tableau[column];
+        const top = pile[pile.length - 1];
+        if (top && !top.faceUp) top.faceUp = true;
+    }
+
+    function spiderCheckCompleted(game, column) {
+        const pile = game.tableau[column];
+        if (pile.length < 13) return false;
+        const start = pile.length - 13;
+        const sequence = pile.slice(start);
+        if (!sequence.every(card => card.faceUp)) return false;
+        const suit = sequence[0].suit;
+        for (let i = 0; i < 13; i++) {
+            if (sequence[i].suit !== suit || sequence[i].rank !== 13 - i) return false;
+        }
+        pile.splice(start, 13);
+        game.completed++;
+        game.score += 100;
+        spiderRevealTop(game, column);
+        return true;
+    }
+
+    function spiderMove(fromColumn, index, toColumn) {
+        const game = state.spider;
+        if (!game || game.won) return false;
+        if (!spiderCanPlace(game, fromColumn, index, toColumn)) return false;
+
+        spiderSaveHistory(game);
+        const source = game.tableau[fromColumn];
+        const moved = source.splice(index);
+        game.tableau[toColumn].push(...moved);
+        spiderRevealTop(game, fromColumn);
+        game.moves++;
+        game.score = Math.max(0, game.score - 1);
+        spiderCheckCompleted(game, toColumn);
+        game.won = game.completed >= 8;
+        if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+        return true;
+    }
+
+    function spiderDealStock() {
+        const game = state.spider;
+        if (!game || game.won) return false;
+        if (!game.stock.length) {
+            game.message = '发牌堆已经没有牌了。';
+            return false;
+        }
+        if (game.tableau.some(pile => pile.length === 0)) {
+            game.message = '存在空列，必须先把空列填上才能发牌。';
+            return false;
+        }
+
+        spiderSaveHistory(game);
+        for (let col = 0; col < 10; col++) {
+            const card = game.stock.pop();
+            if (!card) break;
+            card.faceUp = true;
+            game.tableau[col].push(card);
+        }
+        game.moves++;
+        game.score = Math.max(0, game.score - 10);
+        game.message = '';
+        for (let col = 0; col < 10; col++) spiderCheckCompleted(game, col);
+        game.won = game.completed >= 8;
+        if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+        return true;
+    }
+
+    function spiderClickCard(column, index) {
+        const game = state.spider;
+        if (!game || game.won) return;
+        game.message = '';
+        const card = spiderFindCard(game, column, index);
+        if (!card?.faceUp) return;
+
+        if (!game.selected) {
+            if (!spiderCanMoveSequence(game, column, index)) {
+                game.message = '这组牌必须同花色连续排列，才能整组移动。';
+                return;
+            }
+            game.selected = { column, index };
+            return;
+        }
+
+        if (game.selected.column === column && game.selected.index === index) {
+            game.selected = null;
+            return;
+        }
+
+        const selected = game.selected;
+        if (spiderMove(selected.column, selected.index, column)) {
+            game.selected = null;
+        } else if (spiderCanMoveSequence(game, column, index)) {
+            game.selected = { column, index };
+        } else {
+            game.message = '这里放不了这组牌。';
+        }
+    }
+
+    function spiderFindHint(game) {
+        for (let from = 0; from < 10; from++) {
+            const pile = game.tableau[from];
+            for (let i = 0; i < pile.length; i++) {
+                if (!spiderCanMoveSequence(game, from, i)) continue;
+                for (let to = 0; to < 10; to++) {
+                    if (spiderCanPlace(game, from, i, to)) {
+                        return { from, index: i, to };
+                    }
+                }
+            }
+        }
+        if (game.stock.length) return { stock: true };
+        return null;
+    }
+
+    function renderSpider(body) {
+        state.spider = newSpiderGame('one');
+        const game = state.spider;
+
+        const difficultyBar = el('div', { class: 'stgc-difficulty-bar spider-level-bar' });
+        const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '模式' });
+        const levelSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '蜘蛛纸牌模式' });
+        Object.entries(SPIDER_LEVELS).forEach(([key, value]) => {
+            const option = el('option', { value: key, text: value.label });
+            levelSelect.append(option);
+        });
+        levelSelect.addEventListener('change', () => {
+            state.spider = newSpiderGame(levelSelect.value);
+            draw();
+        });
+        difficultyBar.append(difficultyLabel, levelSelect);
+
+        const toolbar = el('div', { class: 'stgc-game-toolbar spider-toolbar' });
+        const info = el('div', { class: 'stgc-game-info' });
+        const scorePill = el('span', { class: 'stgc-pill' });
+        const timePill = el('span', { class: 'stgc-pill' });
+        const completePill = el('span', { class: 'stgc-pill' });
+        info.append(scorePill, timePill, completePill);
+
+        const undo = el('button', { class: 'stgc-btn', type: 'button' });
+        undo.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>撤销</span>';
+        undo.addEventListener('click', () => { if (spiderUndo()) draw(); });
+
+        const hint = el('button', { class: 'stgc-btn', type: 'button' });
+        hint.innerHTML = '<i class="fa-solid fa-lightbulb" aria-hidden="true"></i><span>提示</span>';
+        hint.addEventListener('click', () => {
+            const suggestion = spiderFindHint(state.spider);
+            state.spider.hint = suggestion;
+            state.spider.message = suggestion
+                ? (suggestion.stock ? '提示：可以从发牌堆发一轮。' : '提示：看发光的牌堆和目标列。')
+                : '暂时没有可执行的移动。';
+            draw();
+        });
+
+        const restart = el('button', { class: 'stgc-btn', type: 'button' });
+        restart.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+        restart.addEventListener('click', () => {
+            state.spider = newSpiderGame(levelSelect.value);
+            draw();
+        });
+        toolbar.append(info, undo, hint, restart);
+
+        const area = el('div', { class: 'spider-area' });
+        const tableau = el('div', { class: 'spider-tableau', 'aria-label': '蜘蛛纸牌台面' });
+        const bottom = el('div', { class: 'spider-bottom' });
+        const stockButton = el('button', { class: 'stgc-btn spider-stock', type: 'button' });
+        stockButton.setAttribute('aria-label', '发牌');
+        const status = el('div', { class: 'spider-status' });
+        bottom.append(stockButton, status);
+        const help = el('div', {
+            class: 'stgc-game-hint spider-help',
+            text: '点击一张牌选中，再点击目标列移动；只有同花色连续的牌可以整组移动。电脑和手机都一样。',
+        });
+
+        area.append(tableau, bottom, help);
+        body.append(difficultyBar, toolbar, area);
+
+        stockButton.addEventListener('click', () => {
+            if (spiderDealStock()) draw();
+            else draw();
+        });
+
+        let timer = null;
+        timer = window.setInterval(() => {
+            if (state.currentGame !== 'spider' || state.spider !== game) return;
+            if (!state.spider.won) {
+                state.spider.time = Math.floor((Date.now() - state.spider.startedAt) / 1000);
+                drawInfo();
+            }
+        }, 1000);
+
+        state.cleanup = () => {
+            window.clearInterval(timer);
+        };
+
+        function drawInfo() {
+            const current = state.spider;
+            const time = formatTime(current.time);
+            scorePill.textContent = `分数 ${current.score}`;
+            timePill.textContent = `时间 ${time}`;
+            completePill.textContent = current.won ? `完成 8 / 8 · 通关` : `完成 ${current.completed} / 8`;
+            undo.disabled = current.history.length === 0;
+            stockButton.disabled = current.stock.length === 0 || current.won || current.tableau.some(pile => pile.length === 0);
+            stockButton.innerHTML = current.stock.length
+                ? `<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>发牌 ${Math.floor(current.stock.length / 10)} 轮</span>`
+                : '<i class="fa-solid fa-check" aria-hidden="true"></i><span>发牌堆空了</span>';
+
+            status.textContent = current.won
+                ? `🎉 通关！${formatTime(current.time)} · ${current.moves} 次操作`
+                : (current.message || `剩余发牌 ${Math.floor(current.stock.length / 10)} 轮`);
+        }
+
+        function draw() {
+            const current = state.spider;
+            tableau.innerHTML = '';
+            drawInfo();
+
+            for (let col = 0; col < 10; col++) {
+                const pileWrap = el('div', { class: 'spider-column' });
+                const pile = current.tableau[col];
+                if (!pile.length) {
+                    const empty = el('button', { class: 'spider-empty', type: 'button', text: '空' });
+                    empty.setAttribute('aria-label', `第 ${col + 1} 列为空`);
+                    empty.addEventListener('click', () => {
+                        if (current.selected && spiderMove(current.selected.column, current.selected.index, col)) {
+                            current.selected = null;
+                            draw();
+                        }
+                    });
+                    pileWrap.append(empty);
+                } else {
+                    pile.forEach((card, index) => {
+                        const isSelected = current.selected?.column === col && current.selected.index === index;
+                        const isHintFrom = current.hint && !current.hint.stock && current.hint.from === col && current.hint.index === index;
+                        const isHintTo = current.hint && !current.hint.stock && current.hint.to === col;
+                        const button = el('button', {
+                            class: `spider-card ${card.faceUp ? 'face-up' : 'face-down'}${isSelected ? ' selected' : ''}${isHintFrom ? ' hint-from' : ''}`,
+                            type: 'button',
+                            'aria-label': card.faceUp ? `${card.suit}${card.rank}` : '背面朝上',
+                        });
+                        button.style.setProperty('--card-offset', `${index * 27}px`);
+                        button.style.zIndex = String(index + 1);
+                        if (card.faceUp) {
+                            button.innerHTML = `<span class="spider-rank">${card.rank === 1 ? 'A' : card.rank === 11 ? 'J' : card.rank === 12 ? 'Q' : card.rank === 13 ? 'K' : card.rank}</span><span class="spider-suit">${card.suit}</span>`;
+                            button.dataset.suit = card.suit;
+                        }
+                        button.addEventListener('click', () => {
+                            current.hint = null;
+                            spiderClickCard(col, index);
+                            draw();
+                        });
+                        if (isHintTo && pile.length && index === pile.length - 1) button.classList.add('hint-to');
+                        pileWrap.append(button);
+                    });
+                }
+                tableau.append(pileWrap);
             }
         }
 

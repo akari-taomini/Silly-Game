@@ -398,18 +398,44 @@
 }
 
 /* ---------- 扫雷：棋盘保留清爽白色格子 ---------- */
+#st-mini-game-center .mine-viewport {
+    width: min(540px, 100%);
+    height: min(58dvh, 540px);
+    min-height: 260px;
+    margin: 0 auto 8px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.08)));
+    touch-action: pan-x pan-y;
+}
+
+#st-mini-game-center .mine-viewport::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
 #st-mini-game-center .mine-board {
-    width: min(500px, 100%);
-    margin: 0 auto;
+    width: max-content;
+    height: max-content;
+    margin: 0;
+    padding: 4px;
     display: grid;
     gap: 2px;
+    align-content: start;
+    justify-content: start;
     touch-action: manipulation;
     user-select: none;
 }
 
 #st-mini-game-center .mine-cell {
-    aspect-ratio: 1;
+    width: var(--mine-cell-size, 32px);
+    height: var(--mine-cell-size, 32px);
     min-width: 0;
+    min-height: 0;
     padding: 0;
     display: grid;
     place-items: center;
@@ -418,9 +444,44 @@
     border: 1px solid #d9d9d9;
     border-radius: 4px;
     box-shadow: 0 1px 2px rgba(0,0,0,.08);
-    font-size: clamp(9px, 2.6vw, 17px);
+    font-size: max(10px, calc(var(--mine-cell-size, 32px) * .48));
     font-weight: 800;
     line-height: 1;
+    flex: none;
+}
+
+#st-mini-game-center .mine-view-tools {
+    width: min(540px, 100%);
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+#st-mini-game-center .mine-zoom-text {
+    min-width: 58px;
+    justify-content: center;
+}
+
+#st-mini-game-center .mine-pan-controls {
+    width: max-content;
+    margin: 4px auto 8px;
+    display: grid;
+    grid-template-columns: repeat(3, 48px);
+    gap: 5px;
+}
+
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(1) { grid-column: 2; }
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(2) { grid-column: 1; }
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(3) { grid-column: 2; }
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(4) { grid-column: 3; }
+#st-mini-game-center .mine-pan-controls .game-direction-btn {
+    width: 48px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 20px;
+    touch-action: manipulation;
 }
 
 #st-mini-game-center .mine-board[data-size="16"] .mine-cell,
@@ -597,8 +658,14 @@
         min-width: 0;
     }
 
-    #st-mini-game-center .mine-board {
-        width: min(500px, 100%);
+    #st-mini-game-center .mine-viewport {
+        width: min(100%, calc(100vw - 24px));
+        height: min(55dvh, 460px);
+        min-height: 240px;
+    }
+
+    #st-mini-game-center .mine-view-tools {
+        width: 100%;
     }
     #st-mini-game-center {
         padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
@@ -781,5 +848,180 @@
 
     #st-mini-game-center .stgc-settings-dialog {
         padding: 10px;
+    }
+}
+
+
+/* ---------- 蜘蛛纸牌 ---------- */
+#st-mini-game-center .spider-area {
+    width: 100%;
+    overflow-x: auto;
+    padding: 2px 1px 4px;
+    -webkit-overflow-scrolling: touch;
+}
+
+#st-mini-game-center .spider-tableau {
+    min-width: 720px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(10, minmax(54px, 1fr));
+    gap: 6px;
+    align-items: start;
+}
+
+#st-mini-game-center .spider-column {
+    position: relative;
+    min-height: 176px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(127,127,127,.12)) 70%, transparent);
+    border: 1px dashed var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+}
+
+#st-mini-game-center .spider-empty {
+    width: 100%;
+    height: 78px;
+    margin-top: 1px;
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+    opacity: .45;
+    background: transparent;
+    border: 0;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+#st-mini-game-center .spider-card {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    top: var(--card-offset);
+    width: calc(100% - 4px);
+    height: 78px;
+    margin: 0;
+    padding: 7px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    color: #202020;
+    background: #ffffff;
+    border: 1px solid #cfcfcf;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+    text-align: left;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, outline-color .12s ease;
+}
+
+#st-mini-game-center .spider-card.face-down {
+    color: transparent;
+    background:
+        linear-gradient(135deg, rgba(127,127,127,.10) 25%, transparent 25%) 0 0 / 8px 8px,
+        linear-gradient(315deg, rgba(127,127,127,.10) 25%, transparent 25%) 0 0 / 8px 8px,
+        var(--SmartThemeBlurTintColor, #ededed);
+    border-color: var(--SmartThemeBorderColor, #bdbdbd);
+}
+
+#st-mini-game-center .spider-card.face-down::after {
+    content: '';
+    width: 18px;
+    height: 24px;
+    align-self: center;
+    margin: auto;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    opacity: .18;
+}
+
+#st-mini-game-center .spider-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 9px rgba(0,0,0,.15);
+}
+
+#st-mini-game-center .spider-card.selected {
+    outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, #8c7cff));
+    transform: translateY(-3px);
+}
+
+#st-mini-game-center .spider-card.hint-from {
+    outline: 2px solid rgba(255,190,70,.95);
+    animation: stgc-spider-pulse .9s ease-in-out infinite alternate;
+}
+
+#st-mini-game-center .spider-card.hint-to {
+    box-shadow: 0 0 0 2px rgba(100,190,120,.75);
+}
+
+#st-mini-game-center .spider-rank {
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 800;
+}
+
+#st-mini-game-center .spider-suit {
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+#st-mini-game-center .spider-card[data-suit="♥"],
+#st-mini-game-center .spider-card[data-suit="♦"] {
+    color: #c92a2a;
+}
+
+#st-mini-game-center .spider-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#st-mini-game-center .spider-stock {
+    min-width: 116px;
+}
+
+#st-mini-game-center .spider-status {
+    min-height: 34px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+    opacity: .75;
+    font-size: 11px;
+    text-align: right;
+}
+
+@keyframes stgc-spider-pulse {
+    from { box-shadow: 0 0 0 0 rgba(255,190,70,.20); }
+    to { box-shadow: 0 0 0 4px rgba(255,190,70,.28); }
+}
+
+@media (max-width: 640px) {
+    #st-mini-game-center .spider-tableau {
+        min-width: 650px;
+        grid-template-columns: repeat(10, 59px);
+        gap: 4px;
+    }
+
+    #st-mini-game-center .spider-column {
+        min-height: 166px;
+    }
+
+    #st-mini-game-center .spider-card {
+        height: 72px;
+        top: var(--card-offset);
+    }
+
+    #st-mini-game-center .spider-bottom {
+        flex-wrap: wrap;
+    }
+
+    #st-mini-game-center .spider-status {
+        width: 100%;
+        flex-basis: 100%;
+        justify-content: center;
+        text-align: center;
+        order: 3;
     }
 }
