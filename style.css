@@ -204,14 +204,14 @@
   background: rgba(255,80,80,.22);
 }
 
-.mine-cell[data-n="1"] { color: #75aaff; }
-.mine-cell[data-n="2"] { color: #72dc9a; }
-.mine-cell[data-n="3"] { color: #ff9a9a; }
-.mine-cell[data-n="4"] { color: #c2a4ff; }
-.mine-cell[data-n="5"] { color: #ffb36b; }
-.mine-cell[data-n="6"] { color: #75d9e5; }
-.mine-cell[data-n="7"] { color: #ff78bc; }
-.mine-cell[data-n="8"] { color: #ddd; }
+.mine-cell[data-n="1"] { color: #1976d2; }
+.mine-cell[data-n="2"] { color: #388e3c; }
+.mine-cell[data-n="3"] { color: #d32f2f; }
+.mine-cell[data-n="4"] { color: #512da8; }
+.mine-cell[data-n="5"] { color: #8d3b2f; }
+.mine-cell[data-n="6"] { color: #00838f; }
+.mine-cell[data-n="7"] { color: #333333; }
+.mine-cell[data-n="8"] { color: #777777; }
 
 .board-2048 {
   width: min(420px, 100%);
