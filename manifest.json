@@ -1,0 +1,12 @@
+{
+  "display_name": "小游戏中心",
+  "loading_order": 10,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "ChatGPT",
+  "version": "0.1.0",
+  "homePage": "https://github.com/",
+  "auto_update": false
+}
