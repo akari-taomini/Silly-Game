@@ -125,9 +125,9 @@
 
         const grid = el('div', { class: 'stgc-menu-grid' });
         const games = [
-            { id: 'mines', icon: 'fa-bomb', name: '扫雷', desc: '经典扫雷 · 右键标记 · 数字点击展开' },
-            { id: '2048', icon: 'fa-hashtag', name: '2048', desc: '方向键 / 滑动合并数字' },
-            { id: 'sokoban', icon: 'fa-box', name: '推箱子', desc: '把所有箱子推到目标点' },
+            { id: 'mines', icon: 'fa-bomb', name: '扫雷', desc: '经典扫雷 · 7档难度 · 数字点击展开' },
+            { id: '2048', icon: 'fa-hashtag', name: '2048', desc: '方向键 / 滑动 · 自动保存' },
+            { id: 'sokoban', icon: 'fa-box', name: '推箱子', desc: '11 个关卡 · 方向键 / WASD' },
             { id: 'sudoku', icon: 'fa-table-cells', name: '数独', desc: '9×9 数字逻辑 · 多种难度' },
         ];
 
@@ -179,53 +179,38 @@
 
     /* ==================== Minesweeper ==================== */
 
-    function createMinesweeper() {
-        const size = 9;
-        const mineCount = 10;
-        const cells = Array.from({ length: size * size }, () => ({
+    const MINES_DIFFICULTIES = {
+        beginner: { name: '新手', size: 9, mines: 10 },
+        easy: { name: '初级', size: 10, mines: 15 },
+        normal: { name: '中级', size: 12, mines: 25 },
+        hard: { name: '高级', size: 16, mines: 45 },
+        expert: { name: '专家', size: 20, mines: 80 },
+        master: { name: '大师', size: 24, mines: 125 },
+        hell: { name: '地狱', size: 30, mines: 180 },
+    };
+
+    function createMinesweeper(difficulty = 'normal') {
+        const config = MINES_DIFFICULTIES[difficulty] || MINES_DIFFICULTIES.normal;
+        const cells = Array.from({ length: config.size * config.size }, () => ({
             mine: false,
             open: false,
             flag: false,
             count: 0,
         }));
 
-        let placed = 0;
-        while (placed < mineCount) {
-            const index = Math.floor(Math.random() * cells.length);
-            if (!cells[index].mine) {
-                cells[index].mine = true;
-                placed++;
-            }
-        }
-
-        for (let index = 0; index < cells.length; index++) {
-            if (cells[index].mine) continue;
-            const x = index % size;
-            const y = Math.floor(index / size);
-            let count = 0;
-
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
-                    if (cells[ny * size + nx].mine) count++;
-                }
-            }
-            cells[index].count = count;
-        }
-
         return {
-            size,
-            mineCount,
+            difficulty,
+            size: config.size,
+            mineCount: config.mines,
             cells,
             flags: 0,
             gameOver: false,
             won: false,
             mode: 'open',
-            startedAt: Date.now(),
+            startedAt: null,
             time: 0,
+            firstMove: true,
+            minesPlaced: false,
         };
     }
 
@@ -246,6 +231,56 @@
         return result;
     }
 
+    function minesPlace(s, firstIndex) {
+        const protectedCells = new Set([firstIndex, ...minesNeighbors(s, firstIndex)]);
+        const candidates = [];
+
+        s.cells.forEach((cell, index) => {
+            // 首次点击及其周围一圈不生成雷；已经插旗的格子也尽量保留为安全格。
+            if (!protectedCells.has(index) && !cell.flag) candidates.push(index);
+        });
+
+        // 极端情况下（用户第一步前插了很多旗子），放宽“排除旗子”的限制，保证一定能生成完整棋盘。
+        if (candidates.length < s.mineCount) {
+            s.cells.forEach((cell, index) => {
+                if (!protectedCells.has(index) && !candidates.includes(index)) {
+                    candidates.push(index);
+                }
+            });
+        }
+
+        // Fisher-Yates shuffle
+        for (let i = candidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        for (let i = 0; i < s.mineCount && i < candidates.length; i++) {
+            s.cells[candidates[i]].mine = true;
+        }
+
+        for (let index = 0; index < s.cells.length; index++) {
+            if (s.cells[index].mine) continue;
+            const neighbors = minesNeighbors(s, index);
+            s.cells[index].count = neighbors.reduce(
+                (count, neighbor) => count + (s.cells[neighbor].mine ? 1 : 0),
+                0,
+            );
+        }
+
+        s.minesPlaced = true;
+        s.firstMove = false;
+        s.startedAt = Date.now();
+    }
+
+    function minesCheckWin(s) {
+        const safeCells = s.cells.filter(item => !item.mine);
+        if (safeCells.every(item => item.open)) {
+            s.won = true;
+            s.time = s.startedAt ? Math.floor((Date.now() - s.startedAt) / 1000) : 0;
+        }
+    }
+
     function minesReveal(index) {
         const s = state.mines;
         if (!s || s.gameOver || s.won) return;
@@ -253,12 +288,16 @@
         const cell = s.cells[index];
         if (cell.open || cell.flag) return;
 
+        // 第一手才布雷，保证开局不会直接踩雷，并给点击位置周围留出空间。
+        if (s.firstMove) minesPlace(s, index);
+
         cell.open = true;
         if (cell.mine) {
             s.gameOver = true;
             for (const item of s.cells) {
                 if (item.mine) item.open = true;
             }
+            s.time = s.startedAt ? Math.floor((Date.now() - s.startedAt) / 1000) : 0;
             return;
         }
 
@@ -270,22 +309,18 @@
             }
         }
 
-        const safeCells = s.cells.filter(item => !item.mine);
-        if (safeCells.every(item => item.open)) {
-            s.won = true;
-        }
+        minesCheckWin(s);
     }
 
     function minesChord(index) {
         const s = state.mines;
-        if (!s || s.gameOver || s.won) return;
+        if (!s || s.gameOver || s.won || s.firstMove) return;
 
         const cell = s.cells[index];
         if (!cell.open || cell.count === 0) return;
 
         const neighbors = minesNeighbors(s, index);
         const flagCount = neighbors.filter(i => s.cells[i].flag).length;
-
         if (flagCount !== cell.count) return;
 
         for (const neighbor of neighbors) {
@@ -307,7 +342,26 @@
     }
 
     function renderMinesweeper(body) {
-        state.mines = createMinesweeper();
+        state.mines = createMinesweeper('normal');
+
+        const difficultyBar = el('div', { class: 'stgc-difficulty-bar' });
+        const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '难度' });
+        difficultyBar.append(difficultyLabel);
+
+        for (const [id, config] of Object.entries(MINES_DIFFICULTIES)) {
+            const btn = el('button', {
+                class: 'stgc-btn stgc-btn-quiet stgc-difficulty-btn',
+                type: 'button',
+                text: config.name,
+            });
+            btn.dataset.difficulty = id;
+            btn.addEventListener('click', () => {
+                state.mines = createMinesweeper(id);
+                updateDifficultyButtons();
+                draw();
+            });
+            difficultyBar.append(btn);
+        }
 
         const head = el('div', { class: 'stgc-game-toolbar' });
         const info = el('div', { class: 'stgc-game-info' });
@@ -318,9 +372,10 @@
 
         modeBtn.innerHTML = '<i class="fa-solid fa-flag" aria-hidden="true"></i><span>标记模式</span>';
         resetBtn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+
+        // 原地重置：只换状态，不重新建立 UI。
         resetBtn.addEventListener('click', () => {
-            // 原地重置：只替换状态，不重新创建任何 UI。
-            state.mines = createMinesweeper();
+            state.mines = createMinesweeper(state.mines.difficulty);
             draw();
         });
 
@@ -332,15 +387,15 @@
         const board = el('div', { class: 'mine-board', role: 'grid', 'aria-label': '扫雷棋盘' });
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '左键翻开 · 右键标记 · 已翻开的数字在旗子数正确时可再次点击展开',
+            text: '左键翻开 · 右键标记 · 已翻开的数字在旗子数正确时可再次点击展开 · 第一手不会踩雷',
         });
 
         info.append(timer, mineCounter);
         head.append(info, modeBtn, resetBtn);
-        body.append(head, board, hint);
+        body.append(difficultyBar, head, board, hint);
 
         const tick = window.setInterval(() => {
-            if (!state.mines || state.mines.gameOver || state.mines.won) return;
+            if (!state.mines || state.mines.gameOver || state.mines.won || !state.mines.startedAt) return;
             state.mines.time = Math.floor((Date.now() - state.mines.startedAt) / 1000);
             updateToolbar();
         }, 1000);
@@ -351,10 +406,27 @@
         };
         board.addEventListener('contextmenu', onContext);
 
+        const onKey = event => {
+            if (state.currentGame !== 'mines' || !state.mines) return;
+            if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.metaKey) {
+                event.preventDefault();
+                state.mines.mode = state.mines.mode === 'open' ? 'flag' : 'open';
+                updateToolbar();
+            }
+        };
+        document.addEventListener('keydown', onKey);
+
         state.cleanup = () => {
             window.clearInterval(tick);
             board.removeEventListener('contextmenu', onContext);
+            document.removeEventListener('keydown', onKey);
         };
+
+        function updateDifficultyButtons() {
+            difficultyBar.querySelectorAll('.stgc-difficulty-btn').forEach(button => {
+                button.classList.toggle('active', button.dataset.difficulty === state.mines.difficulty);
+            });
+        }
 
         function updateToolbar() {
             const s = state.mines;
@@ -367,6 +439,8 @@
         function draw() {
             const s = state.mines;
             board.innerHTML = '';
+            board.style.gridTemplateColumns = `repeat(${s.size}, minmax(0, 1fr))`;
+            board.dataset.size = String(s.size);
 
             s.cells.forEach((cell, index) => {
                 const btn = el('button', {
@@ -407,13 +481,17 @@
                 board.append(btn);
             });
 
+            updateDifficultyButtons();
             updateToolbar();
         }
 
+        updateDifficultyButtons();
         draw();
     }
 
     /* ==================== 2048 ==================== */
+
+    const GAME2048_STORAGE_KEY = 'st-mini-game-center:2048';
 
     function new2048() {
         const game = {
@@ -425,6 +503,43 @@
         add2048Tile(game);
         add2048Tile(game);
         return game;
+    }
+
+    function load2048() {
+        try {
+            const raw = localStorage.getItem(GAME2048_STORAGE_KEY);
+            if (!raw) return null;
+            const saved = JSON.parse(raw);
+            if (!saved || !Array.isArray(saved.board) || saved.board.length !== 16) return null;
+            if (!saved.board.every(value => Number.isInteger(value) && value >= 0)) return null;
+            if (!Number.isFinite(saved.score)) return null;
+            return {
+                board: saved.board.slice(),
+                score: Number(saved.score),
+                over: !!saved.over,
+                won: !!saved.won,
+            };
+        } catch (error) {
+            console.warn('[小游戏中心] 读取 2048 存档失败', error);
+            return null;
+        }
+    }
+
+    function save2048() {
+        if (!state.game2048) return;
+        try {
+            localStorage.setItem(GAME2048_STORAGE_KEY, JSON.stringify(state.game2048));
+        } catch (error) {
+            console.warn('[小游戏中心] 保存 2048 存档失败', error);
+        }
+    }
+
+    function clear2048Save() {
+        try {
+            localStorage.removeItem(GAME2048_STORAGE_KEY);
+        } catch (error) {
+            console.warn('[小游戏中心] 清除 2048 存档失败', error);
+        }
     }
 
     function add2048Tile(game) {
@@ -445,7 +560,7 @@
                 const merged = values[i] * 2;
                 result.push(merged);
                 game.score += merged;
-                if (merged === 2048) game.won = true;
+                if (merged >= 2048) game.won = true;
                 i++;
             } else {
                 result.push(values[i]);
@@ -469,7 +584,7 @@
 
     function move2048(direction) {
         const game = state.game2048;
-        if (!game || game.over) return;
+        if (!game || game.over) return false;
 
         const old = game.board.slice();
 
@@ -494,10 +609,13 @@
         const changed = game.board.some((value, index) => value !== old[index]);
         if (changed) add2048Tile(game);
         if (!canMove2048(game)) game.over = true;
+        if (changed || game.over) save2048();
+        return changed;
     }
 
     function render2048(body) {
-        state.game2048 = new2048();
+        state.game2048 = load2048() || new2048();
+        save2048();
 
         const toolbar = el('div', { class: 'stgc-game-toolbar' });
         const score = el('div', { class: 'stgc-game-info' });
@@ -505,18 +623,42 @@
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
         reset.addEventListener('click', () => {
+            clear2048Save();
             state.game2048 = new2048();
+            save2048();
             draw();
         });
         score.append(scorePill);
         toolbar.append(score, reset);
 
         const board = el('div', { class: 'board-2048', 'aria-label': '2048 棋盘' });
+        const controls = el('div', { class: 'game-direction-controls stgc-2048-controls', 'aria-label': '2048 方向键' });
+        const controlsData = [
+            ['↑', 'up', '向上'],
+            ['←', 'left', '向左'],
+            ['↓', 'down', '向下'],
+            ['→', 'right', '向右'],
+        ];
+        controlsData.forEach(([text, direction, label]) => {
+            const btn = el('button', {
+                class: 'stgc-btn game-direction-btn',
+                type: 'button',
+                title: label,
+                'aria-label': label,
+                text,
+            });
+            btn.addEventListener('click', () => {
+                move2048(direction);
+                draw();
+            });
+            controls.append(btn);
+        });
+
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '电脑：方向键 · 手机：在棋盘上滑动',
+            text: '电脑：点击方向键或键盘方向键 · 手机：点击方向键，也可以滑动棋盘 · 自动保存，刷新后继续当前局',
         });
-        body.append(toolbar, board, hint);
+        body.append(toolbar, board, controls, hint);
 
         let startX = 0;
         let startY = 0;
@@ -530,7 +672,9 @@
             };
             const direction = map[event.key];
             if (!direction) return;
+            // 使用捕获阶段 + stopPropagation，避免酒馆自己的快捷键/滚动逻辑抢走方向键。
             event.preventDefault();
+            event.stopPropagation();
             move2048(direction);
             draw();
         };
@@ -549,11 +693,11 @@
             draw();
         };
 
-        document.addEventListener('keydown', onKey);
+        document.addEventListener('keydown', onKey, true);
         board.addEventListener('touchstart', onTouchStart, { passive: true });
         board.addEventListener('touchend', onTouchEnd, { passive: true });
         state.cleanup = () => {
-            document.removeEventListener('keydown', onKey);
+            document.removeEventListener('keydown', onKey, true);
             board.removeEventListener('touchstart', onTouchStart);
             board.removeEventListener('touchend', onTouchEnd);
         };
@@ -920,19 +1064,155 @@
 
     /* ==================== Sokoban ==================== */
 
-    const SOKO_LEVEL = [
-        '########',
-        '#      #',
-        '# .  $ #',
-        '#  $$  #',
-        '#  @ . #',
-        '#      #',
-        '# .    #',
-        '########',
+    const SOKOBAN_LEVELS = [
+        {
+            name: '第 1 关 · 入门',
+            rows: [
+                '########',
+                '#      #',
+                '# .  $ #',
+                '#  $$  #',
+                '#  @ . #',
+                '#      #',
+                '# .    #',
+                '########',
+            ],
+        },
+        {
+            name: '第 2 关',
+            rows: [
+                '########',
+                '#. $   #',
+                '#  $   #',
+                '#    $ #',
+                '#     .#',
+                '#   .@ #',
+                '#      #',
+                '########',
+            ],
+        },
+        {
+            name: '第 3 关',
+            rows: [
+                '########',
+                '#.     #',
+                '#     ##',
+                '# .   .#',
+                '# $    #',
+                '#$$    #',
+                '# @ ## #',
+                '########',
+            ],
+        },
+        {
+            name: '第 4 关',
+            rows: [
+                '########',
+                '# #  @ #',
+                '# .    #',
+                '#    $.#',
+                '#     $#',
+                '#  #   #',
+                '#  #  ##',
+                '########',
+            ],
+        },
+        {
+            name: '第 5 关',
+            rows: [
+                '########',
+                '#   #  #',
+                '#      #',
+                '#    @##',
+                '#      #',
+                '#.# $ ##',
+                '#  $.  #',
+                '########',
+            ],
+        },
+        {
+            name: '第 6 关',
+            rows: [
+                '########',
+                '#     .#',
+                '##   $ #',
+                '#    $ #',
+                '#.     #',
+                '#      #',
+                '# # @# #',
+                '########',
+            ],
+        },
+        {
+            name: '第 7 关',
+            rows: [
+                '########',
+                '#.  #  #',
+                '# $ @ .#',
+                '#      #',
+                '#  #   #',
+                '##  #$ #',
+                '#     ##',
+                '########',
+            ],
+        },
+        {
+            name: '第 8 关',
+            rows: [
+                '########',
+                '#     .#',
+                '#   $  #',
+                '#   $  #',
+                '#      #',
+                '#  @   #',
+                '#.     #',
+                '########',
+            ],
+        },
+        {
+            name: '第 9 关',
+            rows: [
+                '########',
+                '# .$   #',
+                '#  # #@#',
+                '#      #',
+                '#    $ #',
+                '#     ##',
+                '#   .  #',
+                '########',
+            ],
+        },
+        {
+            name: '第 10 关',
+            rows: [
+                '########',
+                '##     #',
+                '#. .   #',
+                '# $@ # #',
+                '## $  ##',
+                '# #    #',
+                '#      #',
+                '########',
+            ],
+        },
+        {
+            name: '第 11 关',
+            rows: [
+                '########',
+                '# .    #',
+                '#      #',
+                '#     .#',
+                '#      #',
+                '#  $ $ #',
+                '# @    #',
+                '########',
+            ],
+        },
     ];
 
-    function newSokoban() {
-        const cells = SOKO_LEVEL.map(row => row.split(''));
+    function newSokoban(levelIndex = 0) {
+        const level = SOKOBAN_LEVELS[levelIndex] || SOKOBAN_LEVELS[0];
+        const cells = level.rows.map(row => row.split(''));
         const targets = [];
         const boxes = [];
         let px = 0;
@@ -951,11 +1231,24 @@
                 } else if (char === '.') {
                     targets.push(`${x},${y}`);
                     cells[y][x] = ' ';
+                } else if (char === '*') {
+                    targets.push(`${x},${y}`);
+                    boxes.push({ x, y });
+                    cells[y][x] = ' ';
                 }
             }
         }
 
-        return { cells, px, py, boxes, targets, moves: 0, won: false };
+        return {
+            levelIndex,
+            cells,
+            px,
+            py,
+            boxes,
+            targets,
+            moves: 0,
+            won: boxes.length > 0 && boxes.length === targets.length && boxes.every(box => targets.includes(`${box.x},${box.y}`)),
+        };
     }
 
     function sokoBoxAt(game, x, y) {
@@ -982,29 +1275,52 @@
         game.px = nx;
         game.py = ny;
         game.moves++;
-        game.won = game.boxes.every(box => game.targets.includes(`${box.x},${box.y}`));
+        game.won = game.boxes.length === game.targets.length && game.boxes.every(box => game.targets.includes(`${box.x},${box.y}`));
     }
 
     function renderSokoban(body) {
-        state.sokoban = newSokoban();
+        state.sokoban = newSokoban(0);
+
+        const levelBar = el('div', { class: 'stgc-difficulty-bar stgc-level-bar' });
+        const levelLabel = el('span', { class: 'stgc-difficulty-label', text: '关卡' });
+        const levelSelect = el('select', { class: 'stgc-btn stgc-select stgc-level-select', 'aria-label': '推箱子关卡' });
+        SOKOBAN_LEVELS.forEach((level, index) => {
+            const option = el('option', { value: String(index), text: level.name });
+            levelSelect.append(option);
+        });
+        levelSelect.addEventListener('change', () => {
+            state.sokoban = newSokoban(Number(levelSelect.value));
+            draw();
+        });
+        levelBar.append(levelLabel, levelSelect);
 
         const toolbar = el('div', { class: 'stgc-game-toolbar' });
         const info = el('div', { class: 'stgc-game-info' });
         const moves = el('span', { class: 'stgc-pill' });
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
+        const next = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+        next.innerHTML = '<i class="fa-solid fa-forward" aria-hidden="true"></i><span>下一关</span>';
         reset.addEventListener('click', () => {
-            state.sokoban = newSokoban();
+            state.sokoban = newSokoban(state.sokoban.levelIndex);
             draw();
         });
+        next.addEventListener('click', () => {
+            const nextIndex = Math.min(SOKOBAN_LEVELS.length - 1, state.sokoban.levelIndex + 1);
+            if (nextIndex !== state.sokoban.levelIndex) {
+                state.sokoban = newSokoban(nextIndex);
+                levelSelect.value = String(nextIndex);
+                draw();
+            }
+        });
         info.append(moves);
-        toolbar.append(info, reset);
+        toolbar.append(info, reset, next);
 
         const board = el('div', { class: 'soko-board', 'aria-label': '推箱子棋盘' });
-        const controls = el('div', { class: 'soko-controls' });
+        const controls = el('div', { class: 'game-direction-controls soko-controls', 'aria-label': '推箱子方向键' });
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '电脑：方向键 / WASD · 手机：点击方向按钮',
+            text: '电脑：点击方向键或键盘方向键 / WASD · 手机：点击方向键 · 可选择 11 个关卡',
         });
 
         const controlsData = [
@@ -1015,7 +1331,7 @@
         ];
         controlsData.forEach(([text, dx, dy, label]) => {
             const btn = el('button', {
-                class: 'stgc-btn soko-control',
+                class: 'stgc-btn game-direction-btn soko-control',
                 type: 'button',
                 title: label,
                 'aria-label': label,
@@ -1028,7 +1344,7 @@
             controls.append(btn);
         });
 
-        body.append(toolbar, board, controls, hint);
+        body.append(levelBar, toolbar, board, controls, hint);
 
         const onKey = event => {
             if (state.currentGame !== 'sokoban') return;
@@ -1045,16 +1361,20 @@
             const move = map[event.key];
             if (!move) return;
             event.preventDefault();
+            event.stopPropagation();
             sokoMove(move[0], move[1]);
             draw();
         };
-        document.addEventListener('keydown', onKey);
-        state.cleanup = () => document.removeEventListener('keydown', onKey);
+        document.addEventListener('keydown', onKey, true);
+        state.cleanup = () => document.removeEventListener('keydown', onKey, true);
 
         function draw() {
             const game = state.sokoban;
             board.innerHTML = '';
-            moves.textContent = game.won ? `通关 · ${game.moves} 步` : `步数 ${game.moves}`;
+            board.style.gridTemplateColumns = `repeat(${game.cells[0]?.length || 8}, minmax(0, 1fr))`;
+            moves.textContent = game.won ? `通关 · ${game.moves} 步` : `${game.moves} 步`;
+            next.disabled = !game.won || game.levelIndex >= SOKOBAN_LEVELS.length - 1;
+            levelSelect.value = String(game.levelIndex);
 
             for (let y = 0; y < game.cells.length; y++) {
                 for (let x = 0; x < game.cells[y].length; x++) {

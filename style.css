@@ -188,6 +188,28 @@
     line-height: 1.4;
 }
 
+#st-mini-game-center .stgc-difficulty-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 0 0 8px;
+    padding: 2px 0;
+}
+
+#st-mini-game-center .stgc-difficulty-label {
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+    opacity: .72;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+#st-mini-game-center .stgc-difficulty-btn {
+    min-height: 29px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
 #st-mini-game-center .stgc-game-toolbar {
     display: flex;
     align-items: center;
@@ -227,11 +249,10 @@
 
 /* ---------- 扫雷：棋盘保留清爽白色格子 ---------- */
 #st-mini-game-center .mine-board {
-    width: min(430px, 100%);
+    width: min(500px, 100%);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    gap: 3px;
+    gap: 2px;
     touch-action: manipulation;
     user-select: none;
 }
@@ -245,10 +266,16 @@
     color: #333;
     background: #fff;
     border: 1px solid #d9d9d9;
-    border-radius: 5px;
+    border-radius: 4px;
     box-shadow: 0 1px 2px rgba(0,0,0,.08);
-    font-size: clamp(12px, 3.2vw, 17px);
+    font-size: clamp(9px, 2.6vw, 17px);
     font-weight: 800;
+    line-height: 1;
+}
+
+#st-mini-game-center .mine-board[data-size="16"] .mine-cell,
+#st-mini-game-center .mine-board[data-size="20"] .mine-cell {
+    border-radius: 3px;
 }
 
 #st-mini-game-center .mine-cell:hover:not(.open) {
@@ -367,27 +394,56 @@
     background: rgba(65,165,100,.18);
 }
 
-#st-mini-game-center .soko-controls {
+#st-mini-game-center .game-direction-controls {
     width: max-content;
-    margin: 0 auto;
+    margin: 10px auto 0;
     display: grid;
     grid-template-columns: repeat(3, 48px);
     gap: 5px;
 }
 
-#st-mini-game-center .soko-control:nth-child(1) { grid-column: 2; }
-#st-mini-game-center .soko-control:nth-child(2) { grid-column: 1; }
-#st-mini-game-center .soko-control:nth-child(3) { grid-column: 2; }
-#st-mini-game-center .soko-control:nth-child(4) { grid-column: 3; }
+#st-mini-game-center .stgc-2048-controls {
+    grid-template-columns: repeat(3, 52px);
+}
 
-#st-mini-game-center .soko-control {
+#st-mini-game-center .soko-controls {
+    grid-template-columns: repeat(3, 48px);
+}
+
+
+#st-mini-game-center .game-direction-btn:nth-child(1) { grid-column: 2; }
+#st-mini-game-center .game-direction-btn:nth-child(2) { grid-column: 1; }
+#st-mini-game-center .game-direction-btn:nth-child(3) { grid-column: 2; }
+#st-mini-game-center .game-direction-btn:nth-child(4) { grid-column: 3; }
+
+#st-mini-game-center .game-direction-btn {
     width: 48px;
     min-height: 44px;
     padding: 0;
     font-size: 20px;
+    touch-action: manipulation;
 }
 
+#st-mini-game-center .stgc-2048-controls .game-direction-btn {
+    width: 52px;
+    min-height: 46px;
+    font-size: 21px;
+}
+
+
 @media (max-width: 640px) {
+    #st-mini-game-center .stgc-difficulty-bar {
+        gap: 3px;
+    }
+
+    #st-mini-game-center .stgc-difficulty-btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    #st-mini-game-center .mine-board {
+        width: min(500px, 100%);
+    }
     #st-mini-game-center {
         padding: 8px;
         align-items: flex-end;
@@ -412,7 +468,7 @@
         flex-basis: 34px;
     }
 
-    #st-mini-game-center .stgc-game-toolbar {
+#st-mini-game-center .stgc-game-toolbar {
         align-items: stretch;
     }
 
@@ -534,4 +590,24 @@
     #st-mini-game-center .sudoku-key {
         min-height: 40px;
     }
+
+    #st-mini-game-center .stgc-2048-controls {
+        grid-template-columns: repeat(3, 50px);
+    }
+
+    #st-mini-game-center .stgc-2048-controls .game-direction-btn {
+        width: 50px;
+        min-height: 46px;
+    }
+}
+
+
+#st-mini-game-center .stgc-level-select {
+    min-width: 120px;
+    max-width: 100%;
+}
+
+#st-mini-game-center .game-direction-btn:disabled {
+    opacity: .45;
+    cursor: default;
 }
