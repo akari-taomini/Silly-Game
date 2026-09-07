@@ -17,6 +17,7 @@
         puzzle15: null,
         tetris: null,
         go: null,
+        waterSort: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
@@ -454,6 +455,7 @@
             { id: 'puzzle15', icon: 'fa-border-all', name: '数字华容道', desc: '3×3 / 4×4 / 5×5 · 经典滑块' },
             { id: 'tetris', icon: 'fa-shapes', name: '俄罗斯方块', desc: '10×20 · 消行 · 方向键 / 虚拟键' },
             { id: 'go', icon: 'fa-circle-half-stroke', name: '围棋', desc: '9×9 / 13×13 / 19×19 · 本地 AI / 双人' },
+            { id: 'waterSort', icon: 'fa-droplet', name: '倒水瓶', desc: '颜色分类 · 60关 + 无尽模式 · 自动保存' },
         ]; 
 
         for (const game of games) {
@@ -494,6 +496,7 @@
             puzzle15: '数字华容道',
             tetris: '俄罗斯方块',
             go: '围棋',
+            waterSort: '倒水瓶',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -510,6 +513,7 @@
         else if (game === 'puzzle15') render15Puzzle(body);
         else if (game === 'tetris') renderTetris(body);
         else if (game === 'go') renderGo(body);
+        else if (game === 'waterSort') renderWaterSort(body);
     }
 
     /* ==================== Minesweeper ==================== */
@@ -2409,6 +2413,349 @@
         pause.addEventListener('click',()=>{state.tetris.paused=!state.tetris.paused;saveTetris();draw();});reset.addEventListener('click',()=>{clearTetris();state.tetris=tetrisNew();saveTetris();draw();});
         const timer=window.setInterval(()=>{const g=state.tetris;if(!g||g.over||g.paused)return;const speed=Math.max(90,800-(g.level-1)*65);g.dropTick++;if(g.dropTick>=Math.max(1,Math.floor(speed/90))){g.dropTick=0;if(!tetrisCanPlace(g,g.current,0,1))tetrisLock(g);else g.current.y++;saveTetris();}draw();},90);
         state.cleanup=()=>{document.removeEventListener('keydown',onKey,true);clearInterval(timer);saveTetris();};draw();
+    }
+
+    /* ==================== Water Sort ==================== */
+
+    const WATER_SORT_KEY = 'silly-game:water-sort:v2';
+    const WATER_COLORS = [
+        '#ef767a', '#5dade2', '#58d68d', '#f5b041', '#af7ac5',
+        '#48c9b0', '#ec7063', '#f7dc6f', '#95a5a6', '#ca6f1e',
+        '#7d7cff', '#9ccc65', '#ff8a65', '#9575cd', '#4db6ac',
+        '#f06292', '#64b5f6', '#81c784', '#ffca6b', '#ba68c8',
+    ];
+
+    function waterCloneTubes(tubes) {
+        return tubes.map(t => t.slice());
+    }
+
+    function waterTopRun(tube) {
+        if (!tube.length) return { color: null, count: 0 };
+        const color = tube[tube.length - 1];
+        let count = 0;
+        for (let i = tube.length - 1; i >= 0 && tube[i] === color; i--) count++;
+        return { color, count };
+    }
+
+    function waterCanPour(game, from, to) {
+        if (from === to) return false;
+        const src = game.tubes[from];
+        const dst = game.tubes[to];
+        if (!src.length || dst.length >= game.capacity) return false;
+        if (!dst.length) return true;
+        return dst[dst.length - 1] === src[src.length - 1];
+    }
+
+    function waterPour(game, from, to) {
+        if (!waterCanPour(game, from, to)) return 0;
+        const src = game.tubes[from];
+        const dst = game.tubes[to];
+        const run = waterTopRun(src);
+        const amount = Math.min(run.count, game.capacity - dst.length);
+        for (let i = 0; i < amount; i++) dst.push(src.pop());
+        game.moves++;
+        return amount;
+    }
+
+    function waterSolved(game) {
+        return game.tubes.every(tube => {
+            if (!tube.length) return true;
+            return tube.length === game.capacity && tube.every(v => v === tube[0]);
+        });
+    }
+
+    function waterShuffleArray(arr, rand) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(rand() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+
+    function waterLevelConfig(level, endless = false) {
+        const lv = Math.max(1, Number(level) || 1);
+        // 关卡越往后颜色越多，瓶子也会跟着增加；无尽模式持续增长，达到上限后继续增加扰动强度。
+        const colorCount = Math.min(16, 4 + Math.floor((lv - 1) / 2));
+        const emptyCount = lv >= 13 ? 3 : 2;
+        const scrambleSteps = Math.min(
+            260,
+            28 + lv * 9 + (endless ? Math.min(lv * 2, 90) : 0),
+        );
+        return {
+            level: lv,
+            capacity: 4,
+            colorCount,
+            emptyCount,
+            tubeCount: colorCount + emptyCount,
+            scrambleSteps,
+        };
+    }
+
+    function waterGenerateLevel(level, endless = false) {
+        const cfg = waterLevelConfig(level, endless);
+        const seedBase = `${endless ? 'E' : 'L'}:${cfg.level}:${Date.now()}:${Math.random()}`;
+        let seed = 2166136261;
+        for (let i = 0; i < seedBase.length; i++) {
+            seed ^= seedBase.charCodeAt(i);
+            seed = Math.imul(seed, 16777619);
+        }
+        const rand = () => {
+            seed += 0x6D2B79F5;
+            let t = seed;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+
+        // 从“已完成”状态做逆向操作打乱。
+        // 每一步都对应一个未来可以合法还原的倒水动作，因此生成的局面天然可解。
+        const tubes = Array.from({ length: cfg.tubeCount }, () => []);
+        for (let c = 0; c < cfg.colorCount; c++) {
+            tubes[c] = [c, c, c, c];
+        }
+
+        let previous = null;
+        let useful = 0;
+        for (let step = 0; step < cfg.scrambleSteps; step++) {
+            const candidates = [];
+            for (let from = 0; from < cfg.colorCount + cfg.emptyCount; from++) {
+                const src = tubes[from];
+                if (!src.length) continue;
+                const run = waterTopRun(src).count;
+                const maxMove = Math.min(run, cfg.capacity,);
+                for (let amount = 1; amount <= maxMove; amount++) {
+                    // 逆向：把 from 顶部 amount 格移到 to；目标只要求有空间。
+                    for (let to = 0; to < tubes.length; to++) {
+                        if (to === from) continue;
+                        if (tubes[to].length + amount > cfg.capacity) continue;
+                        if (previous && previous.from === to && previous.to === from && previous.amount === amount) continue;
+                        candidates.push({ from, to, amount });
+                    }
+                }
+            }
+            if (!candidates.length) break;
+            const move = candidates[Math.floor(rand() * candidates.length)];
+            const moved = tubes[move.to].length;
+            for (let i = 0; i < move.amount; i++) tubes[move.to].push(tubes[move.from].pop());
+            previous = move;
+
+            if (move.amount > 0 && moved > 0) useful++;
+        }
+
+        // 防止极少数极简/过早完成的情况，再做一轮不同随机种子的生成。
+        if (waterSolved({ tubes, capacity: cfg.capacity }) || useful < Math.max(8, cfg.colorCount)) {
+            return waterGenerateLevel(level + (endless ? 1 : 0), endless);
+        }
+
+        return {
+            level: cfg.level,
+            capacity: cfg.capacity,
+            colorCount: cfg.colorCount,
+            emptyCount: cfg.emptyCount,
+            endless: !!endless,
+            tubes: waterCloneTubes(tubes),
+            selected: -1,
+            moves: 0,
+            history: [],
+            won: false,
+            startedAt: Date.now(),
+        };
+    }
+
+    function waterStartLevel(level, endless = false) {
+        return waterGenerateLevel(level, endless);
+    }
+
+    function waterSave(game) {
+        try {
+            localStorage.setItem(WATER_SORT_KEY, JSON.stringify(game));
+        } catch { /* localStorage unavailable */ }
+    }
+
+    function waterLoad() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(WATER_SORT_KEY) || 'null');
+            if (!saved?.tubes || !Array.isArray(saved.tubes)) return null;
+            if (!Number.isInteger(saved.capacity) || saved.capacity !== 4) return null;
+            if (!saved.tubes.every(t => Array.isArray(t) && t.length <= 4)) return null;
+            const tubeCount = saved.tubes.length;
+            const colorCount = Math.max(1, Number(saved.colorCount) || Math.max(1, tubeCount - 2));
+            return {
+                level: Math.max(1, Number(saved.level) || 1),
+                capacity: 4,
+                colorCount,
+                emptyCount: Math.max(2, Number(saved.emptyCount) || 2),
+                endless: !!saved.endless,
+                tubes: saved.tubes.map(t => t.slice()),
+                selected: -1,
+                moves: Math.max(0, Number(saved.moves) || 0),
+                history: Array.isArray(saved.history) ? saved.history.slice(-80).map(waterCloneTubes) : [],
+                won: !!saved.won,
+                startedAt: Number(saved.startedAt) || Date.now(),
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    function waterClearSave() {
+        try { localStorage.removeItem(WATER_SORT_KEY); } catch { /* ignore */ }
+    }
+
+    function waterFormatMode(game) {
+        return game.endless ? '无尽模式' : `第 ${game.level} 关`;
+    }
+
+    function waterStartFresh(mode, level = 1) {
+        return waterStartLevel(level, mode === 'endless');
+    }
+
+    function renderWaterSort(body) {
+        state.waterSort = waterLoad() || waterStartFresh('levels', 1);
+        const top = el('div', { class: 'stgc-game-toolbar' });
+        const info = el('div', { class: 'stgc-game-info' });
+        const modePill = el('span', { class: 'stgc-pill' });
+        const movePill = el('span', { class: 'stgc-pill' });
+        const bottlePill = el('span', { class: 'stgc-pill' });
+        info.append(modePill, movePill, bottlePill);
+
+        const undo = el('button', { class: 'stgc-btn', type: 'button', text: '↶ 撤销' });
+        const reset = el('button', { class: 'stgc-btn', type: 'button', text: '重新开始' });
+        top.append(info, undo, reset);
+
+        const modeRow = el('div', { class: 'water-level-row water-mode-row' });
+        const modeSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '倒水瓶模式' });
+        modeSelect.append(new Option('关卡模式', 'levels'));
+        modeSelect.append(new Option('无尽模式', 'endless'));
+        modeRow.append(modeSelect);
+
+        const levelRow = el('div', { class: 'water-level-row' });
+        const levelSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '关卡' });
+        for (let i = 1; i <= 60; i++) levelSelect.append(new Option(`第 ${i} 关`, String(i)));
+        levelRow.append(levelSelect);
+
+        const board = el('div', { class: 'water-sort-board', 'aria-label': '倒水瓶棋盘' });
+        const hint = el('div', {
+            class: 'stgc-game-hint',
+            text: '点一个瓶子选中，再点目标瓶倒水。每两关增加一种颜色；无尽模式会一直生成新局。刷新后自动保存。',
+        });
+        body.append(top, modeRow, levelRow, board, hint);
+
+        function commit(newTubes) {
+            const game = state.waterSort;
+            game.history.push(waterCloneTubes(game.tubes));
+            if (game.history.length > 80) game.history.shift();
+            game.tubes = waterCloneTubes(newTubes);
+            game.moves++;
+            game.selected = -1;
+            game.won = waterSolved(game);
+            waterSave(game);
+            draw();
+        }
+
+        function clickTube(index) {
+            const game = state.waterSort;
+            if (game.won) return;
+            if (game.selected < 0) {
+                if (!game.tubes[index].length) return;
+                game.selected = index;
+                draw();
+                return;
+            }
+            if (game.selected === index) {
+                game.selected = -1;
+                draw();
+                return;
+            }
+            if (waterCanPour(game, game.selected, index)) {
+                const clone = waterCloneTubes(game.tubes);
+                const temp = { tubes: clone, capacity: game.capacity, moves: game.moves };
+                waterPour(temp, game.selected, index);
+                commit(clone);
+                return;
+            }
+            if (game.tubes[index].length) {
+                game.selected = index;
+                draw();
+            }
+        }
+
+        undo.addEventListener('click', () => {
+            const game = state.waterSort;
+            if (!game.history.length || game.won) return;
+            game.tubes = game.history.pop();
+            game.moves = Math.max(0, game.moves - 1);
+            game.selected = -1;
+            game.won = false;
+            waterSave(game);
+            draw();
+        });
+
+        reset.addEventListener('click', () => {
+            const game = state.waterSort;
+            state.waterSort = waterStartFresh(game.endless ? 'endless' : 'levels', game.level);
+            waterSave(state.waterSort);
+            draw();
+        });
+
+        modeSelect.addEventListener('change', () => {
+            const mode = modeSelect.value;
+            state.waterSort = waterStartFresh(mode, 1);
+            waterSave(state.waterSort);
+            draw();
+        });
+
+        levelSelect.addEventListener('change', () => {
+            const current = state.waterSort;
+            const level = Number(levelSelect.value) || 1;
+            state.waterSort = waterStartFresh(current.endless ? 'endless' : 'levels', level);
+            waterSave(state.waterSort);
+            draw();
+        });
+
+        function goNextLevel() {
+            const game = state.waterSort;
+            const nextLevel = game.level + 1;
+            state.waterSort = waterStartFresh(game.endless ? 'endless' : 'levels', nextLevel);
+            waterSave(state.waterSort);
+            draw();
+        }
+
+        function draw() {
+            const game = state.waterSort;
+            board.innerHTML = '';
+            modeSelect.value = game.endless ? 'endless' : 'levels';
+            levelSelect.value = String(Math.min(60, game.level));
+            levelSelect.disabled = game.endless;
+
+            modePill.textContent = game.won ? `${waterFormatMode(game)} · 通关！` : waterFormatMode(game);
+            movePill.textContent = `步数 ${game.moves}`;
+            bottlePill.textContent = `${game.tubes.length} 瓶 · ${game.colorCount} 色`;
+
+            for (let index = 0; index < game.tubes.length; index++) {
+                const tube = game.tubes[index];
+                const wrap = el('div', { class: `water-tube-wrap${game.selected === index ? ' selected' : ''}` });
+                const tubeEl = el('div', { class: 'water-tube' });
+                tube.forEach((colorIndex, layer) => {
+                    const liquid = el('div', { class: 'water-liquid' });
+                    liquid.style.setProperty('--water-color', WATER_COLORS[colorIndex % WATER_COLORS.length]);
+                    liquid.style.bottom = `${layer * 25}%`;
+                    tubeEl.append(liquid);
+                });
+                if (!tube.length) tubeEl.classList.add('empty');
+                wrap.append(tubeEl, el('div', { class: 'water-tube-number', text: String(index + 1) }));
+                wrap.addEventListener('click', () => clickTube(index));
+                board.append(wrap);
+            }
+
+            if (game.won) {
+                const next = el('button', { class: 'stgc-btn water-next', type: 'button', text: game.endless ? `继续 · 第 ${game.level + 1} 关` : `下一关 · ${game.level + 1}` });
+                next.addEventListener('click', goNextLevel);
+                board.append(next);
+            }
+        }
+
+        state.cleanup = () => { waterSave(state.waterSort); };
+        draw();
     }
 
     /* ==================== Go ==================== */
