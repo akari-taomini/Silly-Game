@@ -2120,8 +2120,8 @@
   gap: clamp(4px, .65vw, 7px);
   padding: clamp(7px, 1vw, 10px);
   border-radius: 16px;
-  /* 与俄罗斯方块“空方块”的底色完全一致，不使用俄罗斯方块棋盘外框颜色。 */
-  background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.05));
+  /* 与俄罗斯方块“已填方块”的主题色保持一致：优先使用 customThemeColor，其次使用酒馆引用色。 */
+  background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
   border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent),
