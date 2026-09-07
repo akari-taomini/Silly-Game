@@ -6,7 +6,6 @@
   "js": "index.js",
   "css": "style.css",
   "author": "ChatGPT",
-  "version": "0.11.1",
-  "homePage": "https://github.com/",
-  "auto_update": false
+  "version": "0.12.0",
+  "auto_update": true
 }

@@ -21,7 +21,15 @@
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
-    const DEFAULT_EXTENSION_SETTINGS = Object.freeze({ launcherEnabled: true });
+    const EXTENSION_FOLDER = 'st-game-center';
+    const CURRENT_VERSION = '0.12.0';
+    const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+    const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
+        launcherEnabled: true,
+        autoUpdate: true,
+        lastUpdateCheck: 0,
+    });
+    let updateCheckPromise = null;
 
     function getSTContext() {
         try {
@@ -37,8 +45,16 @@
         if (!settings) return null;
         if (!settings[EXTENSION_SETTINGS_KEY]) {
             settings[EXTENSION_SETTINGS_KEY] = { ...DEFAULT_EXTENSION_SETTINGS };
-        } else if (typeof settings[EXTENSION_SETTINGS_KEY].launcherEnabled !== 'boolean') {
-            settings[EXTENSION_SETTINGS_KEY].launcherEnabled = DEFAULT_EXTENSION_SETTINGS.launcherEnabled;
+        } else {
+            if (typeof settings[EXTENSION_SETTINGS_KEY].launcherEnabled !== 'boolean') {
+                settings[EXTENSION_SETTINGS_KEY].launcherEnabled = DEFAULT_EXTENSION_SETTINGS.launcherEnabled;
+            }
+            if (typeof settings[EXTENSION_SETTINGS_KEY].autoUpdate !== 'boolean') {
+                settings[EXTENSION_SETTINGS_KEY].autoUpdate = DEFAULT_EXTENSION_SETTINGS.autoUpdate;
+            }
+            if (!Number.isFinite(settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck)) {
+                settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck = DEFAULT_EXTENSION_SETTINGS.lastUpdateCheck;
+            }
         }
         return settings[EXTENSION_SETTINGS_KEY];
     }
@@ -49,6 +65,114 @@
         } catch {
             // SillyTavern API may not be ready yet; local fallback still works.
         }
+    }
+
+    async function getSTRequestHeaders() {
+        try {
+            const core = await import('/script.js');
+            return core.getRequestHeaders?.() || { 'Content-Type': 'application/json' };
+        } catch {
+            return { 'Content-Type': 'application/json' };
+        }
+    }
+
+    function notify(message, title = '') {
+        try {
+            if (typeof window.toastr !== 'undefined') {
+                if (title) window.toastr.info(message, title);
+                else window.toastr.info(message);
+                return;
+            }
+        } catch { /* ignore */ }
+        console.info('[Silly Game]', title ? `${title}: ${message}` : message);
+    }
+
+    function updateButtonText(text, spinning = false) {
+        document.querySelectorAll('[data-stgc-update-button]').forEach(button => {
+            button.disabled = spinning;
+            button.innerHTML = spinning
+                ? '<i class=\"fa-solid fa-spinner fa-spin\" aria-hidden=\"true\"></i><span>检查中…</span>'
+                : `<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>${text}</span>`;
+        });
+    }
+
+    async function getRemoteExtensionVersion() {
+        const headers = await getSTRequestHeaders();
+        const response = await fetch('/api/extensions/version', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: false }),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async function updateExtensionFromSillyTavern() {
+        const headers = await getSTRequestHeaders();
+        const response = await fetch('/api/extensions/update', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: false }),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async function checkForSillyGameUpdate({ auto = false } = {}) {
+        if (updateCheckPromise) return updateCheckPromise;
+
+        updateCheckPromise = (async () => {
+            const settings = getExtensionSettings();
+            const now = Date.now();
+            if (auto && settings && !settings.autoUpdate) return { skipped: true, updated: false, available: false };
+            if (auto && settings && Number.isFinite(settings.lastUpdateCheck) && now - settings.lastUpdateCheck < UPDATE_CHECK_INTERVAL) {
+                return { skipped: true, updated: false, available: false };
+            }
+
+            settings.lastUpdateCheck = now;
+            saveExtensionSettings();
+            updateButtonText('检查更新', true);
+
+            try {
+                const version = await getRemoteExtensionVersion();
+                const available = version?.isUpToDate === false;
+                if (!available) {
+                    updateButtonText('已是最新');
+                    if (!auto) notify(`当前版本 v${CURRENT_VERSION} 已是最新。`, 'Silly Game');
+                    return { skipped: false, updated: false, available: false, version };
+                }
+
+                const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
+                if (!auto) notify(`发现更新（${remoteCommit}），正在更新…`, 'Silly Game');
+                const result = await updateExtensionFromSillyTavern();
+                if (result?.isUpToDate) {
+                    updateButtonText('已是最新');
+                    if (!auto) notify('检查完成，当前已经是最新版本。', 'Silly Game');
+                    return { skipped: false, updated: false, available: false, version: result };
+                }
+
+                updateButtonText('更新完成');
+                if (!auto) notify('Silly Game 已更新，页面即将刷新以应用更新。', 'Silly Game');
+                else notify('Silly Game 已自动更新，正在刷新页面。', 'Silly Game');
+                setTimeout(() => location.reload(), auto ? 800 : 1200);
+                return { skipped: false, updated: true, available: true, version: result };
+            } catch (error) {
+                console.error('[Silly Game] update check failed:', error);
+                updateButtonText('检查更新');
+                if (!auto) notify(`更新检查失败：${error?.message || error}`, 'Silly Game');
+                return { skipped: false, updated: false, available: false, error };
+            }
+        })().finally(() => {
+            updateCheckPromise = null;
+        });
+
+        return updateCheckPromise;
     }
 
     function el(tag, attrs = {}, children = []) {
@@ -296,8 +420,13 @@
     }
 
     function updateExtensionSettingsUI() {
-        const checkbox = document.getElementById('stgc_extension_launcher_enabled');
-        if (checkbox) checkbox.checked = !isLauncherHidden();
+        const settings = getExtensionSettings();
+        const launcherCheckbox = document.getElementById('stgc_extension_launcher_enabled');
+        if (launcherCheckbox) launcherCheckbox.checked = !isLauncherHidden();
+        const autoUpdateCheckbox = document.getElementById('stgc_extension_auto_update');
+        if (autoUpdateCheckbox && settings) autoUpdateCheckbox.checked = settings.autoUpdate !== false;
+        const versionLabel = document.getElementById('stgc_extension_version_label');
+        if (versionLabel) versionLabel.textContent = `当前版本 v${CURRENT_VERSION}`;
     }
 
     function addExtensionSettingsPanel() {
@@ -321,8 +450,19 @@
                         <input id="stgc_extension_launcher_enabled" type="checkbox" class="checkbox">
                         <small>显示 Silly Game 悬浮按钮</small>
                     </label>
+                    <label class="checkbox_label" for="stgc_extension_auto_update">
+                        <input id="stgc_extension_auto_update" type="checkbox" class="checkbox">
+                        <small>自动检查并更新 Silly Game</small>
+                    </label>
+                    <div class="stgc-extension-update-row">
+                        <span id="stgc_extension_version_label">当前版本 v${CURRENT_VERSION}</span>
+                        <button type="button" class="menu_button stgc-extension-update-btn" data-stgc-update-button>
+                            <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
+                            <span>检查更新</span>
+                        </button>
+                    </div>
                     <small class="stgc-extension-note">
-                        关闭后不会显示悬浮入口；重新打开此项即可恢复。按钮也可以在页面中自由拖动。
+                        悬浮按钮可自由拖动。自动更新会在启动时定期检查；发现新版本后自动更新并刷新页面。
                     </small>
                 </div>
             </div>`;
@@ -333,6 +473,15 @@
         checkbox.addEventListener('input', () => {
             const enabled = checkbox.checked;
             setLauncherHidden(!enabled, true);
+        });
+        const autoUpdateCheckbox = wrapper.querySelector('#stgc_extension_auto_update');
+        autoUpdateCheckbox.checked = settings.autoUpdate !== false;
+        autoUpdateCheckbox.addEventListener('input', () => {
+            settings.autoUpdate = autoUpdateCheckbox.checked;
+            saveExtensionSettings();
+        });
+        wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', () => {
+            void checkForSillyGameUpdate({ auto: false });
         });
         return true;
     }
@@ -474,7 +623,18 @@
             grid.append(card);
         }
 
-        panel.append(header, intro, grid);
+        const updateRow = el('div', { class: 'stgc-home-update-row' });
+        const updateInfo = el('div', { class: 'stgc-home-update-info' }, [
+            el('span', { class: 'stgc-home-update-version', text: `v${CURRENT_VERSION}` }),
+            el('span', { class: 'stgc-home-update-text', text: '检查 Silly Game 更新' }),
+        ]);
+        const updateBtn = el('button', { class: 'stgc-btn stgc-home-update-btn', type: 'button' });
+        updateBtn.setAttribute('data-stgc-update-button', '1');
+        updateBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i><span>检查更新</span>';
+        updateBtn.addEventListener('click', () => { void checkForSillyGameUpdate({ auto: false }); });
+        updateRow.append(updateInfo, updateBtn);
+
+        panel.append(header, intro, grid, updateRow);
         root.append(panel);
     }
 
@@ -3523,6 +3683,10 @@
             window.setTimeout(tryAddSettings, 250);
         };
         tryAddSettings();
+
+        window.setTimeout(() => {
+            void checkForSillyGameUpdate({ auto: true });
+        }, 2500);
     }
 
     function init() {
