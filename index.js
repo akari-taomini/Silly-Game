@@ -865,8 +865,29 @@
     /* ==================== 消灭星星 ==================== */
     const STARPOP_STORAGE_KEY = 'silly-game:star-pop:v2';
     const STARPOP_LEGACY_STORAGE_KEY = 'silly-game:star-pop:v1';
+    const STARPOP_PALETTE_KEY = 'silly-game:star-pop:palette:v1';
     const STARPOP_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
     const STARPOP_SIZE = 12;
+    const STARPOP_PALETTES = {
+        morandi: '莫兰迪',
+        dopamine: '多巴胺糖果',
+        macaron: '马卡龙',
+        cream: '奶油',
+        icecream: '冰激凌',
+    };
+
+    function starPopPaletteLoad() {
+        try {
+            const value = localStorage.getItem(STARPOP_PALETTE_KEY);
+            return Object.hasOwn(STARPOP_PALETTES, value) ? value : 'morandi';
+        } catch {
+            return 'morandi';
+        }
+    }
+
+    function starPopPaletteSave(value) {
+        try { localStorage.setItem(STARPOP_PALETTE_KEY, Object.hasOwn(STARPOP_PALETTES, value) ? value : 'morandi'); } catch { /* ignore */ }
+    }
 
     function starPopNewBoard() {
         const board = Array.from({ length: STARPOP_SIZE }, () =>
@@ -1001,9 +1022,20 @@
         const remainPill = el('span', { class: 'stgc-pill' });
         const bestPill = el('span', { class: 'stgc-pill' });
         info.append(scorePill, remainPill, bestPill);
+
+        const paletteWrap = el('label', { class: 'star-pop-palette-wrap' });
+        const paletteLabel = el('span', { class: 'star-pop-palette-label', text: '配色' });
+        const paletteSelect = el('select', { class: 'text_pole star-pop-palette-select', 'aria-label': '消灭星星配色' });
+        Object.entries(STARPOP_PALETTES).forEach(([value, label]) => {
+            const option = el('option', { value, text: label });
+            paletteSelect.append(option);
+        });
+        paletteSelect.value = starPopPaletteLoad();
+        paletteWrap.append(paletteLabel, paletteSelect);
+
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
-        toolbar.append(info, reset);
+        toolbar.append(info, paletteWrap, reset);
 
         const board = el('div', { class: 'star-pop-board', role: 'grid', 'aria-label': '消灭星星棋盘' });
         const hint = el('div', { class: 'stgc-game-hint', text: '点击两个以上相连的同色星星即可消除。消除后上方星星会下落，空列会向左收拢。' });
@@ -1013,6 +1045,7 @@
         function draw() {
             const game = state.starPop;
             board.innerHTML = '';
+            board.dataset.palette = paletteSelect.value;
             let remaining = 0;
             game.board.forEach(row => row.forEach(v => { if (v >= 0) remaining++; }));
             scorePill.textContent = `分数 ${game.score}`;
@@ -1044,6 +1077,11 @@
             }
         }
 
+        paletteSelect.addEventListener('change', () => {
+            starPopPaletteSave(paletteSelect.value);
+            draw();
+        });
+
         reset.addEventListener('click', () => {
             const best = Math.max(state.starPop?.best || 0, starPopLoad().best || 0);
             state.starPop = starPopNewBoard();
@@ -1052,7 +1090,10 @@
             draw();
         });
 
-        state.cleanup = () => starPopSave(state.starPop);
+        state.cleanup = () => {
+            starPopSave(state.starPop);
+            starPopPaletteSave(paletteSelect.value);
+        };
         draw();
     }
 
