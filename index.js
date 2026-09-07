@@ -13,6 +13,10 @@
         sokoban: null,
         sudoku: null,
         spider: null,
+        gomoku: null,
+        puzzle15: null,
+        tetris: null,
+        go: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
@@ -447,7 +451,10 @@
             { id: 'sudoku', icon: 'fa-table-cells', name: '数独', desc: '9×9 数字逻辑 · 多种难度' },
             { id: 'spider', icon: 'fa-spider', name: '蜘蛛纸牌', desc: '1 / 2 / 4 花色 · 撤销与提示' },
             { id: 'gomoku', icon: 'fa-circle-dot', name: '五子棋', desc: '15×15 · 本地 AI · 无需 API' },
-        ];
+            { id: 'puzzle15', icon: 'fa-border-all', name: '数字华容道', desc: '3×3 / 4×4 / 5×5 · 经典滑块' },
+            { id: 'tetris', icon: 'fa-shapes', name: '俄罗斯方块', desc: '10×20 · 消行 · 方向键 / 虚拟键' },
+            { id: 'go', icon: 'fa-circle-half-stroke', name: '围棋', desc: '9×9 · 本地 AI / 双人 · 无需 API' },
+        ]; 
 
         for (const game of games) {
             const card = el('button', {
@@ -484,6 +491,9 @@
             sudoku: '数独',
             spider: '蜘蛛纸牌',
             gomoku: '五子棋',
+            puzzle15: '数字华容道',
+            tetris: '俄罗斯方块',
+            go: '围棋',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -497,6 +507,9 @@
         else if (game === 'sudoku') renderSudoku(body);
         else if (game === 'spider') renderSpider(body);
         else if (game === 'gomoku') renderGomoku(body);
+        else if (game === 'puzzle15') render15Puzzle(body);
+        else if (game === 'tetris') renderTetris(body);
+        else if (game === 'go') renderGo(body);
     }
 
     /* ==================== Minesweeper ==================== */
@@ -2211,6 +2224,233 @@
 
         state.cleanup = () => {};
         draw();
+    }
+
+
+    /* ==================== 15 Puzzle ==================== */
+    const PUZZLE15_KEY = 'silly-game:15-puzzle:v1';
+
+    function puzzle15Solved(board) {
+        for (let i = 0; i < board.length - 1; i++) if (board[i] !== i + 1) return false;
+        return board[board.length - 1] === 0;
+    }
+
+    function puzzle15ValidMoves(size, index) {
+        const x = index % size, y = Math.floor(index / size);
+        const out = [];
+        if (y > 0) out.push(index - size);
+        if (y < size - 1) out.push(index + size);
+        if (x > 0) out.push(index - 1);
+        if (x < size - 1) out.push(index + 1);
+        return out;
+    }
+
+    function puzzle15Shuffle(size) {
+        const board = Array.from({ length: size * size }, (_, i) => i + 1);
+        board[board.length - 1] = 0;
+        let blank = board.length - 1;
+        let prev = -1;
+        const steps = Math.max(120, size * size * 30);
+        for (let i = 0; i < steps; i++) {
+            let moves = puzzle15ValidMoves(size, blank).filter(m => m !== prev);
+            if (!moves.length) moves = puzzle15ValidMoves(size, blank);
+            const target = moves[Math.floor(Math.random() * moves.length)];
+            [board[blank], board[target]] = [board[target], board[blank]];
+            prev = blank;
+            blank = target;
+        }
+        if (puzzle15Solved(board)) return puzzle15Shuffle(size);
+        return board;
+    }
+
+    function save15Puzzle() {
+        try { localStorage.setItem(PUZZLE15_KEY, JSON.stringify(state.puzzle15)); } catch {}
+    }
+
+    function load15Puzzle() {
+        try {
+            const raw = localStorage.getItem(PUZZLE15_KEY);
+            if (!raw) return null;
+            const game = JSON.parse(raw);
+            if (!game || !Array.isArray(game.board) || !Number.isInteger(game.size)) return null;
+            return game;
+        } catch { return null; }
+    }
+
+    function clear15PuzzleSave() {
+        try { localStorage.removeItem(PUZZLE15_KEY); } catch {}
+    }
+
+    function new15Puzzle(size = 4) {
+        return { size, board: puzzle15Shuffle(size), moves: 0, startedAt: Date.now(), time: 0, won: false };
+    }
+
+    function move15Puzzle(direction) {
+        const game = state.puzzle15;
+        if (!game || game.won) return false;
+        const zero = game.board.indexOf(0);
+        const x = zero % game.size, y = Math.floor(zero / game.size);
+        let target = -1;
+        if (direction === 'up' && y > 0) target = zero - game.size;
+        if (direction === 'down' && y < game.size - 1) target = zero + game.size;
+        if (direction === 'left' && x > 0) target = zero - 1;
+        if (direction === 'right' && x < game.size - 1) target = zero + 1;
+        if (target < 0) return false;
+        [game.board[zero], game.board[target]] = [game.board[target], game.board[zero]];
+        game.moves++;
+        game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+        game.won = puzzle15Solved(game.board);
+        if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+        save15Puzzle();
+        return true;
+    }
+
+    function render15Puzzle(body) {
+        cleanupGame();
+        state.puzzle15 = load15Puzzle() || new15Puzzle(4);
+        save15Puzzle();
+
+        const top = el('div', { class: 'stgc-status-row' });
+        const info = el('div', { class: 'stgc-status-text' });
+        const size = el('select', { class: 'stgc-select', title: '棋盘大小' });
+        [[3,'3×3'],[4,'4×4'],[5,'5×5']].forEach(([v,t]) => {
+            const o=el('option',{value:String(v),text:t}); size.append(o);
+        });
+        size.value = String(state.puzzle15.size);
+        const reset = el('button',{class:'stgc-btn',type:'button'});
+        reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';
+        const board = el('div',{class:'puzzle15-board'});
+        const controls = el('div',{class:'game-direction-controls stgc-15-controls'});
+        const makeBtn=(text,d)=>{const b=el('button',{class:'direction-btn',type:'button',text, 'aria-label':d}); b.addEventListener('click',()=>{move15Puzzle(d);draw();}); return b;};
+        [['↑','up'],['←','left'],['↓','down'],['→','right']].forEach(([t,d])=>controls.append(makeBtn(t,d)));
+        top.append(info,size,reset);
+        body.append(top,board,controls,el('div',{class:'stgc-game-hint',text:'点击相邻数字或使用方向键移动空格 · 页面刷新会自动保存'}));
+
+        const draw=()=>{
+            const g=state.puzzle15;
+            board.innerHTML='';
+            board.style.gridTemplateColumns=`repeat(${g.size},1fr)`;
+            info.textContent=g.won?`🎉 完成！${formatTime(g.time)} · ${g.moves} 步`:`${g.size}×${g.size} · ${formatTime(Math.floor((Date.now()-g.startedAt)/1000))} · ${g.moves} 步`;
+            g.board.forEach((v,i)=>{
+                const tile=el('div',{class:`puzzle15-tile${v===0?' empty':''}`,text:v?String(v):''});
+                if (v) tile.addEventListener('click',()=>{
+                    const zero=g.board.indexOf(0); if (puzzle15ValidMoves(g.size,zero).includes(i)) {
+                        if (i===zero-g.size) move15Puzzle('up');
+                        else if (i===zero+g.size) move15Puzzle('down');
+                        else if (i===zero-1) move15Puzzle('left');
+                        else if (i===zero+1) move15Puzzle('right');
+                        draw();
+                    }
+                });
+                board.append(tile);
+            });
+        };
+        const onKey=e=>{if(state.currentGame!=='puzzle15')return;const m={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(!m)return;e.preventDefault();e.stopPropagation();move15Puzzle(m);draw();};
+        document.addEventListener('keydown',onKey,true);
+        size.addEventListener('change',()=>{state.puzzle15=new15Puzzle(Number(size.value));clear15PuzzleSave();save15Puzzle();draw();});
+        reset.addEventListener('click',()=>{state.puzzle15=new15Puzzle(state.puzzle15.size);clear15PuzzleSave();save15Puzzle();draw();});
+        const timer=window.setInterval(draw,1000);
+        state.cleanup=()=>{document.removeEventListener('keydown',onKey,true);clearInterval(timer);save15Puzzle();};
+        draw();
+    }
+
+    /* ==================== Tetris ==================== */
+    const TETRIS_KEY='silly-game:tetris:v1';
+    const TETROMINOES={
+        I:[[0,0],[1,0],[2,0],[3,0]],O:[[0,0],[1,0],[0,1],[1,1]],T:[[1,0],[0,1],[1,1],[2,1]],S:[[1,0],[2,0],[0,1],[1,1]],Z:[[0,0],[1,0],[1,1],[2,1]],J:[[0,0],[0,1],[1,1],[2,1]],L:[[2,0],[0,1],[1,1],[2,1]]
+    };
+    const TETRIS_COLORS={I:'I',O:'O',T:'T',S:'S',Z:'Z',J:'J',L:'L'};
+
+    function tetrisBag(){const a=Object.keys(TETROMINOES);for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+    function tetrisPiece(type){return {type, x:3, y:0, rot:0};}
+    function tetrisCells(piece){
+        const base=TETROMINOES[piece.type];
+        let cells=base.map(([x,y])=>[x,y]);
+        for(let r=0;r<piece.rot%4;r++) cells=cells.map(([x,y])=>[-y,x]);
+        const minX=Math.min(...cells.map(c=>c[0])), minY=Math.min(...cells.map(c=>c[1]));
+        return cells.map(([x,y])=>[x-minX,y-minY]);
+    }
+    function tetrisCanPlace(g,piece,dx=0,dy=0,rot=piece.rot){
+        const test={...piece,rot};
+        return tetrisCells(test).every(([x,y])=>{const nx=test.x+x+dx,ny=test.y+y+dy;return nx>=0&&nx<10&&ny>=0&&ny<20&&(g.board[ny]?.[nx]||0)===0;});
+    }
+    function tetrisSpawn(g){
+        if(!g.queue.length)g.queue.push(...tetrisBag());
+        const type=g.queue.shift();g.queue.push(...(g.queue.length<3?tetrisBag():[]));g.current=tetrisPiece(type);g.current.x=3;g.current.y=0;g.current.rot=0;
+        if(!tetrisCanPlace(g,g.current))g.over=true;
+    }
+    function tetrisNew(){const g={board:Array.from({length:20},()=>Array(10).fill(0)),queue:[],current:null,score:0,lines:0,level:1,over:false,paused:false,dropTick:0,startedAt:Date.now()};g.queue.push(...tetrisBag(),...tetrisBag());tetrisSpawn(g);return g;}
+    function saveTetris(){try{localStorage.setItem(TETRIS_KEY,JSON.stringify(state.tetris));}catch{}}
+    function loadTetris(){try{const x=JSON.parse(localStorage.getItem(TETRIS_KEY)||'null');if(x?.board?.length===20)return x;}catch{}return null;}
+    function clearTetris(){try{localStorage.removeItem(TETRIS_KEY);}catch{}}
+    function tetrisLock(g){
+        for(const [x,y] of tetrisCells(g.current)){const nx=g.current.x+x,ny=g.current.y+y;if(ny>=0&&ny<20)g.board[ny][nx]=g.current.type;}
+        let cleared=0;
+        for(let y=19;y>=0;y--){if(g.board[y].every(Boolean)){g.board.splice(y,1);g.board.unshift(Array(10).fill(0));cleared++;y++;}}
+        if(cleared){const points=[0,100,300,500,800][cleared]*g.level;g.score+=points;g.lines+=cleared;g.level=1+Math.floor(g.lines/10);}
+        tetrisSpawn(g);
+    }
+    function tetrisMove(dir){const g=state.tetris;if(!g||g.over||g.paused)return false;let moved=false;if(dir==='left'&&tetrisCanPlace(g,g.current,-1,0)){g.current.x--;moved=true;}if(dir==='right'&&tetrisCanPlace(g,g.current,1,0)){g.current.x++;moved=true;}if(dir==='down'){if(tetrisCanPlace(g,g.current,0,1)){g.current.y++;g.score++;moved=true;}else{tetrisLock(g);moved=true;}}if(dir==='drop'){let d=0;while(tetrisCanPlace(g,g.current,0,d+1))d++;g.current.y+=d;g.score+=d*2;tetrisLock(g);moved=true;}if(dir==='rotate'){let r=(g.current.rot+1)%4;if(tetrisCanPlace(g,g.current,0,0,r)){g.current.rot=r;moved=true;}else for(const kick of [-1,1,-2,2])if(tetrisCanPlace(g,g.current,kick,0,r)){g.current.x+=kick;g.current.rot=r;moved=true;break;}}if(moved)saveTetris();return moved;}
+
+    function renderTetris(body){
+        cleanupGame(); state.tetris=loadTetris()||tetrisNew(); saveTetris();
+        const top=el('div',{class:'stgc-status-row'}),info=el('div',{class:'stgc-status-text'}),reset=el('button',{class:'stgc-btn',type:'button'}),pause=el('button',{class:'stgc-btn',type:'button'});reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';pause.innerHTML='<i class="fa-solid fa-pause"></i><span>暂停</span>';top.append(info,pause,reset);
+        const wrap=el('div',{class:'tetris-wrap'}),board=el('div',{class:'tetris-board'}),side=el('div',{class:'tetris-side'}),nextTitle=el('div',{class:'stgc-side-title',text:'下一个'}),next=el('div',{class:'tetris-next'});side.append(nextTitle,next);wrap.append(board,side);
+        const controls=el('div',{class:'tetris-controls'});
+        const add=(text,fn,cls='')=>{const b=el('button',{class:`direction-btn ${cls}`,type:'button',text});b.addEventListener('click',fn);controls.append(b);return b;};
+        add('↺',()=>tetrisMove('rotate'),'tetris-rotate');add('←',()=>tetrisMove('left'));add('↓',()=>tetrisMove('down'));add('→',()=>tetrisMove('right'));add('⤓',()=>tetrisMove('drop'),'tetris-drop');
+        body.append(top,wrap,controls,el('div',{class:'stgc-game-hint',text:'← → 移动 · ↓ 加速 · ↺ 旋转 · ⤓ 直接落底 · 刷新自动保存'}));
+        const draw=()=>{
+            const g=state.tetris;board.innerHTML='';const cells=Array.from({length:20},()=>Array(10).fill(''));for(let y=0;y<20;y++)for(let x=0;x<10;x++)if(g.board[y][x])cells[y][x]=g.board[y][x];
+            if(g.current&&!g.over)for(const [x,y] of tetrisCells(g.current)){const nx=g.current.x+x,ny=g.current.y+y;if(ny>=0&&ny<20&&nx>=0&&nx<10)cells[ny][nx]=g.current.type;}
+            for(let y=0;y<20;y++)for(let x=0;x<10;x++){const c=el('div',{class:`tetris-cell${cells[y][x]?' filled':''}`});if(cells[y][x])c.dataset.t=cells[y][x];board.append(c);}info.textContent=g.over?`游戏结束 · ${g.score} 分`:g.paused?`已暂停 · ${g.score} 分`:`${g.score} 分 · ${g.lines} 行 · Lv.${g.level}`;pause.innerHTML=g.paused?'<i class="fa-solid fa-play"></i><span>继续</span>':'<i class="fa-solid fa-pause"></i><span>暂停</span>';next.innerHTML='';const p=tetrisPiece(g.queue[0]||'I');for(const [x,y] of tetrisCells(p)){const n=el('div',{class:'tetris-mini-cell',text:''});n.style.gridColumn=String(x+1);n.style.gridRow=String(y+1);n.dataset.t=p.type;next.append(n);}
+        };
+        const onKey=e=>{if(state.currentGame!=='tetris')return;const m={ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',' ':'drop',ArrowUp:'rotate'}[e.key];if(!m)return;e.preventDefault();e.stopPropagation();if(e.key===' ')tetrisMove('drop');else tetrisMove(m);draw();};document.addEventListener('keydown',onKey,true);
+        pause.addEventListener('click',()=>{state.tetris.paused=!state.tetris.paused;saveTetris();draw();});reset.addEventListener('click',()=>{clearTetris();state.tetris=tetrisNew();saveTetris();draw();});
+        const timer=window.setInterval(()=>{const g=state.tetris;if(!g||g.over||g.paused)return;const speed=Math.max(90,800-(g.level-1)*65);g.dropTick++;if(g.dropTick>=Math.max(1,Math.floor(speed/90))){g.dropTick=0;if(!tetrisCanPlace(g,g.current,0,1))tetrisLock(g);else g.current.y++;saveTetris();}draw();},90);
+        state.cleanup=()=>{document.removeEventListener('keydown',onKey,true);clearInterval(timer);saveTetris();};draw();
+    }
+
+    /* ==================== Go 9x9 ==================== */
+    const GO_SIZE=9;
+    const GO_KEY='silly-game:go:v1';
+
+    function goIndex(x,y){return y*GO_SIZE+x}
+    function goXY(i){return [i%GO_SIZE,Math.floor(i/GO_SIZE)]}
+    function goNeighbors(i){const [x,y]=goXY(i),a=[];if(x>0)a.push(i-1);if(x<GO_SIZE-1)a.push(i+1);if(y>0)a.push(i-GO_SIZE);if(y<GO_SIZE-1)a.push(i+GO_SIZE);return a}
+    function goCloneBoard(b){return b.slice()}
+    function goGroup(board,start){const color=board[start];if(!color)return {stones:[],liberties:new Set()};const stones=[],libs=new Set(),seen=new Set([start]),q=[start];while(q.length){const i=q.pop();stones.push(i);for(const n of goNeighbors(i)){if(board[n]===0)libs.add(n);else if(board[n]===color&&!seen.has(n)){seen.add(n);q.push(n);}}}return {stones,liberties:libs};}
+    function goRemoveGroup(board,g){g.stones.forEach(i=>board[i]=0)}
+    function goMove(game,index,player){
+        if(game.over||game.board[index]!==0||player!==game.turn)return false;
+        const prevKey=game.board.join('');
+        if (prevKey===game.ko) { /* ko state is stored as the immediately previous position */ }
+        const next=goCloneBoard(game.board);next[index]=player;const opponent=player===1?2:1;let captured=0;
+        for(const n of goNeighbors(index))if(next[n]===opponent){const g=goGroup(next,n);if(g.liberties.size===0){captured+=g.stones.length;goRemoveGroup(next,g);}}
+        const own=goGroup(next,index);if(own.liberties.size===0&&captured===0)return false;
+        const key=next.join('');if(key===game.ko)return false;
+        game.history.push({board:game.board.slice(),turn:game.turn,ko:game.ko,captured:game.captured.slice(),passes:game.passes});
+        game.board=next;game.turn=opponent;game.captured[player-1]+=captured;game.ko=captured===1?prevKey:'';game.passes=0;return true;
+    }
+    function goUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.ko=h.ko;game.captured=h.captured;game.passes=h.passes;game.over=false;return true}
+    function goCountScore(game){
+        const seen=new Set();let black=game.captured[0],white=game.captured[1];
+        for(let i=0;i<game.board.length;i++)if(game.board[i]===0&&!seen.has(i)){const q=[i],region=[],owners=new Set();seen.add(i);while(q.length){const p=q.pop();region.push(p);for(const n of goNeighbors(p)){if(game.board[n]===0&&!seen.has(n)){seen.add(n);q.push(n)}else if(game.board[n])owners.add(game.board[n]);}}if(owners.size===1){if(owners.has(1))black+=region.length;else white+=region.length;}}
+        return {black,white:white+6.5};
+    }
+    function goCandidates(game){const set=new Set();game.board.forEach((v,i)=>{if(v)goNeighbors(i).forEach(n=>{if(game.board[n]===0)set.add(n)})});if(!set.size)for(let i=0;i<game.board.length;i++)if(!game.board[i])set.add(i);return [...set]}
+    function goSimpleAI(game){const cands=goCandidates(game), me=2, opp=1;let best=cands[0],score=-Infinity;for(const i of cands){const tmp={...game,board:game.board.slice(),history:[] ,captured:game.captured.slice(),turn:me,ko:game.ko,passes:game.passes,over:false};if(!goMove(tmp,i,me))continue;let s=tmp.captured[1]*30;const g=goGroup(tmp.board,i);s+=g.liberties.size*4;const [x,y]=goXY(i);s+=(4-Math.abs(4-x))+(4-Math.abs(4-y));const block=goMove(tmp,goCandidates({...game,turn:opp,board:tmp.board.slice(),history:[],captured:tmp.captured.slice(),ko:tmp.ko,passes:0,over:false})[0]||i,opp);s+=block?0:0;if(s>score){score=s;best=i;}}return best;}
+    function newGo(mode='ai'){return {board:Array(GO_SIZE*GO_SIZE).fill(0),turn:1,captured:[0,0],history:[],ko:'',passes:0,over:false,mode,aiThinking:false}}
+    function saveGo(){try{localStorage.setItem(GO_KEY,JSON.stringify(state.go));}catch{}}
+    function loadGo(){try{const g=JSON.parse(localStorage.getItem(GO_KEY)||'null');if(g?.board?.length===81)return g;}catch{}return null}
+    function renderGo(body){
+        cleanupGame();state.go=loadGo()||newGo('ai');saveGo();
+        const top=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),pass=el('button',{class:'stgc-btn',type:'button',text:'停一手'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});top.append(status,mode,undo,pass,reset);
+        const board=el('div',{class:'go-board'}),controls=el('div',{class:'go-bottom-controls'});body.append(top,board,controls,el('div',{class:'stgc-game-hint',text:'9×9 围棋 · 气、提子、禁入、劫已实现 · 默认本地 AI，无需 API'}));
+        const draw=()=>{const g=state.go;board.innerHTML='';mode.textContent=g.mode==='ai'?'人机对战':'双人对战';if(g.over){const sc=goCountScore(g);status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;}else if(g.aiThinking)status.textContent='AI 思考中…';else status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;for(let i=0;i<81;i++){const c=el('button',{class:'go-cell',type:'button'});const [x,y]=goXY(i);if(x===0)c.classList.add('left');if(y===0)c.classList.add('top');if(g.board[i]===1)c.classList.add('black');if(g.board[i]===2)c.classList.add('white');if([20,24,40,56,60].includes(i))c.classList.add('star');c.dataset.index=String(i);board.append(c);}};
+        const ai=()=>{const g=state.go;if(g.mode!=='ai'||g.over||g.turn!==2)return;g.aiThinking=true;draw();window.setTimeout(()=>{if(state.currentGame!=='go'||state.go!==g)return;const move=goSimpleAI(g);g.aiThinking=false;if(move==null){g.passes++;}else goMove(g,move,2);if(g.passes>=2)g.over=true;saveGo();draw();},180)};
+        board.addEventListener('click',e=>{const c=e.target.closest?.('.go-cell');if(!c)return;const g=state.go;if(g.over||g.aiThinking)return;if(g.mode==='ai'&&g.turn!==1)return;const ok=goMove(g,Number(c.dataset.index),g.turn);if(ok){saveGo();draw();ai();}});
+        mode.addEventListener('click',()=>{state.go=newGo(state.go.mode==='ai'?'pvp':'ai');saveGo();draw();});undo.addEventListener('click',()=>{if(state.go.mode==='ai'&&state.go.history.length>=2){goUndo(state.go);goUndo(state.go);}else goUndo(state.go);saveGo();draw();});pass.addEventListener('click',()=>{const g=state.go;if(g.over)return;g.history.push({board:g.board.slice(),turn:g.turn,ko:g.ko,captured:g.captured.slice(),passes:g.passes});g.passes++;g.turn=g.turn===1?2:1;if(g.passes>=2)g.over=true;saveGo();draw();ai();});reset.addEventListener('click',()=>{state.go=newGo(state.go.mode);saveGo();draw();});state.cleanup=()=>saveGo();draw();
     }
 
     /* ==================== Spider Solitaire ==================== */

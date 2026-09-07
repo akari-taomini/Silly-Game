@@ -1144,3 +1144,246 @@
         height: 66%;
     }
 }
+
+/* ---------- 数字华容道 ---------- */
+#st-mini-game-center .puzzle15-board {
+    width: min(460px, 100%);
+    aspect-ratio: 1;
+    margin: 4px auto 12px;
+    padding: 7px;
+    display: grid;
+    gap: 6px;
+    border-radius: calc(var(--SmartThemeBorderRadius, 6px) + 5px);
+    background: var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    touch-action: manipulation;
+    user-select: none;
+}
+
+#st-mini-game-center .puzzle15-tile {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.82));
+    color: var(--SmartThemeBodyColor, currentColor);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    box-shadow: 0 2px 5px rgba(0,0,0,.10);
+    font-size: clamp(20px, 7vw, 36px);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .08s ease;
+}
+
+#st-mini-game-center .puzzle15-tile:not(.empty):active {
+    transform: scale(.95);
+}
+
+#st-mini-game-center .puzzle15-tile.empty {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+#st-mini-game-center .stgc-15-controls {
+    margin-top: 10px;
+}
+
+/* ---------- 俄罗斯方块 ---------- */
+#st-mini-game-center .tetris-wrap {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+}
+
+#st-mini-game-center .tetris-board {
+    width: min(360px, 70vw);
+    aspect-ratio: 1 / 2;
+    padding: 4px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(20, 1fr);
+    gap: 2px;
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    background: var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    touch-action: none;
+    user-select: none;
+}
+
+#st-mini-game-center .tetris-cell {
+    min-width: 0;
+    min-height: 0;
+    border-radius: 2px;
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.05));
+}
+
+#st-mini-game-center .tetris-cell.filled {
+    background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+    opacity: .9;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30), inset 0 -2px 3px rgba(0,0,0,.18);
+}
+
+#st-mini-game-center .tetris-cell.filled[data-t="I"] { opacity: .95; }
+#st-mini-game-center .tetris-cell.filled[data-t="O"] { filter: saturate(1.05); }
+#st-mini-game-center .tetris-cell.filled[data-t="T"] { filter: brightness(1.03); }
+#st-mini-game-center .tetris-cell.filled[data-t="S"] { filter: brightness(1.08); }
+#st-mini-game-center .tetris-cell.filled[data-t="Z"] { filter: brightness(.98); }
+#st-mini-game-center .tetris-cell.filled[data-t="J"] { filter: brightness(.96); }
+#st-mini-game-center .tetris-cell.filled[data-t="L"] { filter: brightness(1.06); }
+
+#st-mini-game-center .tetris-side {
+    width: 86px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+#st-mini-game-center .stgc-side-title {
+    opacity: .72;
+    font-size: 12px;
+}
+
+#st-mini-game-center .tetris-next {
+    width: 86px;
+    height: 86px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 2px;
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+}
+
+#st-mini-game-center .tetris-mini-cell[data-t] {
+    border-radius: 2px;
+    background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -2px 3px rgba(0,0,0,.15);
+}
+
+#st-mini-game-center .tetris-controls {
+    width: max-content;
+    margin: 12px auto 0;
+    display: grid;
+    grid-template-columns: repeat(3, 52px);
+    grid-template-rows: repeat(3, 46px);
+    gap: 6px;
+}
+
+#st-mini-game-center .tetris-controls .direction-btn {
+    min-height: 46px;
+    padding: 0;
+    touch-action: manipulation;
+}
+
+#st-mini-game-center .tetris-controls .tetris-rotate { grid-column: 2; grid-row: 1; }
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn { grid-column: 1; grid-row: 2; }
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn { grid-column: 2; grid-row: 2; }
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn + .direction-btn { grid-column: 3; grid-row: 2; }
+#st-mini-game-center .tetris-controls .tetris-drop { grid-column: 2; grid-row: 3; }
+
+/* ---------- 围棋 ---------- */
+#st-mini-game-center .go-board {
+    width: min(560px, 100%);
+    aspect-ratio: 1;
+    margin: 6px auto 12px;
+    padding: 8px;
+    display: grid;
+    background:
+        linear-gradient(to right, transparent 0%, transparent calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 12.5%, transparent 12.5%, transparent calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 25%, transparent 25%, transparent calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 37.5%, transparent 37.5%, transparent calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 50%, transparent 50%, transparent calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 62.5%, transparent 62.5%, transparent calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 75%, transparent 75%, transparent calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 87.5%, transparent 87.5%),
+        linear-gradient(to bottom, transparent 0%, transparent calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 12.5%, transparent 12.5%, transparent calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 25%, transparent 25%, transparent calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 37.5%, transparent 37.5%, transparent calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 50%, transparent 50%, transparent calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 62.5%, transparent 62.5%, transparent calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 75%, transparent 75%, transparent calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 87.5%, transparent 87.5%),
+        var(--SmartThemeBlurTintColor, rgba(180,150,110,.16));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    touch-action: manipulation;
+    user-select: none;
+}
+
+#st-mini-game-center .go-cell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent !important;
+    color: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+#st-mini-game-center .go-cell::before {
+    content: '';
+    position: absolute;
+    inset: 17%;
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,.2);
+}
+
+#st-mini-game-center .go-cell.black::before {
+    opacity: 1;
+    background: #222;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 1px 2px 4px rgba(0,0,0,.25);
+}
+
+#st-mini-game-center .go-cell.white::before {
+    opacity: 1;
+    background: #fafafa;
+    border: 1px solid rgba(0,0,0,.25);
+    box-shadow: inset -1px -1px 3px rgba(0,0,0,.14), 1px 2px 4px rgba(0,0,0,.18);
+}
+
+#st-mini-game-center .go-cell.star::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 5px; height: 5px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .58;
+}
+
+#st-mini-game-center .go-cell.black.star::after,
+#st-mini-game-center .go-cell.white.star::after { opacity: 0; }
+
+#st-mini-game-center .go-bottom-controls {
+    min-height: 1px;
+}
+
+@media (max-width: 640px) {
+    #st-mini-game-center .tetris-wrap {
+        gap: 8px;
+    }
+
+    #st-mini-game-center .tetris-board {
+        width: min(70vw, 300px);
+    }
+
+    #st-mini-game-center .tetris-side,
+    #st-mini-game-center .tetris-next {
+        width: 70px;
+    }
+
+    #st-mini-game-center .tetris-next {
+        height: 70px;
+        padding: 7px;
+    }
+
+    #st-mini-game-center .go-board {
+        width: min(94vw, 520px);
+        padding: 6px;
+    }
+
+    #st-mini-game-center .puzzle15-board {
+        width: min(92vw, 460px);
+    }
+}
