@@ -1974,7 +1974,10 @@
     right: 0;
     bottom: 30px;
     top: 0;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
 }
+\n#st-mini-game-center .cake-camera-indicator {\n    position: absolute;\n    left: 50%;\n    top: 12px;\n    z-index: 8;\n    transform: translate(-50%, -4px);\n    padding: 5px 10px;\n    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));\n    border-radius: 999px;\n    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20,20,20,.4)) 82%, transparent);\n    color: var(--SmartThemeBodyColor, currentColor);\n    font-size: 11px;\n    opacity: .0;\n    pointer-events: none;\n    transition: opacity .18s ease, transform .18s ease;\n}\n#st-mini-game-center .cake-camera-indicator.show {\n    opacity: .78;\n    transform: translate(-50%, 0);\n}\n
 #st-mini-game-center .cake-floor {
     position: absolute;
     left: 4%;

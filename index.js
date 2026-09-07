@@ -25,7 +25,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '0.13.3';
+    const CURRENT_VERSION = '0.13.4';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -885,6 +885,7 @@
             raf: 0,
             lastTime: performance.now(),
             areaWidth: 0,
+            cameraY: 0,
         };
         state.cake = game;
 
@@ -896,26 +897,28 @@
         status.append(scoreText, bestText);
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
-        reset.addEventListener('click', () => renderCake(body));
-        top.append(status, reset);
 
         const hint = el('div', { class: 'cake-hint', text: '点击蛋糕落下 · 电脑可按空格 / Enter · 手机直接点屏幕' });
         const scene = el('div', { class: 'cake-scene', role: 'application', 'aria-label': '叠蛋糕' });
         const sky = el('div', { class: 'cake-sky', 'aria-hidden': 'true' });
         const stack = el('div', { class: 'cake-stack' });
         const floor = el('div', { class: 'cake-floor' });
+        const cameraIndicator = el('div', { class: 'cake-camera-indicator', text: '层数 1' });
         const overlay = el('div', { class: 'cake-overlay' });
         overlay.hidden = true;
         const overlayText = el('div', { class: 'cake-overlay-text' });
         const overlayButton = el('button', { class: 'stgc-btn', type: 'button', text: '再来一块' });
-        overlayButton.addEventListener('click', () => renderCake(body));
         overlay.append(overlayText, overlayButton);
-        scene.append(sky, stack, floor, overlay);
+        scene.append(sky, stack, floor, cameraIndicator, overlay);
         wrap.append(top, hint, scene);
         body.append(wrap);
 
         function sceneWidth() {
             return Math.max(280, scene.clientWidth || 320);
+        }
+
+        function sceneHeight() {
+            return Math.max(320, scene.clientHeight || 420);
         }
 
         function layerNode(width, left, bottom, moving, index) {
@@ -929,16 +932,55 @@
             return node;
         }
 
-        function resetBoard() {
-            stack.innerHTML = '';
+        function highestWorldTop() {
+            let top = 0;
+            for (const layer of game.layers) top = Math.max(top, layer.bottom + 27);
+            if (game.current) top = Math.max(top, game.current.bottom + 27);
+            return top;
+        }
+
+        function updateCamera(animate = false) {
+            const targetCenter = sceneHeight() * 0.56;
+            const worldTop = highestWorldTop();
+            const desired = Math.max(0, worldTop - targetCenter);
+            game.cameraY = desired;
+            stack.style.transform = `translate3d(0, ${-game.cameraY}px, 0)`;
+            cameraIndicator.textContent = `层数 ${Math.max(1, game.layers.length)}`;
+            if (animate) {
+                cameraIndicator.classList.remove('show');
+                void cameraIndicator.offsetWidth;
+                cameraIndicator.classList.add('show');
+            }
+        }
+
+        function updateStatus() {
+            scoreText.textContent = `层数 ${Math.max(1, game.layers.length)} · 分数 ${game.score}`;
+            bestText.textContent = `最高 ${Math.max(savedBest.best, Math.max(0, game.layers.length - 1))} 层`;
+            cameraIndicator.textContent = `层数 ${Math.max(1, game.layers.length)}`;
+        }
+
+        function resetRound() {
             game.layers = [];
             game.current = null;
+            game.direction = Math.random() > 0.5 ? 1 : -1;
+            game.speed = 145;
+            game.score = 0;
+            game.running = true;
+            game.over = false;
+            game.cameraY = 0;
             game.areaWidth = sceneWidth();
+            stack.innerHTML = '';
+            stack.style.transform = 'translate3d(0,0,0)';
+            overlay.hidden = true;
+
             const width = Math.min(230, Math.max(150, game.areaWidth * 0.45));
             const left = (game.areaWidth - width) / 2;
             const node = layerNode(width, left, 9, false, 0);
             game.layers.push({ width, left, bottom: 9, node });
             updateStatus();
+            spawnLayer();
+            game.lastTime = performance.now();
+            updateCamera();
         }
 
         function spawnLayer() {
@@ -948,11 +990,7 @@
             const bottom = below.bottom + 27;
             const node = layerNode(width, left, bottom, true, game.layers.length);
             game.current = { width, left, bottom, node };
-        }
-
-        function updateStatus() {
-            scoreText.textContent = `层数 ${Math.max(1, game.layers.length)} · 分数 ${game.score}`;
-            bestText.textContent = `最高 ${Math.max(savedBest.best, Math.max(0, game.layers.length - 1))} 层`;
+            updateCamera();
         }
 
         function finish() {
@@ -995,6 +1033,7 @@
             game.direction *= -1;
             game.speed = Math.min(360, 145 + game.layers.length * 6);
             updateStatus();
+            updateCamera(true);
 
             if (width < 8) {
                 finish();
@@ -1019,6 +1058,7 @@
                 game.direction = -1;
             }
             c.node.style.left = `${c.left}px`;
+            updateCamera();
             game.raf = requestAnimationFrame(step);
         }
 
@@ -1034,6 +1074,7 @@
                 game.current.left = Math.min(Math.max(game.current.left, 0), maxLeft);
                 game.current.node.style.left = `${game.current.left}px`;
             }
+            updateCamera();
         }
 
         const onKey = event => {
@@ -1044,6 +1085,9 @@
             }
         };
         const onResize = () => resize();
+
+        reset.addEventListener('click', resetRound);
+        overlayButton.addEventListener('click', resetRound);
         scene.addEventListener('pointerdown', event => {
             if (event.target.closest('button')) return;
             event.preventDefault();
@@ -1052,9 +1096,7 @@
         document.addEventListener('keydown', onKey, true);
         window.addEventListener('resize', onResize);
 
-        resetBoard();
-        spawnLayer();
-        game.lastTime = performance.now();
+        resetRound();
         game.raf = requestAnimationFrame(step);
         state.cleanup = () => {
             game.running = false;
