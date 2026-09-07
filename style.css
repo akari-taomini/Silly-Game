@@ -1,1093 +1,1942 @@
-/*
- * Silly Game · SillyTavern 小游戏扩展
- * 只使用少量自定义样式，颜色/背景/边框尽量继承 SillyTavern 当前主题变量。
+/* Silly Game — consolidated stylesheet
+ * 外层容器与功能控件跟随 SillyTavern 主题；游戏元素保持各自视觉。
+ * 重复选择器/重复属性已合并，保留最终级联结果。
  */
 
-/* Silly Game 主题基色：优先跟随 SillyTavern；没有主题变量时跟随浏览器日夜间。 */
 #st-mini-game-center,
 #st-mini-game-center-launcher,
 #st-mini-game-center-restore {
+
     --stgc-browser-bg: #f3f3f3;
+
     --stgc-browser-surface: #ffffff;
+
     --stgc-browser-text: #202124;
+
     --stgc-browser-border: rgba(0,0,0,.16);
+
 }
 
 @media (prefers-color-scheme: dark) {
+
     #st-mini-game-center,
     #st-mini-game-center-launcher,
     #st-mini-game-center-restore {
+
         --stgc-browser-bg: #18191b;
+
         --stgc-browser-surface: #232528;
+
         --stgc-browser-text: #f2f2f2;
+
         --stgc-browser-border: rgba(255,255,255,.16);
+
     }
+
 }
 
 #st-mini-game-center-launcher {
+
     position: fixed !important;
+
     left: auto;
+
     top: auto;
+
     right: auto;
+
     bottom: auto;
+
     z-index: 2147483000 !important;
+
     width: 48px !important;
+
     height: 48px !important;
+
     margin: 0 !important;
+
     padding: 0 !important;
+
     display: flex !important;
+
     align-items: center !important;
+
     justify-content: center !important;
+
     visibility: visible !important;
+
     opacity: 1 !important;
+
     pointer-events: auto !important;
+
     cursor: grab;
+
     user-select: none !important;
+
     -webkit-user-select: none !important;
+
     -webkit-touch-callout: none !important;
+
     touch-action: none !important;
+
     color: var(--SmartThemeBodyColor, inherit) !important;
+
     background: var(--SmartThemeBlurTintColor, var(--black50a, rgba(0,0,0,.35))) !important;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+
     border-radius: 50% !important;
+
     box-shadow: 0 5px 18px var(--black50a, rgba(0,0,0,.30)) !important;
+
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+
     overflow: hidden;
+
 }
 
 #st-mini-game-center-launcher.stgc-launcher:hover {
+
     filter: brightness(1.08);
+
 }
 
 #st-mini-game-center-launcher.stgc-launcher:active {
+
     cursor: grabbing;
+
 }
 
 #st-mini-game-center-launcher.in-use {
+
     opacity: .22 !important;
+
     pointer-events: none !important;
+
 }
 
 #st-mini-game-center-launcher.is-hidden {
+
     display: none !important;
+
     visibility: hidden !important;
+
     pointer-events: none !important;
+
 }
 
 #st-mini-game-center-restore {
+
     position: fixed !important;
+
     left: 0;
+
     top: 50%;
+
     transform: translateY(-50%);
+
     z-index: 2147483001 !important;
+
     width: 18px !important;
+
     height: 56px !important;
+
     margin: 0 !important;
+
     padding: 0 !important;
+
     display: none !important;
+
     align-items: center !important;
+
     justify-content: center !important;
+
     color: var(--SmartThemeBodyColor, inherit) !important;
+
     background: var(--SmartThemeBlurTintColor, var(--black50a, rgba(0,0,0,.35))) !important;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+
     border-left: 0 !important;
+
     border-radius: 0 9px 9px 0 !important;
+
     box-shadow: 0 3px 12px var(--black50a, rgba(0,0,0,.24)) !important;
+
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 7px));
+
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 7px));
+
     cursor: pointer;
+
     user-select: none !important;
+
     touch-action: manipulation !important;
+
     font-size: 11px !important;
+
     font-weight: 700 !important;
+
 }
 
 #st-mini-game-center-restore.show {
+
     display: flex !important;
+
 }
 
 #st-mini-game-center-restore:hover {
+
     filter: brightness(1.08);
+
 }
 
 #st-mini-game-center-launcher .stgc-launcher-icon {
+
     width: 24px;
+
     height: 24px;
+
     display: block;
+
     flex: 0 0 auto;
+
     pointer-events: none;
+
 }
 
 #st-mini-game-center {
+
     position: fixed !important;
+
     left: 0 !important;
+
     top: 0 !important;
+
     right: 0 !important;
+
     bottom: 0 !important;
+
     width: 100vw !important;
-    height: 100vh !important;
+
     height: 100dvh !important;
+
     z-index: 999996 !important;
+
     display: none;
+
     align-items: center;
+
     justify-content: center;
+
     padding: 12px;
+
     padding-top: max(12px, env(safe-area-inset-top));
+
     padding-right: max(12px, env(safe-area-inset-right));
+
     padding-bottom: max(12px, env(safe-area-inset-bottom));
+
     padding-left: max(12px, env(safe-area-inset-left));
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-bg)) 78%, #000 22%);
+
     box-sizing: border-box;
+
     overflow: auto;
+
     overscroll-behavior: contain;
+
+    background: transparent !important;
+
+    background-color: transparent !important;
+
+    color: var(--SmartThemeBodyColor) !important;
+
 }
 
 #st-mini-game-center.show {
+
     display: flex;
+
 }
 
 #st-mini-game-center,
 #st-mini-game-center * {
+
     box-sizing: border-box;
+
 }
 
 #st-mini-game-center .stgc-panel {
+
     width: min(680px, 100%);
+
     max-height: min(820px, calc(100dvh - 24px));
+
     overflow: auto;
+
     padding: 12px;
-    color: var(--SmartThemeBodyColor, inherit);
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 88%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 4%, transparent);
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
-    border-radius: var(--SmartThemeBorderRadius, 8px);
-    box-shadow: 0 12px 40px var(--black50a, rgba(0,0,0,.35));
-    backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
-    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 6px));
-    border-radius: 12px;
+
+    color: var(--SmartThemeBodyColor) !important;
+
+    background: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
+
+    background-color: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
+
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+
+    border-radius: 10px !important;
+
+    box-shadow: 0 0 20px var(--SmartThemeShadowColor, rgba(0, 0, 0, .5)) !important;
+
+    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
+
+    -webkit-backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
+
 }
 
-
 #st-mini-game-center .stgc-header {
+
     min-height: 40px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     gap: 8px;
+
     margin: 0 0 8px;
+
 }
 
 #st-mini-game-center .stgc-title {
+
     color: var(--SmartThemeBodyColor, inherit);
+
     font-size: 18px;
+
     font-weight: 700;
+
 }
 
 #st-mini-game-center .stgc-home-title {
+
     margin-bottom: 3px;
+
 }
 
 #st-mini-game-center .stgc-subtitle {
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .72;
+
     font-size: 12px;
+
     line-height: 1.55;
+
 }
 
 #st-mini-game-center .stgc-intro {
+
     margin: 2px 4px 12px;
+
 }
 
 #st-mini-game-center .stgc-btn {
+
     min-height: 34px;
+
     display: inline-flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
     padding: 6px 10px;
+
     color: var(--SmartThemeBodyColor, inherit);
+
     background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.2)));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
 }
 
 #st-mini-game-center .stgc-btn:hover {
+
     filter: brightness(1.08);
+
 }
 
 #st-mini-game-center .stgc-btn:active {
+
     transform: translateY(1px);
+
 }
 
 #st-mini-game-center .stgc-btn-quiet {
-    background: transparent;
+
+    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) !important;
+
 }
 
 #st-mini-game-center .stgc-btn.active {
+
     outline: 1px solid var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, inherit)));
+
     background: var(--SmartThemeQuoteColor, var(--black20a, rgba(0,0,0,.2)));
+
 }
 
 #st-mini-game-center .stgc-btn-icon {
-    width: 34px;
+
     padding: 0;
+
+    min-width: 34px;
+
+    width: 34px;
+
 }
 
 #st-mini-game-center .stgc-header-settings {
+
     margin-left: auto;
+
 }
 
 #st-mini-game-center .stgc-settings-dialog {
+
     position: absolute;
+
     inset: 0;
+
     z-index: 5;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     padding: 16px;
+
     background: var(--black30a, rgba(0,0,0,.28));
+
     border-radius: inherit;
+
 }
 
 #st-mini-game-center .stgc-settings-box {
+
     width: min(420px, 100%);
+
     padding: 14px;
+
     color: var(--SmartThemeBodyColor, inherit);
+
     background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, inherit));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 8px);
+
     box-shadow: 0 12px 36px var(--black50a, rgba(0,0,0,.30));
+
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 8px));
+
 }
 
 #st-mini-game-center .stgc-settings-header {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     gap: 8px;
+
     margin-bottom: 10px;
+
 }
 
 #st-mini-game-center .stgc-setting-row {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     gap: 12px;
+
     padding: 11px 0;
+
     border-top: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.22));
+
     border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.22));
+
 }
 
 #st-mini-game-center .stgc-setting-copy {
+
     min-width: 0;
+
 }
 
 #st-mini-game-center .stgc-setting-name {
+
     font-size: 13px;
+
     font-weight: 700;
+
 }
 
 #st-mini-game-center .stgc-setting-desc,
 #st-mini-game-center .stgc-setting-note {
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .68;
+
     font-size: 11px;
+
     line-height: 1.5;
+
 }
 
 #st-mini-game-center .stgc-setting-note {
+
     margin-top: 9px;
+
 }
 
 #st-mini-game-center .stgc-toggle.active {
+
     outline: 1px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
+
 }
 
 #st-mini-game-center .stgc-menu-grid {
+
     display: grid;
+
     grid-template-columns: repeat(3, minmax(0, 1fr));
+
     gap: 8px;
+
 }
 
 #st-mini-game-center .stgc-game-card {
+
     min-width: 0;
+
     min-height: 106px;
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
+
     padding: 12px;
+
     text-align: left;
-    color: var(--SmartThemeBodyColor, inherit);
-    background: var(--SmartThemeBlurTintColor, var(--black10a, rgba(0,0,0,.12)));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
-    border-radius: var(--SmartThemeBorderRadius, 6px);
+
+    color: var(--SmartThemeBodyColor) !important;
+
+    background: var(--SmartThemeBlurTintColor) !important;
+
+    background-color: var(--SmartThemeBlurTintColor) !important;
+
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+
+    border-radius: 5px !important;
+
 }
 
 #st-mini-game-center .stgc-game-card:hover {
-    background: var(--SmartThemeQuoteColor, var(--black20a, rgba(0,0,0,.16)));
+
+    background: var(--white30a, rgba(255,255,255,.3)) !important;
+
 }
 
 #st-mini-game-center .stgc-card-icon {
+
     width: 38px;
+
     height: 38px;
+
     flex: 0 0 38px;
+
     display: grid;
+
     place-items: center;
-    color: var(--SmartThemeBodyColor, inherit);
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: 50%;
+
     opacity: .9;
+
+    color: var(--SmartThemeBodyColor) !important;
+
+    border-color: var(--SmartThemeBorderColor) !important;
+
+    background: transparent !important;
+
 }
 
 #st-mini-game-center .stgc-card-copy {
+
     min-width: 0;
+
     display: flex;
+
     flex-direction: column;
+
     gap: 3px;
+
 }
 
 #st-mini-game-center .stgc-card-name {
+
     font-size: 14px;
+
     font-weight: 700;
+
 }
 
 #st-mini-game-center .stgc-card-desc {
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .65;
+
     font-size: 11px;
+
     line-height: 1.4;
+
 }
 
 #st-mini-game-center .stgc-difficulty-bar {
+
     display: flex;
+
     align-items: center;
+
     gap: 4px;
+
     flex-wrap: wrap;
+
     margin: 0 0 8px;
+
     padding: 2px 0;
+
 }
 
 #st-mini-game-center .stgc-difficulty-label {
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .72;
+
     font-size: 12px;
+
     margin-right: 2px;
+
 }
 
 #st-mini-game-center .stgc-difficulty-btn {
+
     min-height: 29px;
+
     padding: 4px 8px;
+
     font-size: 11px;
+
 }
 
 #st-mini-game-center .stgc-game-toolbar {
+
     display: flex;
+
     align-items: center;
+
     justify-content: flex-end;
+
     gap: 6px;
+
     flex-wrap: wrap;
+
     margin-bottom: 10px;
+
 }
 
 #st-mini-game-center .stgc-game-info {
+
     margin-right: auto;
+
     display: flex;
+
     gap: 5px;
+
     flex-wrap: wrap;
+
 }
 
 #st-mini-game-center .stgc-pill {
+
     min-height: 30px;
+
     display: inline-flex;
+
     align-items: center;
+
     padding: 4px 8px;
+
     color: var(--SmartThemeBodyColor, inherit);
+
     background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.15)));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     font-size: 12px;
+
 }
 
 #st-mini-game-center .stgc-game-hint {
+
     margin-top: 9px;
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .6;
+
     text-align: center;
+
     font-size: 11px;
+
     line-height: 1.5;
+
 }
 
-/* ---------- 扫雷：棋盘跟随酒馆主题，格子使用低刺激主题色 ---------- */
 #st-mini-game-center .mine-viewport {
+
     width: min(540px, 100%);
+
     height: min(58dvh, 540px);
+
     min-height: 260px;
+
     margin: 0 auto 8px;
+
     overflow: auto;
+
     overscroll-behavior: contain;
+
     -webkit-overflow-scrolling: touch;
+
     scrollbar-width: none;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     background: color-mix(
         in srgb,
         var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 88%,
         var(--SmartThemeBodyColor, var(--stgc-browser-text)) 4%,
         transparent
     );
+
 }
 
 #st-mini-game-center .mine-viewport::-webkit-scrollbar {
+
     width: 0;
+
     height: 0;
+
 }
 
 #st-mini-game-center .mine-board {
+
     width: max-content;
+
     height: max-content;
+
     margin: 0;
+
     padding: 6px;
+
     display: grid;
+
     gap: 3px;
+
     align-content: start;
+
     justify-content: start;
+
     touch-action: manipulation;
+
     user-select: none;
+
 }
 
 #st-mini-game-center .mine-cell {
+
     width: var(--mine-cell-size, 32px);
+
     height: var(--mine-cell-size, 32px);
+
     min-width: 0;
+
     min-height: 0;
+
     padding: 0;
+
     display: grid;
+
     place-items: center;
+
     color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
-    /* 不再固定白色：跟随酒馆背景 + 强调色，夜间自然压暗。 */
+
     background: linear-gradient(
         145deg,
         color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 18%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
         color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 9%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
     );
+
     border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #777) 72%, var(--SmartThemeBodyColor, #777) 8%, transparent);
+
     border-radius: 5px;
-    box-shadow:
-        inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 7%, transparent),
+
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 7%, transparent),
         0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 10%, transparent);
+
     font-size: max(10px, calc(var(--mine-cell-size, 32px) * .48));
+
     font-weight: 800;
+
     line-height: 1;
+
     flex: none;
+
     appearance: none;
+
     -webkit-appearance: none;
+
     text-shadow: none;
+
 }
 
 #st-mini-game-center .mine-cell:hover:not(.open) {
+
     background: linear-gradient(
         145deg,
         color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 26%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
         color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 14%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
     );
+
 }
 
 #st-mini-game-center .mine-cell.open {
+
     background: color-mix(
         in srgb,
         var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 94%,
         var(--SmartThemeBodyColor, var(--stgc-browser-text)) 3%,
         transparent
     );
+
     border-color: color-mix(in srgb, var(--SmartThemeBorderColor, #777) 78%, transparent);
+
     box-shadow: inset 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 11%, transparent);
+
 }
 
 #st-mini-game-center .mine-cell.flagged {
+
     color: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #c47b82)));
+
 }
 
 #st-mini-game-center .mine-cell.mine {
+
     color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
+
     background: color-mix(in srgb, #c96f7a 24%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)));
+
 }
 
-/* 数字本身也采用更柔和的主题友好色，避免夜间高饱和刺眼。 */
-#st-mini-game-center .mine-cell[data-n="1"] { color: color-mix(in srgb, #6c9ed6 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="2"] { color: color-mix(in srgb, #79a77a 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="3"] { color: color-mix(in srgb, #d08080 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="4"] { color: color-mix(in srgb, #a68bc8 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="5"] { color: color-mix(in srgb, #b68a68 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="6"] { color: color-mix(in srgb, #6eaaa9 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="7"] { color: color-mix(in srgb, #a98f9b 76%, var(--SmartThemeBodyColor, #fff) 24%); }
-#st-mini-game-center .mine-cell[data-n="8"] { color: color-mix(in srgb, #8f8f8f 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="1"] {
+
+    color: color-mix(in srgb, #6c9ed6 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="2"] {
+
+    color: color-mix(in srgb, #79a77a 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="3"] {
+
+    color: color-mix(in srgb, #d08080 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="4"] {
+
+    color: color-mix(in srgb, #a68bc8 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="5"] {
+
+    color: color-mix(in srgb, #b68a68 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="6"] {
+
+    color: color-mix(in srgb, #6eaaa9 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="7"] {
+
+    color: color-mix(in srgb, #a98f9b 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
+
+#st-mini-game-center .mine-cell[data-n="8"] {
+
+    color: color-mix(in srgb, #8f8f8f 76%, var(--SmartThemeBodyColor, #fff) 24%);
+
+}
 
 #st-mini-game-center .mine-view-tools {
+
     width: min(540px, 100%);
+
     margin: 0 auto 6px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 6px;
+
 }
 
 #st-mini-game-center .mine-zoom-text {
+
     min-width: 58px;
+
     justify-content: center;
+
 }
 
 #st-mini-game-center .mine-pan-controls {
+
     width: max-content;
+
     margin: 4px auto 8px;
+
     display: grid;
+
     grid-template-columns: repeat(3, 48px);
+
     gap: 5px;
+
 }
 
-#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(1) { grid-column: 2; }
-#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(2) { grid-column: 1; }
-#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(3) { grid-column: 2; }
-#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(4) { grid-column: 3; }
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(1) {
+
+    grid-column: 2;
+
+}
+
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(2) {
+
+    grid-column: 1;
+
+}
+
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(3) {
+
+    grid-column: 2;
+
+}
+
+#st-mini-game-center .mine-pan-controls .game-direction-btn:nth-child(4) {
+
+    grid-column: 3;
+
+}
+
 #st-mini-game-center .mine-pan-controls .game-direction-btn {
+
     width: 48px;
+
     min-height: 44px;
+
     padding: 0;
+
     font-size: 20px;
+
     touch-action: manipulation;
+
 }
 
 #st-mini-game-center .mine-board[data-size="16"] .mine-cell,
 #st-mini-game-center .mine-board[data-size="20"] .mine-cell {
+
     border-radius: 4px;
+
 }
 
-/* ---------- 2048 ---------- */
 #st-mini-game-center .board-2048 {
+
     width: min(430px, 100%);
+
     margin: 0 auto;
+
     padding: 6px;
+
     display: grid;
+
     grid-template-columns: repeat(4, 1fr);
+
     gap: 6px;
+
     background: var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     touch-action: none;
+
     user-select: none;
+
 }
 
 #st-mini-game-center .tile-2048 {
+
     aspect-ratio: 1;
+
     display: grid;
+
     place-items: center;
+
     color: var(--SmartThemeBodyColor, inherit);
+
     background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.12)));
+
     border-radius: 5px;
+
     font-size: clamp(18px, 6.5vw, 34px);
+
     font-weight: 800;
+
 }
 
-#st-mini-game-center .tile-2048[data-v="2"] { background: rgba(127,127,127,.13); }
-#st-mini-game-center .tile-2048[data-v="4"] { background: rgba(127,127,127,.18); }
-#st-mini-game-center .tile-2048[data-v="8"] { background: rgba(210,165,80,.25); }
-#st-mini-game-center .tile-2048[data-v="16"] { background: rgba(210,130,70,.30); }
-#st-mini-game-center .tile-2048[data-v="32"] { background: rgba(210,100,70,.35); }
-#st-mini-game-center .tile-2048[data-v="64"] { background: rgba(210,75,75,.40); }
-#st-mini-game-center .tile-2048[data-v="128"] { background: rgba(155,105,205,.34); }
-#st-mini-game-center .tile-2048[data-v="256"] { background: rgba(130,90,190,.41); }
-#st-mini-game-center .tile-2048[data-v="512"] { background: rgba(105,75,175,.48); }
-#st-mini-game-center .tile-2048[data-v="1024"],
-#st-mini-game-center .tile-2048[data-v="2048"] { background: rgba(200,170,70,.52); }
+#st-mini-game-center .tile-2048[data-v="2"] {
 
-/* ---------- 推箱子 ---------- */
+    background: rgba(127,127,127,.13);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="4"] {
+
+    background: rgba(127,127,127,.18);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="8"] {
+
+    background: rgba(210,165,80,.25);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="16"] {
+
+    background: rgba(210,130,70,.30);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="32"] {
+
+    background: rgba(210,100,70,.35);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="64"] {
+
+    background: rgba(210,75,75,.40);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="128"] {
+
+    background: rgba(155,105,205,.34);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="256"] {
+
+    background: rgba(130,90,190,.41);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="512"] {
+
+    background: rgba(105,75,175,.48);
+
+}
+
+#st-mini-game-center .tile-2048[data-v="1024"],
+#st-mini-game-center .tile-2048[data-v="2048"] {
+
+    background: rgba(200,170,70,.52);
+
+}
+
 #st-mini-game-center .soko-board {
+
     width: min(480px, 100%);
+
     margin: 0 auto 10px;
+
     display: grid;
+
     grid-template-columns: repeat(8, 1fr);
+
     gap: 2px;
+
     padding: 4px;
+
     background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.12)));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     user-select: none;
+
 }
 
 #st-mini-game-center .soko-tile {
+
     position: relative;
+
     aspect-ratio: 1;
+
     display: grid;
+
     place-items: center;
+
     border-radius: 3px;
+
     color: var(--SmartThemeBodyColor, inherit);
+
     background: transparent;
+
 }
 
 #st-mini-game-center .soko-tile.wall {
+
     background: var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
 }
 
 #st-mini-game-center .soko-tile.target::after {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     width: 28%;
+
     height: 28%;
+
     border-radius: 50%;
+
     background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+
     opacity: .55;
+
 }
 
 #st-mini-game-center .soko-tile.box {
+
     font-size: clamp(14px, 4.5vw, 26px);
+
 }
 
 #st-mini-game-center .soko-tile.player {
+
     font-size: clamp(14px, 4.5vw, 26px);
+
 }
 
 #st-mini-game-center .soko-tile.done {
+
     background: rgba(65,165,100,.18);
+
 }
 
 #st-mini-game-center .game-direction-controls {
+
     width: max-content;
+
     margin: 10px auto 0;
+
     display: grid;
+
     grid-template-columns: repeat(3, 48px);
+
     gap: 5px;
+
 }
 
 #st-mini-game-center .stgc-2048-controls {
+
     grid-template-columns: repeat(3, 52px);
+
 }
 
 #st-mini-game-center .soko-controls {
+
     grid-template-columns: repeat(3, 48px);
+
 }
 
+#st-mini-game-center .game-direction-btn:nth-child(1) {
 
-#st-mini-game-center .game-direction-btn:nth-child(1) { grid-column: 2; }
-#st-mini-game-center .game-direction-btn:nth-child(2) { grid-column: 1; }
-#st-mini-game-center .game-direction-btn:nth-child(3) { grid-column: 2; }
-#st-mini-game-center .game-direction-btn:nth-child(4) { grid-column: 3; }
+    grid-column: 2;
+
+}
+
+#st-mini-game-center .game-direction-btn:nth-child(2) {
+
+    grid-column: 1;
+
+}
+
+#st-mini-game-center .game-direction-btn:nth-child(3) {
+
+    grid-column: 2;
+
+}
+
+#st-mini-game-center .game-direction-btn:nth-child(4) {
+
+    grid-column: 3;
+
+}
 
 #st-mini-game-center .game-direction-btn {
+
     width: 48px;
+
     min-height: 44px;
+
     padding: 0;
+
     font-size: 20px;
+
     touch-action: manipulation;
+
 }
 
 #st-mini-game-center .stgc-2048-controls .game-direction-btn {
+
     width: 52px;
+
     min-height: 46px;
+
     font-size: 21px;
+
 }
 
-
 @media (max-width: 640px) {
+
     #st-mini-game-center {
+
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+
         align-items: center !important;
+
         justify-content: center !important;
+
+        height: 100dvh !important;
+
         min-height: 100svh;
+
     }
 
     #st-mini-game-center .stgc-difficulty-bar {
+
         gap: 3px;
+
     }
 
     #st-mini-game-center .stgc-difficulty-btn {
+
         flex: 1 1 auto;
+
         min-width: 0;
+
     }
 
     #st-mini-game-center .mine-viewport {
+
         width: min(100%, calc(100vw - 24px));
+
         height: min(55dvh, 460px);
+
         min-height: 240px;
+
     }
 
     #st-mini-game-center .mine-view-tools {
+
         width: 100%;
-    }
-    #st-mini-game-center {
-        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-        align-items: center !important;
-        justify-content: center !important;
-        height: 100dvh !important;
-        min-height: 100svh;
+
     }
 
     #st-mini-game-center .stgc-panel {
+
         width: min(680px, calc(100vw - 16px));
+
         max-height: calc(100dvh - 16px);
+
         margin: auto !important;
+
     }
 
     #st-mini-game-center .stgc-menu-grid {
+
         grid-template-columns: 1fr;
+
     }
 
     #st-mini-game-center .stgc-game-card {
+
         min-height: 72px;
+
     }
 
     #st-mini-game-center .stgc-card-icon {
+
         width: 34px;
+
         height: 34px;
+
         flex-basis: 34px;
+
     }
 
-#st-mini-game-center .stgc-game-toolbar {
+    #st-mini-game-center .stgc-game-toolbar {
+
         align-items: stretch;
+
     }
 
     #st-mini-game-center .stgc-game-info {
+
         flex-basis: 100%;
+
         width: 100%;
+
     }
+
 }
 
-
-/* ---------- 数独 ---------- */
 #st-mini-game-center .stgc-select {
+
     appearance: auto;
+
     -webkit-appearance: auto;
+
     cursor: pointer;
+
 }
 
 #st-mini-game-center .sudoku-board {
+
     width: min(500px, 100%);
+
     margin: 2px auto 12px;
+
     display: grid;
+
     grid-template-columns: repeat(9, minmax(0, 1fr));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+
     background: var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     overflow: hidden;
+
     touch-action: manipulation;
+
     user-select: none;
+
 }
 
-/* 数独格子不用 button，避免酒馆主题对按钮的全局样式污染。 */
 #st-mini-game-center .sudoku-cell {
+
     position: relative;
+
     min-width: 0;
+
     aspect-ratio: 1;
+
     display: grid;
+
     place-items: center;
+
     margin: 0;
+
     padding: 0;
+
     color: var(--SmartThemeBodyColor, #222) !important;
+
     background: var(--SmartThemeBodyBgColor, transparent);
+
     border: 0;
+
     border-right: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.28));
+
     border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.28));
+
     font-family: inherit !important;
+
     font-size: clamp(16px, 4.7vw, 28px) !important;
+
     font-weight: 500;
+
     line-height: 1 !important;
+
     text-align: center;
+
     text-shadow: none !important;
+
     opacity: 1 !important;
+
     visibility: visible !important;
+
     cursor: pointer;
+
     transition: background-color .08s ease, color .08s ease;
+
 }
 
 #st-mini-game-center .sudoku-cell::before,
 #st-mini-game-center .sudoku-cell::after {
+
     content: none !important;
+
     display: none !important;
+
 }
 
 #st-mini-game-center .sudoku-cell.fixed {
+
     font-weight: 800;
+
 }
 
 #st-mini-game-center .sudoku-cell.related {
+
     background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+
 }
 
 #st-mini-game-center .sudoku-cell.selected {
+
     background: var(--SmartThemeQuoteColor, rgba(127,127,127,.17));
+
     box-shadow: inset 0 0 0 2px var(--customThemeColor, var(--SmartThemeBodyColor, currentColor));
+
     z-index: 2;
+
 }
 
 #st-mini-game-center .sudoku-cell.same-number {
+
     background: var(--SmartThemeQuoteColor, rgba(127,127,127,.14));
+
 }
 
 #st-mini-game-center .sudoku-cell.error {
+
     color: var(--SmartThemeQuoteColor, #c62828) !important;
+
     background: rgba(198, 40, 40, .10);
+
     font-weight: 800;
+
 }
 
 #st-mini-game-center .sudoku-cell.box-right {
+
     border-right-width: 2px;
+
     border-right-color: var(--SmartThemeBorderColor, rgba(127,127,127,.55));
+
 }
 
 #st-mini-game-center .sudoku-cell.box-bottom {
+
     border-bottom-width: 2px;
+
     border-bottom-color: var(--SmartThemeBorderColor, rgba(127,127,127,.55));
+
 }
 
 #st-mini-game-center .sudoku-keypad {
+
     width: min(500px, 100%);
+
     margin: 0 auto;
+
     display: grid;
+
     grid-template-columns: repeat(5, minmax(0, 1fr));
+
     gap: 6px;
+
 }
 
 #st-mini-game-center .sudoku-key {
+
     min-height: 42px;
+
     padding: 6px 4px;
+
 }
 
 #st-mini-game-center .sudoku-erase {
+
     grid-column: span 1;
+
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .sudoku-keypad {
+
         gap: 5px;
+
     }
 
     #st-mini-game-center .sudoku-key {
+
         min-height: 40px;
+
     }
 
     #st-mini-game-center .stgc-2048-controls {
+
         grid-template-columns: repeat(3, 50px);
+
     }
 
     #st-mini-game-center .stgc-2048-controls .game-direction-btn {
+
         width: 50px;
+
         min-height: 46px;
+
     }
+
 }
 
-
 #st-mini-game-center .stgc-level-select {
+
     min-width: 120px;
+
     max-width: 100%;
+
 }
 
 #st-mini-game-center .game-direction-btn:disabled {
+
     opacity: .45;
+
     cursor: default;
+
 }
 
-
 @media (max-width: 640px) {
+
     #st-mini-game-center-launcher {
+
         width: 50px !important;
+
         height: 50px !important;
+
     }
 
     #st-mini-game-center .stgc-settings-dialog {
+
         padding: 10px;
+
     }
+
 }
 
-
-/* ---------- 蜘蛛纸牌 ---------- */
 #st-mini-game-center .spider-area {
+
     width: 100%;
+
     overflow-x: auto;
+
     padding: 2px 1px 4px;
+
     -webkit-overflow-scrolling: touch;
+
 }
 
 #st-mini-game-center .spider-tableau {
+
     min-width: 720px;
+
     width: 100%;
+
     display: grid;
+
     grid-template-columns: repeat(10, minmax(54px, 1fr));
+
     gap: 6px;
+
     align-items: start;
+
 }
 
 #st-mini-game-center .spider-column {
+
     position: relative;
+
     min-height: 176px;
+
     border-radius: 7px;
+
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(127,127,127,.12)) 70%, transparent);
+
     border: 1px dashed var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+
 }
 
 #st-mini-game-center .spider-empty {
+
     width: 100%;
+
     height: 78px;
+
     margin-top: 1px;
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .45;
+
     background: transparent;
+
     border: 0;
+
     font-size: 11px;
+
     cursor: pointer;
+
 }
 
 #st-mini-game-center .spider-card {
+
     position: absolute;
+
     left: 2px;
+
     right: 2px;
+
     top: var(--card-offset);
+
     width: calc(100% - 4px);
+
     height: 78px;
+
     margin: 0;
+
     padding: 7px 6px;
+
     display: flex;
+
     flex-direction: column;
+
     align-items: flex-start;
+
     justify-content: space-between;
+
     color: #202020;
+
     background: #ffffff;
+
     border: 1px solid #cfcfcf;
+
     border-radius: 6px;
+
     box-shadow: 0 1px 2px rgba(0,0,0,.12);
+
     text-align: left;
+
     cursor: pointer;
+
     transition: transform .12s ease, box-shadow .12s ease, outline-color .12s ease;
+
 }
 
 #st-mini-game-center .spider-card.face-down {
+
     color: transparent;
-    background:
-        linear-gradient(135deg, rgba(127,127,127,.10) 25%, transparent 25%) 0 0 / 8px 8px,
+
+    background: linear-gradient(135deg, rgba(127,127,127,.10) 25%, transparent 25%) 0 0 / 8px 8px,
         linear-gradient(315deg, rgba(127,127,127,.10) 25%, transparent 25%) 0 0 / 8px 8px,
         var(--SmartThemeBlurTintColor, #ededed);
+
     border-color: var(--SmartThemeBorderColor, #bdbdbd);
+
 }
 
 #st-mini-game-center .spider-card.face-down::after {
-    content: '';
+
+    content: "";
+
     width: 18px;
+
     height: 24px;
+
     align-self: center;
+
     margin: auto;
+
     border: 1px solid currentColor;
+
     border-radius: 3px;
+
     opacity: .18;
+
 }
 
 #st-mini-game-center .spider-card:hover {
+
     transform: translateY(-1px);
+
     box-shadow: 0 3px 9px rgba(0,0,0,.15);
+
 }
 
 #st-mini-game-center .spider-card.selected {
+
     outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, #8c7cff));
+
     transform: translateY(-3px);
+
 }
 
 #st-mini-game-center .spider-card.hint-from {
+
     outline: 2px solid rgba(255,190,70,.95);
+
     animation: stgc-spider-pulse .9s ease-in-out infinite alternate;
+
 }
 
 #st-mini-game-center .spider-card.hint-to {
+
     box-shadow: 0 0 0 2px rgba(100,190,120,.75);
+
 }
 
 #st-mini-game-center .spider-rank {
+
     font-size: 15px;
+
     line-height: 1;
+
     font-weight: 800;
+
 }
 
 #st-mini-game-center .spider-suit {
+
     font-size: 22px;
+
     line-height: 1;
+
     font-weight: 700;
+
 }
 
 #st-mini-game-center .spider-card[data-suit="♥"],
 #st-mini-game-center .spider-card[data-suit="♦"] {
+
     color: #c92a2a;
+
 }
 
 #st-mini-game-center .spider-bottom {
+
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
+
     gap: 8px;
+
     margin-top: 10px;
+
 }
 
 #st-mini-game-center .spider-stock {
+
     min-width: 116px;
+
 }
 
 #st-mini-game-center .spider-status {
+
     min-height: 34px;
+
     flex: 1;
+
     display: flex;
+
     align-items: center;
+
     justify-content: flex-end;
+
     color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .75;
+
     font-size: 11px;
+
     text-align: right;
+
 }
 
 @keyframes stgc-spider-pulse {
-    from { box-shadow: 0 0 0 0 rgba(255,190,70,.20); }
-    to { box-shadow: 0 0 0 4px rgba(255,190,70,.28); }
+
+    from {
+
+        box-shadow: 0 0 0 0 rgba(255,190,70,.20);
+
+    }
+
+    to {
+
+        box-shadow: 0 0 0 4px rgba(255,190,70,.28);
+
+    }
+
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .spider-tableau {
+
         min-width: 650px;
+
         grid-template-columns: repeat(10, 59px);
+
         gap: 4px;
+
     }
 
     #st-mini-game-center .spider-column {
+
         min-height: 166px;
+
     }
 
     #st-mini-game-center .spider-card {
+
         height: 72px;
+
         top: var(--card-offset);
+
     }
 
     #st-mini-game-center .spider-bottom {
+
         flex-wrap: wrap;
+
     }
 
     #st-mini-game-center .spider-status {
+
         width: 100%;
+
         flex-basis: 100%;
+
         justify-content: center;
+
         text-align: center;
+
         order: 3;
+
     }
+
 }
 
-/* ---------- Silly Game 扩展设置 ---------- */
 #stgc-extension-settings .stgc-extension-note {
+
     display: block;
+
     margin: 6px 0 0 30px;
+
     opacity: .68;
+
     line-height: 1.5;
+
 }
 
-/* ---------- 五子棋 ---------- */
 #st-mini-game-center .gomoku-board {
+
     width: min(560px, 100%);
+
     aspect-ratio: 1;
+
     margin: 6px auto 12px;
+
     padding: 8px;
+
     display: grid;
-    background:
-        repeating-linear-gradient(to right,
+
+    background: repeating-linear-gradient(to right,
             transparent 0,
             transparent calc(6.666% - 1px),
             var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
@@ -1098,270 +1947,507 @@
             var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
             var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
         var(--SmartThemeBlurTintColor, var(--black10a, rgba(0,0,0,.10)));
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.42));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     overflow: hidden;
+
     touch-action: manipulation;
+
     user-select: none;
+
 }
 
 #st-mini-game-center .gomoku-cell {
+
     position: relative;
+
     width: 100%;
+
     height: 100%;
+
     margin: 0;
+
     padding: 0;
+
     min-width: 0;
+
     min-height: 0;
+
     border: 0;
+
     background: transparent !important;
+
     color: inherit;
+
     cursor: pointer;
+
     appearance: none;
+
     -webkit-appearance: none;
+
 }
 
 #st-mini-game-center .gomoku-cell::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     left: 50%;
+
     top: 50%;
+
     width: 62%;
+
     height: 62%;
+
     transform: translate(-50%, -50%);
+
     border-radius: 50%;
+
     opacity: 0;
+
     transition: opacity .08s ease, transform .08s ease;
+
 }
 
 #st-mini-game-center .gomoku-cell.black::before,
 #st-mini-game-center .gomoku-cell.white::before {
+
     opacity: 1;
+
     transform: translate(-50%, -50%) scale(1);
+
 }
 
 #st-mini-game-center .gomoku-cell.black::before {
+
     background: #202020;
+
     box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 1px 2px 3px rgba(0,0,0,.25);
+
 }
 
 #st-mini-game-center .gomoku-cell.white::before {
+
     background: #f7f7f7;
+
     border: 1px solid rgba(0,0,0,.32);
+
     box-shadow: inset -1px -1px 3px rgba(0,0,0,.14), 1px 2px 3px rgba(0,0,0,.18);
+
 }
 
 #st-mini-game-center .gomoku-cell.center-star::after {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     left: 50%;
+
     top: 50%;
+
     width: 5px;
+
     height: 5px;
+
     transform: translate(-50%, -50%);
+
     border-radius: 50%;
+
     background: currentColor;
+
     opacity: .65;
+
 }
 
 #st-mini-game-center .gomoku-cell.black.center-star::after,
 #st-mini-game-center .gomoku-cell.white.center-star::after {
+
     opacity: 0;
+
 }
 
 #st-mini-game-center .gomoku-cell:hover::before {
+
     opacity: .18;
+
 }
 
 #st-mini-game-center .gomoku-cell.black:hover::before,
 #st-mini-game-center .gomoku-cell.white:hover::before {
+
     opacity: 1;
+
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .gomoku-board {
+
         width: min(94vw, 500px);
+
         padding: 6px;
+
     }
 
     #st-mini-game-center .gomoku-cell::before {
+
         width: 66%;
+
         height: 66%;
+
     }
+
 }
 
-/* ---------- 数字华容道 ---------- */
 #st-mini-game-center .puzzle15-board {
+
     width: min(460px, 100%);
+
     aspect-ratio: 1;
+
     margin: 4px auto 12px;
+
     padding: 7px;
+
     display: grid;
+
     gap: 6px;
+
     border-radius: calc(var(--SmartThemeBorderRadius, 6px) + 5px);
+
     background: var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+
     touch-action: manipulation;
+
     user-select: none;
+
 }
 
 #st-mini-game-center .puzzle15-tile {
+
     display: grid;
+
     place-items: center;
+
     min-width: 0;
+
     min-height: 0;
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.82));
+
     color: var(--SmartThemeBodyColor, currentColor);
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+
     box-shadow: 0 2px 5px rgba(0,0,0,.10);
+
     font-size: clamp(20px, 7vw, 36px);
+
     font-weight: 700;
+
     cursor: pointer;
+
     transition: transform .08s ease;
+
 }
 
 #st-mini-game-center .puzzle15-tile:not(.empty):active {
+
     transform: scale(.95);
+
 }
 
 #st-mini-game-center .puzzle15-tile.empty {
+
     background: transparent;
+
     border-color: transparent;
+
     box-shadow: none;
+
 }
 
 #st-mini-game-center .stgc-15-controls {
+
     margin-top: 10px;
+
 }
 
-/* ---------- 俄罗斯方块 ---------- */
 #st-mini-game-center .tetris-wrap {
-    width: 100%;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 14px;
-}
-#st-mini-game-center .tetris-canvas-wrap {
-    width: min(360px, 70vw);
-    aspect-ratio: 1 / 2;
-    min-width: 0;
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--SmartThemeBorderRadius, 6px);
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
-    background: var(--tetris-empty, var(--SmartThemeBlurTintColor, rgba(255,255,255,.05)));
-    touch-action: none;
-    user-select: none;
-    --tetris-empty: var(--SmartThemeBlurTintColor, rgba(255,255,255,.05));
-    --tetris-fill: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
-}
-#st-mini-game-center .tetris-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-#st-mini-game-center .tetris-side {
-    width: 86px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-}
-#st-mini-game-center .stgc-side-title {
-    opacity: .72;
-    font-size: 12px;
-}
-#st-mini-game-center .tetris-next {
-    width: 86px;
-    height: 86px;
-    padding: 10px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    gap: 2px;
-    border-radius: var(--SmartThemeBorderRadius, 6px);
-    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
-}
-#st-mini-game-center .tetris-mini-cell[data-t] {
-    border-radius: 2px;
-    background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -2px 3px rgba(0,0,0,.15);
-}
-#st-mini-game-center .tetris-controls {
-    width: max-content;
-    margin: 12px auto 0;
-    display: grid;
-    grid-template-columns: repeat(3, 52px);
-    grid-template-rows: repeat(3, 46px);
-    gap: 6px;
-}
-#st-mini-game-center .tetris-controls .direction-btn {
-    min-height: 46px;
-    padding: 0;
-    touch-action: manipulation;
-}
-#st-mini-game-center .tetris-controls .tetris-rotate { grid-column: 2; grid-row: 1; }
-#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn { grid-column: 1; grid-row: 2; }
-#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn { grid-column: 2; grid-row: 2; }
-#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn + .direction-btn { grid-column: 3; grid-row: 2; }
-#st-mini-game-center .tetris-controls .tetris-drop { grid-column: 2; grid-row: 3; }
 
-/* ---------- 围棋 ---------- */
-#st-mini-game-center .go-size-row {
+    width: 100%;
+
     display: flex;
-    align-items: center;
+
+    align-items: flex-start;
+
     justify-content: center;
-    flex-wrap: wrap;
+
+    gap: 14px;
+
+}
+
+#st-mini-game-center .tetris-canvas-wrap {
+
+    width: min(360px, 70vw);
+
+    aspect-ratio: 1 / 2;
+
+    min-width: 0;
+
+    position: relative;
+
+    overflow: hidden;
+
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+
+    background: var(--tetris-empty, var(--SmartThemeBlurTintColor, rgba(255,255,255,.05)));
+
+    touch-action: none;
+
+    user-select: none;
+
+    --tetris-empty: var(--SmartThemeBlurTintColor, rgba(255,255,255,.05));
+
+    --tetris-fill: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+
+}
+
+#st-mini-game-center .tetris-canvas {
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+}
+
+#st-mini-game-center .tetris-side {
+
+    width: 86px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
     gap: 8px;
+
+}
+
+#st-mini-game-center .stgc-side-title {
+
+    opacity: .72;
+
+    font-size: 12px;
+
+}
+
+#st-mini-game-center .tetris-next {
+
+    width: 86px;
+
+    height: 86px;
+
+    padding: 10px;
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    grid-template-rows: repeat(4, 1fr);
+
+    gap: 2px;
+
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
+
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+
+}
+
+#st-mini-game-center .tetris-mini-cell[data-t] {
+
+    border-radius: 2px;
+
+    background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -2px 3px rgba(0,0,0,.15);
+
+}
+
+#st-mini-game-center .tetris-controls {
+
+    width: max-content;
+
+    margin: 12px auto 0;
+
+    display: grid;
+
+    grid-template-columns: repeat(3, 52px);
+
+    grid-template-rows: repeat(3, 46px);
+
+    gap: 6px;
+
+}
+
+#st-mini-game-center .tetris-controls .direction-btn {
+
+    min-height: 46px;
+
+    padding: 0;
+
+    touch-action: manipulation;
+
+}
+
+#st-mini-game-center .tetris-controls .tetris-rotate {
+
+    grid-column: 2;
+
+    grid-row: 1;
+
+}
+
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn {
+
+    grid-column: 1;
+
+    grid-row: 2;
+
+}
+
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn {
+
+    grid-column: 2;
+
+    grid-row: 2;
+
+}
+
+#st-mini-game-center .tetris-controls .tetris-rotate + .direction-btn + .direction-btn + .direction-btn {
+
+    grid-column: 3;
+
+    grid-row: 2;
+
+}
+
+#st-mini-game-center .tetris-controls .tetris-drop {
+
+    grid-column: 2;
+
+    grid-row: 3;
+
+}
+
+#st-mini-game-center .go-size-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
     margin: 4px auto 10px;
+
 }
 
 #st-mini-game-center .go-size-label {
+
     color: var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, inherit));
+
     opacity: .72;
+
     font-size: .9em;
+
 }
 
 #st-mini-game-center .go-size-btn {
+
     min-width: 72px;
+
 }
 
 #st-mini-game-center .go-size-btn.is-selected {
+
     box-shadow: inset 0 0 0 1px var(--SmartThemeQuoteColor, currentColor);
+
     font-weight: 700;
+
 }
 
 #st-mini-game-center .go-board {
+
     --go-size: 13;
+
     --go-step: calc(100% / 12);
+
     width: min(620px, 96vw, calc(100% - 8px));
+
     aspect-ratio: 1 / 1;
+
     margin: 12px auto;
+
     padding: clamp(12px, 2vw, 18px);
+
     box-sizing: border-box;
+
     display: grid;
+
     grid-template-columns: repeat(var(--go-size), minmax(0, 1fr));
+
     grid-template-rows: repeat(var(--go-size), minmax(0, 1fr));
+
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #c9ad93) 80%, transparent);
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+
     border-radius: var(--SmartThemeBorderRadius, 6px);
+
     position: relative;
+
     overflow: hidden;
+
     touch-action: manipulation;
+
     user-select: none;
+
     -webkit-user-select: none;
+
 }
 
 #st-mini-game-center .go-board::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     inset: clamp(12px, 2vw, 18px);
+
     pointer-events: none;
+
     z-index: 0;
-    background:
-        repeating-linear-gradient(
+
+    background: repeating-linear-gradient(
             to right,
             transparent 0,
             transparent calc(var(--go-step) - .5px),
@@ -1375,865 +2461,2724 @@
             var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) - .5px),
             var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) + .5px)
         );
+
 }
 
 #st-mini-game-center .go-cell {
+
     position: relative;
+
     width: 100%;
+
     height: 100%;
+
     min-width: 0;
+
     min-height: 0;
+
     margin: 0;
+
     padding: 0;
+
     border: 0 !important;
+
     outline: none;
+
     background: transparent !important;
+
     box-shadow: none !important;
+
     appearance: none;
+
     -webkit-appearance: none;
+
     cursor: pointer;
+
     z-index: 1;
+
 }
 
 #st-mini-game-center .go-cell::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     width: 76%;
+
     height: 76%;
+
     left: 12%;
+
     top: 12%;
+
     border-radius: 50%;
+
     opacity: 0;
+
     box-sizing: border-box;
+
     pointer-events: none;
+
 }
 
 #st-mini-game-center .go-cell.black::before {
+
     opacity: 1;
+
     background: #202020;
+
     border: 1px solid rgba(0,0,0,.45);
+
     box-shadow: inset -3px -3px 5px rgba(0,0,0,.35), 1px 2px 4px rgba(0,0,0,.24);
+
 }
 
 #st-mini-game-center .go-cell.white::before {
+
     opacity: 1;
+
     background: #fafafa;
+
     border: 1px solid rgba(0,0,0,.26);
+
     box-shadow: inset -2px -2px 4px rgba(0,0,0,.12), 1px 2px 4px rgba(0,0,0,.18);
+
 }
 
 #st-mini-game-center .go-cell.star::after {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     width: clamp(4px, 1vw, 7px);
+
     height: clamp(4px, 1vw, 7px);
+
     left: 50%;
+
     top: 50%;
+
     transform: translate(-50%, -50%);
+
     border-radius: 50%;
+
     background: currentColor;
+
     opacity: .65;
+
     pointer-events: none;
+
 }
 
 #st-mini-game-center .go-cell.black.star::after,
 #st-mini-game-center .go-cell.white.star::after {
+
     opacity: 0;
+
 }
 
 #st-mini-game-center .go-cell:focus-visible::before,
 #st-mini-game-center .go-cell:hover::before {
+
     filter: brightness(1.08);
+
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .go-size-row {
+
         margin-top: 0;
+
     }
 
     #st-mini-game-center .go-size-btn {
+
         min-width: 0;
+
         flex: 1 1 0;
+
         max-width: 100px;
+
     }
 
     #st-mini-game-center .go-board {
+
         width: min(96vw, calc(100% - 2px));
+
         padding: clamp(8px, 2.8vw, 14px);
+
         margin-top: 10px;
+
     }
 
     #st-mini-game-center .go-board::before {
+
         inset: clamp(8px, 2.8vw, 14px);
+
     }
 
     #st-mini-game-center .go-cell::before {
+
         width: 80%;
+
         height: 80%;
+
         left: 10%;
+
         top: 10%;
+
     }
+
 }
 
-
-/* ---------- 倒水瓶 ---------- */
 #st-mini-game-center .water-level-row {
+
     display: flex;
+
     justify-content: center;
+
     margin: 2px 0 10px;
+
 }
 
 #st-mini-game-center .water-level-row .stgc-select {
+
     width: auto;
+
     min-width: 110px;
+
 }
 
 #st-mini-game-center .water-sort-board {
-    width: min(620px, 100%);
+
     margin: 0 auto;
+
     display: grid;
-    grid-template-columns: repeat(6, minmax(52px, 1fr));
-    gap: 16px 12px;
-    align-items: end;
-    justify-items: center;
+
     padding: 14px 8px 10px;
+
+    width: min(760px, 100%);
+
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+
+    gap: 18px 8px;
+
+    align-items: end;
+
+    justify-items: center;
+
 }
 
 #st-mini-game-center .water-tube-wrap {
-    width: 74px;
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     gap: 6px;
+
     cursor: pointer;
+
     user-select: none;
+
     -webkit-tap-highlight-color: transparent;
+
+    width: min(72px, 100%);
+
 }
 
 #st-mini-game-center .water-tube {
+
     position: relative;
-    width: 54px;
-    height: 152px;
+
     overflow: hidden;
+
     border: 3px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+
     border-top-width: 4px;
+
     border-radius: 13px 13px 19px 19px;
+
     background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 32%, transparent);
+
     box-shadow: inset 0 0 0 1px var(--white30a, rgba(255,255,255,.25)), 0 5px 12px var(--black20a, rgba(0,0,0,.15));
+
+    width: clamp(46px, 8vw, 58px);
+
+    height: clamp(128px, 23vw, 154px);
+
 }
 
 #st-mini-game-center .water-tube::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     inset: 0 0 auto 0;
+
     height: 12px;
+
     background: linear-gradient(to bottom, rgba(255,255,255,.36), transparent);
+
     pointer-events: none;
+
     z-index: 3;
+
 }
 
 #st-mini-game-center .water-liquid {
+
     position: absolute;
+
     left: 0;
+
     width: 100%;
+
     height: 25%;
+
     background: var(--water-color, currentColor);
+
     border-top: 1px solid rgba(255,255,255,.42);
+
     box-shadow: inset 0 2px 2px rgba(255,255,255,.18), inset 0 -2px 3px rgba(0,0,0,.10);
+
 }
 
 #st-mini-game-center .water-tube.empty::after {
-    content: '＋';
+
+    content: "＋";
+
     position: absolute;
+
     inset: 0;
+
     display: grid;
+
     place-items: center;
+
     opacity: .18;
+
     font-size: 22px;
+
 }
 
 #st-mini-game-center .water-tube-wrap.selected .water-tube {
+
     transform: translateY(-7px);
+
     outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
+
     box-shadow: 0 8px 16px var(--black20a, rgba(0,0,0,.16));
+
 }
 
 #st-mini-game-center .water-tube-number {
+
     font-size: 11px;
+
     opacity: .55;
+
 }
 
 #st-mini-game-center .water-next {
+
     grid-column: 1 / -1;
+
     margin-top: 4px;
+
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .water-sort-board {
+
         width: min(100%, 520px);
+
         grid-template-columns: repeat(4, minmax(56px, 1fr));
+
         gap: 14px 6px;
+
         padding: 8px 2px 6px;
+
     }
 
     #st-mini-game-center .water-tube-wrap {
+
         width: 68px;
+
     }
 
     #st-mini-game-center .water-tube {
+
         width: 50px;
+
         height: 140px;
+
     }
+
 }
 
 @media (max-width: 390px) {
+
     #st-mini-game-center .water-sort-board {
+
         grid-template-columns: repeat(4, minmax(48px, 1fr));
+
         column-gap: 2px;
+
     }
 
     #st-mini-game-center .water-tube-wrap {
+
         width: 58px;
+
     }
 
     #st-mini-game-center .water-tube {
+
         width: 46px;
+
         height: 130px;
+
     }
+
 }
 
-/* ---------- 倒水瓶：更多瓶子 / 无尽模式 ---------- */
 #st-mini-game-center .water-mode-row {
+
     margin-bottom: 6px;
+
 }
 
 #st-mini-game-center .water-mode-row .stgc-select {
+
     min-width: 120px;
-}
 
-#st-mini-game-center .water-sort-board {
-    width: min(760px, 100%);
-    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-    gap: 18px 8px;
-    align-items: end;
-    justify-items: center;
-}
-
-#st-mini-game-center .water-tube-wrap {
-    width: min(72px, 100%);
-}
-
-#st-mini-game-center .water-tube {
-    width: clamp(46px, 8vw, 58px);
-    height: clamp(128px, 23vw, 154px);
 }
 
 @media (max-width: 640px) {
+
     #st-mini-game-center .water-sort-board {
+
         width: 100%;
+
         grid-template-columns: repeat(4, minmax(52px, 1fr));
+
         gap: 14px 5px;
+
         padding-left: 0;
+
         padding-right: 0;
+
     }
 
     #st-mini-game-center .water-tube-wrap {
+
         width: 64px;
+
     }
 
     #st-mini-game-center .water-tube {
+
         width: 48px;
+
         height: 136px;
+
     }
+
 }
 
 @media (max-width: 390px) {
+
     #st-mini-game-center .water-sort-board {
+
         grid-template-columns: repeat(4, minmax(48px, 1fr));
+
         gap: 12px 2px;
+
     }
 
     #st-mini-game-center .water-tube-wrap {
+
         width: 56px;
+
     }
 
     #st-mini-game-center .water-tube {
+
         width: 44px;
+
         height: 128px;
+
     }
+
 }
-\n\n/* v0.12.0 update controls */\n#stgc-extension-settings .stgc-extension-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  margin-top: 8px;\n}\n\n#stgc-extension-settings .stgc-extension-update-row > span {\n  opacity: .72;\n  font-size: 12px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 6px 10px;\n  min-width: 92px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn:disabled {\n  opacity: .65;\n  cursor: wait;\n}\n\n#st-mini-game-center .stgc-home-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  margin-top: 16px;\n  padding: 10px 12px;\n  border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.2));\n  border-radius: var(--panel-radius, 10px);\n  background: color-mix(in srgb, var(--SmartThemeBlurTintColor, transparent) 55%, transparent);\n}\n\n#st-mini-game-center .stgc-home-update-info {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  min-width: 0;\n}\n\n#st-mini-game-center .stgc-home-update-version {\n  font-size: 11px;\n  opacity: .58;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-text {\n  font-size: 12px;\n  opacity: .78;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  flex: 0 0 auto;\n}\n\n@media (max-width: 640px) {\n  #stgc-extension-settings .stgc-extension-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #stgc-extension-settings .stgc-extension-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n\n  #st-mini-game-center .stgc-home-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #st-mini-game-center .stgc-home-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n}\n
-/* ---------- 小农场 ---------- */
-#st-mini-game-center .farm-top { margin-bottom: 8px; }
-#st-mini-game-center .farm-info { display:flex; gap:8px; flex-wrap:wrap; }
+
+nn/**/n#stgc-extension-settings .stgc-extension-update-row {
+
+}
+
+nn#stgc-extension-settings .stgc-extension-update-row > span {
+
+}
+
+nn#stgc-extension-settings .stgc-extension-update-btn {
+
+}
+
+nn#stgc-extension-settings .stgc-extension-update-btn:disabled {
+
+}
+
+nn#st-mini-game-center .stgc-home-update-row {
+
+}
+
+nn#st-mini-game-center .stgc-home-update-info {
+
+}
+
+nn#st-mini-game-center .stgc-home-update-version {
+
+}
+
+nn#st-mini-game-center .stgc-home-update-text {
+
+}
+
+nn#st-mini-game-center .stgc-home-update-btn {
+
+}
+
+nn@media (max-width: 640px) {
+
+}
+
+n
+
+#st-mini-game-center .farm-top {
+
+    margin-bottom: 8px;
+
+}
+
+#st-mini-game-center .farm-info {
+
+    display: flex;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+
+}
 
 #st-mini-game-center .farm-seed-row {
-    display:grid;
-    grid-template-columns:repeat(6,minmax(0,1fr));
-    gap:8px;
-    margin:8px 0 10px;
+
+    display: grid;
+
+    grid-template-columns: repeat(6,minmax(0,1fr));
+
+    gap: 8px;
+
+    margin: 8px 0 10px;
+
 }
+
 #st-mini-game-center .farm-seed-card {
-    min-width:0;
-    min-height:82px;
-    padding:8px 6px;
-    border:1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.25));
-    border-radius:12px;
-    background:color-mix(in srgb,var(--SmartThemeBlurTintColor,transparent) 58%,transparent);
-    color:var(--SmartThemeBodyColor,currentColor);
-    display:grid;
-    justify-items:center;
-    align-content:center;
-    gap:2px;
-    cursor:pointer;
-    font:inherit;
-    appearance:none;
-    box-shadow:none;
-    text-shadow:none;
-}
-#st-mini-game-center .farm-seed-card:hover:not(:disabled){filter:brightness(1.06)}
-#st-mini-game-center .farm-seed-card.selected{
-    outline:2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));
-    background:color-mix(in srgb,var(--SmartThemeQuoteColor,currentColor) 9%,var(--SmartThemeBlurTintColor,transparent));
-}
-#st-mini-game-center .farm-seed-card:disabled{opacity:.48;cursor:not-allowed}
-#st-mini-game-center .farm-seed-visual{
-    position:relative;
-    display:block;
-    width:42px;
-    height:34px;
-}
-#st-mini-game-center .farm-seed-lock{
-    width:30px;height:30px;display:grid;place-items:center;border-radius:9px;
-    border:1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.3));opacity:.75;
-}
-#st-mini-game-center .farm-seed-name{font-size:12px;font-weight:700}
-#st-mini-game-center .farm-seed-price{max-width:100%;font-size:9px;line-height:1.25;opacity:.62;text-align:center}
 
-#st-mini-game-center .farm-field{
-    display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:9px;
-    width:min(700px,100%);
-    margin:10px auto 12px;
-}
-#st-mini-game-center .farm-plot{
-    position:relative;
-    min-width:0;
-    min-height:128px;
-    padding:11px 8px;
-    border:1px solid color-mix(in srgb,#8f6b48 30%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)));
-    border-radius:14px;
-    background:linear-gradient(160deg,color-mix(in srgb,#8f6b48 26%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#64462f 20%,var(--SmartThemeBodyBgColor,transparent)));
-    color:var(--SmartThemeBodyColor,currentColor);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:3px;
-    cursor:pointer;
-    font:inherit;
-    appearance:none;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 4px 12px var(--black10a,rgba(0,0,0,.08));
-}
-#st-mini-game-center .farm-plot:hover{filter:brightness(1.05)}
-#st-mini-game-center .farm-plot.selected{outline:2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));transform:translateY(-1px)}
-#st-mini-game-center .farm-plot.empty{opacity:.82}
-#st-mini-game-center .farm-plot.watered{box-shadow:inset 0 0 0 1px rgba(100,170,255,.32),0 4px 12px var(--black10a,rgba(0,0,0,.08))}
-#st-mini-game-center .farm-plot.fertilized{border-color:color-mix(in srgb,#d9b34e 45%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)))}
-#st-mini-game-center .farm-plot.ripe{background:linear-gradient(160deg,color-mix(in srgb,#e5c875 19%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#a97b38 16%,var(--SmartThemeBodyBgColor,transparent)))}
-#st-mini-game-center .farm-plot-icon{font-size:22px;opacity:.45}
-#st-mini-game-center .farm-plot-label,#st-mini-game-center .farm-plant-name,#st-mini-game-center .farm-plant-meta{font-size:10px;line-height:1.25;text-align:center}
+    min-width: 0;
 
-/* CSS plants: no emoji, each crop has its own silhouette. */
-#st-mini-game-center .farm-plant-icon{
-    position:relative;
-    width:82px;
-    height:58px;
-    display:grid;
-    place-items:center;
-    flex:0 0 auto;
+    min-height: 82px;
+
+    padding: 8px 6px;
+
+    border: 1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.25));
+
+    border-radius: 12px;
+
+    background: color-mix(in srgb,var(--SmartThemeBlurTintColor,transparent) 58%,transparent);
+
+    color: var(--SmartThemeBodyColor,currentColor);
+
+    display: grid;
+
+    justify-items: center;
+
+    align-content: center;
+
+    gap: 2px;
+
+    cursor: pointer;
+
+    font: inherit;
+
+    appearance: none;
+
+    box-shadow: none;
+
+    text-shadow: none;
+
 }
-#st-mini-game-center .farm-plant-art{position:relative;width:100%;height:100%;display:block}
+
+#st-mini-game-center .farm-seed-card:hover:not(:disabled) {
+
+    filter: brightness(1.06);
+
+}
+
+#st-mini-game-center .farm-seed-card.selected {
+
+    outline: 2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));
+
+    background: color-mix(in srgb,var(--SmartThemeQuoteColor,currentColor) 9%,var(--SmartThemeBlurTintColor,transparent));
+
+}
+
+#st-mini-game-center .farm-seed-card:disabled {
+
+    opacity: .48;
+
+    cursor: not-allowed;
+
+}
+
+#st-mini-game-center .farm-seed-visual {
+
+    position: relative;
+
+    display: block;
+
+    width: 42px;
+
+    height: 34px;
+
+}
+
+#st-mini-game-center .farm-seed-lock {
+
+    width: 30px;
+
+    height: 30px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 9px;
+
+    border: 1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.3));
+
+    opacity: .75;
+
+}
+
+#st-mini-game-center .farm-seed-name {
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+}
+
+#st-mini-game-center .farm-seed-price {
+
+    max-width: 100%;
+
+    font-size: 9px;
+
+    line-height: 1.25;
+
+    opacity: .62;
+
+    text-align: center;
+
+}
+
+#st-mini-game-center .farm-field {
+
+    display: grid;
+
+    grid-template-columns: repeat(4,minmax(0,1fr));
+
+    gap: 9px;
+
+    width: min(700px,100%);
+
+    margin: 10px auto 12px;
+
+}
+
+#st-mini-game-center .farm-plot {
+
+    position: relative;
+
+    min-width: 0;
+
+    min-height: 128px;
+
+    padding: 11px 8px;
+
+    border: 1px solid color-mix(in srgb,#8f6b48 30%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)));
+
+    border-radius: 14px;
+
+    background: linear-gradient(160deg,color-mix(in srgb,#8f6b48 26%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#64462f 20%,var(--SmartThemeBodyBgColor,transparent)));
+
+    color: var(--SmartThemeBodyColor,currentColor);
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 3px;
+
+    cursor: pointer;
+
+    font: inherit;
+
+    appearance: none;
+
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07),0 4px 12px var(--black10a,rgba(0,0,0,.08));
+
+}
+
+#st-mini-game-center .farm-plot:hover {
+
+    filter: brightness(1.05);
+
+}
+
+#st-mini-game-center .farm-plot.selected {
+
+    outline: 2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));
+
+    transform: translateY(-1px);
+
+}
+
+#st-mini-game-center .farm-plot.empty {
+
+    opacity: .82;
+
+}
+
+#st-mini-game-center .farm-plot.watered {
+
+    box-shadow: inset 0 0 0 1px rgba(100,170,255,.32),0 4px 12px var(--black10a,rgba(0,0,0,.08));
+
+}
+
+#st-mini-game-center .farm-plot.fertilized {
+
+    border-color: color-mix(in srgb,#d9b34e 45%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)));
+
+}
+
+#st-mini-game-center .farm-plot.ripe {
+
+    background: linear-gradient(160deg,color-mix(in srgb,#e5c875 19%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#a97b38 16%,var(--SmartThemeBodyBgColor,transparent)));
+
+}
+
+#st-mini-game-center .farm-plot-icon {
+
+    font-size: 22px;
+
+    opacity: .45;
+
+}
+
+#st-mini-game-center .farm-plot-label,#st-mini-game-center .farm-plant-name,#st-mini-game-center .farm-plant-meta {
+
+    font-size: 10px;
+
+    line-height: 1.25;
+
+    text-align: center;
+
+}
+
+#st-mini-game-center .farm-plant-icon {
+
+    position: relative;
+
+    width: 82px;
+
+    height: 58px;
+
+    display: grid;
+
+    place-items: center;
+
+    flex: 0 0 auto;
+
+}
+
+#st-mini-game-center .farm-plant-art {
+
+    position: relative;
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+}
+
 #st-mini-game-center .farm-plant-art::before,
 #st-mini-game-center .farm-plant-art::after,
 #st-mini-game-center .farm-plant-leaves::before,
 #st-mini-game-center .farm-plant-leaves::after,
 #st-mini-game-center .farm-plant-fruit::before,
-#st-mini-game-center .farm-plant-fruit::after{
-    content:"";
-    position:absolute;
-    display:block;
+#st-mini-game-center .farm-plant-fruit::after {
+
+    content: "";
+
+    position: absolute;
+
+    display: block;
+
 }
 
-/* common seed / soil-stage */
 #st-mini-game-center .farm-plant-icon.farm-stage-soil .farm-plant-art::before,
-#st-mini-game-center .farm-seed-visual::before{
-    width:14px;height:8px;left:34px;bottom:13px;border-radius:50%;
-    background:#6c4a30;box-shadow:0 2px 3px rgba(0,0,0,.18);
-}
-#st-mini-game-center .farm-plant-icon.farm-stage-soil .farm-plant-art::after{
-    width:3px;height:13px;left:40px;bottom:18px;border-radius:6px;
-    background:#7a9f51;transform:rotate(-14deg);
+#st-mini-game-center .farm-seed-visual::before {
+
+    width: 14px;
+
+    height: 8px;
+
+    left: 34px;
+
+    bottom: 13px;
+
+    border-radius: 50%;
+
+    background: #6c4a30;
+
+    box-shadow: 0 2px 3px rgba(0,0,0,.18);
+
 }
 
-/* carrot */
+#st-mini-game-center .farm-plant-icon.farm-stage-soil .farm-plant-art::after {
+
+    width: 3px;
+
+    height: 13px;
+
+    left: 40px;
+
+    bottom: 18px;
+
+    border-radius: 6px;
+
+    background: #7a9f51;
+
+    transform: rotate(-14deg);
+
+}
+
 #st-mini-game-center .farm-crop-carrot .farm-plant-leaves::before,
-#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after{background:#5d9d4c;border-radius:10px 10px 2px 10px}
-#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::before{width:11px;height:30px;left:34px;bottom:18px;transform:rotate(-28deg)}
-#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after{width:11px;height:30px;left:43px;bottom:18px;transform:rotate(28deg)}
-#st-mini-game-center .farm-crop-carrot .farm-plant-art::before{width:18px;height:30px;left:33px;bottom:1px;border-radius:55% 55% 48% 48%;background:#ef8f36;transform:rotate(4deg);box-shadow:inset -3px 0 rgba(196,92,33,.28)}
-#st-mini-game-center .farm-crop-carrot.farm-stage-sprout .farm-plant-art::before{height:6px;width:26px;bottom:7px;left:28px;background:#6f7e42;border-radius:50%}
-#st-mini-game-center .farm-crop-carrot.farm-stage-growing .farm-plant-art::before{display:none}
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after {
 
-/* potato */
-#st-mini-game-center .farm-crop-potato .farm-plant-leaves::before{width:46px;height:23px;left:18px;bottom:18px;background:radial-gradient(circle at 20% 70%,#6f9d4e 0 18%,transparent 20%),radial-gradient(circle at 50% 30%,#7cae58 0 20%,transparent 22%),radial-gradient(circle at 80% 68%,#628c45 0 20%,transparent 22%)}
-#st-mini-game-center .farm-crop-potato .farm-plant-art::before{width:45px;height:20px;left:18px;bottom:3px;border-radius:50%;background:#9a7047;box-shadow:inset 0 -4px rgba(89,57,32,.16)}
-#st-mini-game-center .farm-crop-potato.farm-stage-sprout .farm-plant-art::before{width:18px;height:10px;left:32px;bottom:10px}
+    background: #5d9d4c;
 
-/* radish */
-#st-mini-game-center .farm-crop-radish .farm-plant-leaves::before{width:46px;height:12px;left:18px;bottom:22px;border-radius:100%;background:#76a950;transform:rotate(-5deg);box-shadow:0 -8px 0 -3px #639944,22px -3px 0 -1px #82b95e}
-#st-mini-game-center .farm-crop-radish .farm-plant-art::before{width:24px;height:27px;left:29px;bottom:1px;border-radius:55% 55% 45% 45%;background:#d95555}
+    border-radius: 10px 10px 2px 10px;
 
-/* tomato */
-#st-mini-game-center .farm-crop-tomato .farm-plant-art::before{width:4px;height:29px;left:39px;bottom:13px;border-radius:4px;background:#5c8d4b;transform:rotate(-8deg)}
-#st-mini-game-center .farm-crop-tomato .farm-plant-leaves::before{width:18px;height:8px;left:26px;bottom:29px;border-radius:100% 0 100% 0;background:#6aa054;transform:rotate(-25deg);box-shadow:17px 5px 0 -1px #568746}
-#st-mini-game-center .farm-crop-tomato .farm-plant-fruit::before{width:25px;height:25px;left:28px;bottom:5px;border-radius:50%;background:#dc5b45;box-shadow:17px 4px 0 -4px #e06a50,9px -10px 0 -5px #73a552}
-
-/* corn */
-#st-mini-game-center .farm-crop-corn .farm-plant-art::before{width:8px;height:49px;left:37px;bottom:2px;border-radius:7px;background:linear-gradient(90deg,#4f8f47,#79ad50,#4f8f47)}
-#st-mini-game-center .farm-crop-corn .farm-plant-leaves::before{width:44px;height:13px;left:18px;bottom:24px;border-radius:100% 0 100% 0;background:#65a34e;transform:rotate(-17deg);box-shadow:6px 11px 0 -2px #5a9749,22px -6px 0 -1px #79ae55}
-#st-mini-game-center .farm-crop-corn .farm-plant-fruit::before{width:17px;height:27px;left:33px;bottom:7px;border-radius:55% 55% 45% 45%;background:repeating-linear-gradient(0deg,#e6c64d 0 4px,#f1d86a 4px 7px)}
-
-/* strawberry */
-#st-mini-game-center .farm-crop-strawberry .farm-plant-art::before{width:25px;height:27px;left:29px;bottom:3px;border-radius:48% 48% 56% 56%;background:#e45b69;box-shadow:inset 0 -6px rgba(176,49,62,.16)}
-#st-mini-game-center .farm-crop-strawberry .farm-plant-leaves::before{width:27px;height:13px;left:28px;bottom:28px;border-radius:100% 0 100% 0;background:#65a34e;transform:rotate(-7deg);box-shadow:10px -4px 0 -2px #76ae5a}
-#st-mini-game-center .farm-crop-strawberry .farm-plant-fruit::before{width:3px;height:3px;left:37px;bottom:19px;border-radius:50%;background:#f9dda0;box-shadow:7px 4px #f9dda0,2px -5px #f9dda0,10px -3px #f9dda0}
-
-/* pumpkin */
-#st-mini-game-center .farm-crop-pumpkin .farm-plant-art::before{width:43px;height:27px;left:20px;bottom:4px;border-radius:48%;background:radial-gradient(circle at 50% 50%,#ee9a36 0 58%,#cf7725 60% 100%);box-shadow:0 0 0 2px rgba(145,79,31,.18)}
-#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::before{width:52px;height:11px;left:14px;bottom:24px;border-radius:100%;background:#66964a;transform:rotate(-5deg)}
-#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::after{width:12px;height:9px;left:52px;bottom:31px;border:3px solid #6b9a4c;border-left:0;border-bottom:0;border-radius:0 12px 0 0;transform:rotate(12deg)}
-
-/* watermelon */
-#st-mini-game-center .farm-crop-watermelon .farm-plant-art::before{width:48px;height:26px;left:17px;bottom:3px;border-radius:50% 50% 45% 45%;background:repeating-linear-gradient(90deg,#3e8e54 0 7px,#6caf55 7px 11px,#3e8e54 11px 18px);transform:rotate(-6deg)}
-#st-mini-game-center .farm-crop-watermelon .farm-plant-leaves::before{width:53px;height:8px;left:12px;bottom:24px;border-radius:100%;background:#528e49;transform:rotate(7deg)}
-
-/* blueberry */
-#st-mini-game-center .farm-crop-blueberry .farm-plant-leaves::before{width:50px;height:38px;left:16px;bottom:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#6e9e52 0 11px,transparent 12px),radial-gradient(circle at 60% 48%,#5c9145 0 13px,transparent 14px),radial-gradient(circle at 76% 24%,#75a85a 0 9px,transparent 10px)}
-#st-mini-game-center .farm-crop-blueberry .farm-plant-fruit::before{width:9px;height:9px;left:32px;bottom:23px;border-radius:50%;background:#4e6fa6;box-shadow:14px -7px #5878ab,10px 9px #416294,-4px 7px #627fad}
-
-/* grape */
-#st-mini-game-center .farm-crop-grape .farm-plant-art::before{width:4px;height:45px;left:39px;bottom:3px;border-radius:4px;background:#5d8f4a;transform:rotate(6deg)}
-#st-mini-game-center .farm-crop-grape .farm-plant-leaves::before{width:34px;height:23px;left:15px;bottom:25px;border-radius:100% 0 100% 0;background:#679b4d;transform:rotate(-18deg)}
-#st-mini-game-center .farm-crop-grape .farm-plant-fruit::before{width:9px;height:9px;left:34px;bottom:12px;border-radius:50%;background:#6d4b98;box-shadow:7px 3px #7651a0,-7px 3px #63458f,3px 10px #62458f,-4px 10px #6e4b98,0 16px #574081}
-
-/* tea */
-#st-mini-game-center .farm-crop-tea .farm-plant-art::before{width:58px;height:39px;left:11px;bottom:4px;border-radius:50%;background:radial-gradient(circle at 28% 52%,#668f4b 0 12px,transparent 13px),radial-gradient(circle at 54% 35%,#739f50 0 14px,transparent 15px),radial-gradient(circle at 78% 58%,#5b8744 0 12px,transparent 13px)}
-#st-mini-game-center .farm-crop-tea .farm-plant-leaves::before{width:13px;height:24px;left:35px;bottom:22px;border-radius:100% 0 100% 0;background:#86ae60;transform:rotate(-28deg);box-shadow:8px 1px #6e9e4d}
-
-/* lavender */
-#st-mini-game-center .farm-crop-lavender .farm-plant-art::before{width:3px;height:47px;left:30px;bottom:3px;border-radius:3px;background:#70994f;box-shadow:13px 2px #739d52,26px 0 #6e954e}
-#st-mini-game-center .farm-crop-lavender .farm-plant-fruit::before{width:9px;height:23px;left:26px;bottom:24px;border-radius:9px;background:#8d76bb;box-shadow:13px 3px 0 -1px #9a80c6,26px 0 0 -1px #866db2,5px 8px 0 -2px #a08acb,19px 9px 0 -2px #947cc0}
-#st-mini-game-center .farm-crop-lavender .farm-plant-leaves::before{width:34px;height:7px;left:24px;bottom:10px;border-radius:100%;background:#628e4d}
-
-/* stages: make earlier forms visibly smaller / distinct */
-#st-mini-game-center .farm-plant-icon.farm-stage-sprout{transform:scale(.72);transform-origin:50% 80%}
-#st-mini-game-center .farm-plant-icon.farm-stage-soil{transform:scale(.58);transform-origin:50% 88%}
-#st-mini-game-center .farm-plant-icon.farm-stage-growing{transform:scale(.86);}
-
-/* seed visual reuses crop palettes but stays small */
-#st-mini-game-center .farm-seed-visual::after{
-    width:12px;height:8px;left:15px;bottom:6px;border-radius:60%;background:#6b4b31;
-    box-shadow:12px -3px 0 -2px #7a5837;
-}
-#st-mini-game-center .farm-seed-visual.farm-crop-carrot::before{content:"";width:18px;height:18px;left:12px;bottom:10px;border-radius:50%;background:#5f984e;}
-#st-mini-game-center .farm-seed-visual.farm-crop-potato::before{content:"";width:22px;height:15px;left:10px;bottom:8px;border-radius:50%;background:#9a7047;}
-#st-mini-game-center .farm-seed-visual.farm-crop-radish::before{content:"";width:18px;height:16px;left:12px;bottom:9px;border-radius:55%;background:#d95555;}
-#st-mini-game-center .farm-seed-visual.farm-crop-tomato::before{content:"";width:18px;height:18px;left:11px;bottom:8px;border-radius:50%;background:#dc5b45;}
-#st-mini-game-center .farm-seed-visual.farm-crop-corn::before{content:"";width:13px;height:24px;left:14px;bottom:5px;border-radius:50%;background:#e6c64d;}
-#st-mini-game-center .farm-seed-visual.farm-crop-strawberry::before{content:"";width:16px;height:17px;left:13px;bottom:7px;border-radius:45%;background:#e45b69;}
-#st-mini-game-center .farm-seed-visual.farm-crop-pumpkin::before{content:"";width:22px;height:18px;left:10px;bottom:7px;border-radius:50%;background:#ea9134;}
-#st-mini-game-center .farm-seed-visual.farm-crop-watermelon::before{content:"";width:24px;height:14px;left:9px;bottom:8px;border-radius:50%;background:#4b9455;}
-#st-mini-game-center .farm-seed-visual.farm-crop-blueberry::before{content:"";width:21px;height:17px;left:11px;bottom:8px;border-radius:50%;background:#6489b2;}
-#st-mini-game-center .farm-seed-visual.farm-crop-grape::before{content:"";width:15px;height:19px;left:14px;bottom:6px;border-radius:50%;background:#6d4b98;box-shadow:8px 4px #7651a0;}
-#st-mini-game-center .farm-seed-visual.farm-crop-tea::before{content:"";width:26px;height:17px;left:8px;bottom:8px;border-radius:50%;background:#6c984f;}
-#st-mini-game-center .farm-seed-visual.farm-crop-lavender::before{content:"";width:4px;height:25px;left:20px;bottom:4px;background:#749c50;box-shadow:8px 1px #7b9f52}
-
-#st-mini-game-center .farm-progress{width:84%;height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.07)}
-#st-mini-game-center .farm-progress span{display:block;height:100%;border-radius:inherit;background:var(--SmartThemeQuoteColor,currentColor);opacity:.72}
-#st-mini-game-center .farm-actions{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,auto);align-items:center;gap:8px;width:min(700px,100%);margin:0 auto}
-#st-mini-game-center .farm-selection-text{min-width:0;font-size:12px;opacity:.78}
-#st-mini-game-center .farm-action-btn:disabled{opacity:.42;cursor:not-allowed}
-#st-mini-game-center .farm-harvest-btn:not(:disabled){font-weight:700}
-#st-mini-game-center .farm-seed-hint,#st-mini-game-center .farm-crop-note{width:min(700px,100%);margin-left:auto;margin-right:auto}
-
-/* water / fertilizer feedback bubbles above the plant */
-#st-mini-game-center .farm-action-bubble{
-    position:absolute;
-    left:50%;
-    top:8px;
-    transform:translate(-50%,-4px);
-    min-width:42px;
-    height:28px;
-    padding:0 9px 0 6px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:4px;
-    border-radius:999px;
-    border:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
-    background:color-mix(in srgb,var(--SmartThemeBodyBgColor,#fff) 82%,transparent);
-    color:var(--SmartThemeBodyColor,currentColor);
-    box-shadow:0 5px 14px rgba(0,0,0,.14);
-    font-size:11px;
-    font-weight:700;
-    pointer-events:none;
-    z-index:5;
-    animation:farmBubbleFloat 1.45s ease-out forwards;
-}
-#st-mini-game-center .farm-action-bubble::after{
-    content:"";position:absolute;left:50%;bottom:-5px;width:9px;height:9px;
-    background:inherit;border-right:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);border-bottom:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
-    transform:translateX(-50%) rotate(45deg);
-}
-#st-mini-game-center .farm-bubble-mark{position:relative;display:block;width:14px;height:14px;flex:0 0 auto}
-#st-mini-game-center .farm-action-water .farm-bubble-mark::before{
-    content:"";position:absolute;width:9px;height:12px;left:3px;top:0;border-radius:70% 30% 65% 35%;background:#65a9df;transform:rotate(45deg)
-}
-#st-mini-game-center .farm-action-water .farm-bubble-mark::after{
-    content:"";position:absolute;width:4px;height:4px;left:8px;top:1px;border-radius:50%;background:#fff;opacity:.75
-}
-#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::before,
-#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after{
-    content:"";position:absolute;left:6px;top:2px;width:3px;height:11px;border-radius:3px;background:#d2ad52;box-shadow:0 0 7px rgba(210,173,82,.4)
-}
-#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after{transform:rotate(90deg)}
-@keyframes farmBubbleFloat{
-    0%{opacity:0;transform:translate(-50%,7px) scale(.78)}
-    20%{opacity:1;transform:translate(-50%,-4px) scale(1)}
-    78%{opacity:1;transform:translate(-50%,-18px) scale(1)}
-    100%{opacity:0;transform:translate(-50%,-28px) scale(.94)}
 }
 
-@media (max-width:760px){
-    #st-mini-game-center .farm-seed-row{grid-template-columns:repeat(4,minmax(0,1fr))}
-    #st-mini-game-center .farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}
-    #st-mini-game-center .farm-actions{grid-template-columns:1fr 1fr 1fr}
-    #st-mini-game-center .farm-selection-text{grid-column:1/-1;order:-1}
-}
-@media (max-width:480px){
-    #st-mini-game-center .farm-seed-row{grid-template-columns:repeat(3,minmax(0,1fr))}
-    #st-mini-game-center .farm-seed-card{min-height:76px}
-    #st-mini-game-center .farm-field{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-    #st-mini-game-center .farm-plot{min-height:112px;padding:8px 5px}
-    #st-mini-game-center .farm-plant-icon{width:70px;height:54px}
-    #st-mini-game-center .farm-actions{gap:6px}
-    #st-mini-game-center .farm-action-btn{padding-left:8px;padding-right:8px}
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::before {
+
+    width: 11px;
+
+    height: 30px;
+
+    left: 34px;
+
+    bottom: 18px;
+
+    transform: rotate(-28deg);
+
 }
 
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after {
 
+    width: 11px;
 
-/* ==================== 连连看：沿用消灭星星的软糖方块视觉 ==================== */
-#st-mini-game-center .link-match-board{
-  width:min(680px,100%);
-  margin:8px auto 14px;
-  padding:clamp(7px,1vw,10px);
-  display:grid;
-  grid-template-columns:repeat(12,minmax(0,1fr));
-  gap:clamp(4px,.65vw,7px);
-  border-radius:16px;
-  background:var(--tetris-fill,var(--customThemeColor,var(--SmartThemeQuoteColor,var(--SmartThemeBodyColor,currentColor))));
-  border:1px solid var(--SmartThemeBorderColor,var(--stgc-browser-border));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb,var(--SmartThemeBodyColor,var(--stgc-browser-text)) 8%,transparent),
-    0 10px 30px color-mix(in srgb,var(--SmartThemeBodyColor,var(--stgc-browser-text)) 16%,transparent);
-  touch-action:manipulation;
-  user-select:none;
+    height: 30px;
+
+    left: 43px;
+
+    bottom: 18px;
+
+    transform: rotate(28deg);
+
 }
 
-/* 继承 .star-pop-cell 的圆润、渐变、高光、阴影与按压手感。 */
-#st-mini-game-center .link-match-cell.star-pop-cell{
-  width:100%;
-  aspect-ratio:1;
-  min-width:0;
-  min-height:0;
-  padding:0;
-  font:inherit;
+#st-mini-game-center .farm-crop-carrot .farm-plant-art::before {
+
+    width: 18px;
+
+    height: 30px;
+
+    left: 33px;
+
+    bottom: 1px;
+
+    border-radius: 55% 55% 48% 48%;
+
+    background: #ef8f36;
+
+    transform: rotate(4deg);
+
+    box-shadow: inset -3px 0 rgba(196,92,33,.28);
+
 }
 
-/* 连连看不用五角星，改为自己的图标，但保留星星方块的软糖表面。 */
-#st-mini-game-center .link-match-cell.star-pop-cell::before{
-  content:none;
-}
-#st-mini-game-center .link-match-cell.star-pop-cell > i{
-  position:relative;
-  z-index:3;
-  font-size:clamp(14px,3.3vw,26px);
-  color:rgba(255,255,255,.86);
-  filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));
-  pointer-events:none;
-}
-#st-mini-game-center .link-match-cell.star-pop-cell.selected{
-  outline:3px solid var(--SmartThemeQuoteColor,var(--customThemeColor,#fff));
-}
-#st-mini-game-center .link-match-cell.star-pop-cell.empty{
-  visibility:hidden;
-}
-#st-mini-game-center .link-match-cell[data-color="pink"]{--tile-hi:#d8a5ac;--tile-mid:#c98e99;--tile-low:#b87984;}
-#st-mini-game-center .link-match-cell[data-color="blue"]{--tile-hi:#abc4d7;--tile-mid:#91afc7;--tile-low:#7999b4;}
-#st-mini-game-center .link-match-cell[data-color="yellow"]{--tile-hi:#e5d09b;--tile-mid:#d7bd78;--tile-low:#c6a861;}
-#st-mini-game-center .link-match-cell[data-color="green"]{--tile-hi:#b2cda3;--tile-mid:#98ba8b;--tile-low:#7ea872;}
-#st-mini-game-center .link-match-cell[data-color="purple"]{--tile-hi:#c0b3d7;--tile-mid:#aa97ca;--tile-low:#937db5;}
+#st-mini-game-center .farm-crop-carrot.farm-stage-sprout .farm-plant-art::before {
 
-@media(max-width:640px){
-  #st-mini-game-center .link-match-board{width:min(96vw,560px);gap:3px;padding:5px;border-radius:14px;}
-  #st-mini-game-center .link-match-cell.star-pop-cell > i{font-size:clamp(12px,4.2vw,22px);}
+    height: 6px;
+
+    width: 26px;
+
+    bottom: 7px;
+
+    left: 28px;
+
+    background: #6f7e42;
+
+    border-radius: 50%;
+
 }
 
-/* ==================== 叠蛋糕 ==================== */
-#st-mini-game-center .cake-game-wrap {
-    width: min(720px, 100%);
-    margin: 0 auto;
+#st-mini-game-center .farm-crop-carrot.farm-stage-growing .farm-plant-art::before {
+
+    display: none;
+
 }
-#st-mini-game-center .cake-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 0 auto 10px;
+
+#st-mini-game-center .farm-crop-potato .farm-plant-leaves::before {
+
+    width: 46px;
+
+    height: 23px;
+
+    left: 18px;
+
+    bottom: 18px;
+
+    background: radial-gradient(circle at 20% 70%,#6f9d4e 0 18%,transparent 20%),radial-gradient(circle at 50% 30%,#7cae58 0 20%,transparent 22%),radial-gradient(circle at 80% 68%,#628c45 0 20%,transparent 22%);
+
 }
-#st-mini-game-center .cake-status {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    color: var(--SmartThemeBodyColor, currentColor);
-    font-size: 12px;
+
+#st-mini-game-center .farm-crop-potato .farm-plant-art::before {
+
+    width: 45px;
+
+    height: 20px;
+
+    left: 18px;
+
+    bottom: 3px;
+
+    border-radius: 50%;
+
+    background: #9a7047;
+
+    box-shadow: inset 0 -4px rgba(89,57,32,.16);
+
 }
-#st-mini-game-center .cake-status span {
-    padding: 7px 10px;
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
-    border-radius: 10px;
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.08));
+
+#st-mini-game-center .farm-crop-potato.farm-stage-sprout .farm-plant-art::before {
+
+    width: 18px;
+
+    height: 10px;
+
+    left: 32px;
+
+    bottom: 10px;
+
 }
-#st-mini-game-center .cake-hint {
-    text-align: center;
-    margin: 0 0 10px;
-    font-size: 11px;
-    opacity: .62;
+
+#st-mini-game-center .farm-crop-radish .farm-plant-leaves::before {
+
+    width: 46px;
+
+    height: 12px;
+
+    left: 18px;
+
+    bottom: 22px;
+
+    border-radius: 100%;
+
+    background: #76a950;
+
+    transform: rotate(-5deg);
+
+    box-shadow: 0 -8px 0 -3px #639944,22px -3px 0 -1px #82b95e;
+
 }
-#st-mini-game-center .cake-scene {
-    position: relative;
-    width: 100%;
-    height: min(70dvh, 620px);
-    min-height: 440px;
+
+#st-mini-game-center .farm-crop-radish .farm-plant-art::before {
+
+    width: 24px;
+
+    height: 27px;
+
+    left: 29px;
+
+    bottom: 1px;
+
+    border-radius: 55% 55% 45% 45%;
+
+    background: #d95555;
+
+}
+
+#st-mini-game-center .farm-crop-tomato .farm-plant-art::before {
+
+    width: 4px;
+
+    height: 29px;
+
+    left: 39px;
+
+    bottom: 13px;
+
+    border-radius: 4px;
+
+    background: #5c8d4b;
+
+    transform: rotate(-8deg);
+
+}
+
+#st-mini-game-center .farm-crop-tomato .farm-plant-leaves::before {
+
+    width: 18px;
+
+    height: 8px;
+
+    left: 26px;
+
+    bottom: 29px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #6aa054;
+
+    transform: rotate(-25deg);
+
+    box-shadow: 17px 5px 0 -1px #568746;
+
+}
+
+#st-mini-game-center .farm-crop-tomato .farm-plant-fruit::before {
+
+    width: 25px;
+
+    height: 25px;
+
+    left: 28px;
+
+    bottom: 5px;
+
+    border-radius: 50%;
+
+    background: #dc5b45;
+
+    box-shadow: 17px 4px 0 -4px #e06a50,9px -10px 0 -5px #73a552;
+
+}
+
+#st-mini-game-center .farm-crop-corn .farm-plant-art::before {
+
+    width: 8px;
+
+    height: 49px;
+
+    left: 37px;
+
+    bottom: 2px;
+
+    border-radius: 7px;
+
+    background: linear-gradient(90deg,#4f8f47,#79ad50,#4f8f47);
+
+}
+
+#st-mini-game-center .farm-crop-corn .farm-plant-leaves::before {
+
+    width: 44px;
+
+    height: 13px;
+
+    left: 18px;
+
+    bottom: 24px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #65a34e;
+
+    transform: rotate(-17deg);
+
+    box-shadow: 6px 11px 0 -2px #5a9749,22px -6px 0 -1px #79ae55;
+
+}
+
+#st-mini-game-center .farm-crop-corn .farm-plant-fruit::before {
+
+    width: 17px;
+
+    height: 27px;
+
+    left: 33px;
+
+    bottom: 7px;
+
+    border-radius: 55% 55% 45% 45%;
+
+    background: repeating-linear-gradient(0deg,#e6c64d 0 4px,#f1d86a 4px 7px);
+
+}
+
+#st-mini-game-center .farm-crop-strawberry .farm-plant-art::before {
+
+    width: 25px;
+
+    height: 27px;
+
+    left: 29px;
+
+    bottom: 3px;
+
+    border-radius: 48% 48% 56% 56%;
+
+    background: #e45b69;
+
+    box-shadow: inset 0 -6px rgba(176,49,62,.16);
+
+}
+
+#st-mini-game-center .farm-crop-strawberry .farm-plant-leaves::before {
+
+    width: 27px;
+
+    height: 13px;
+
+    left: 28px;
+
+    bottom: 28px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #65a34e;
+
+    transform: rotate(-7deg);
+
+    box-shadow: 10px -4px 0 -2px #76ae5a;
+
+}
+
+#st-mini-game-center .farm-crop-strawberry .farm-plant-fruit::before {
+
+    width: 3px;
+
+    height: 3px;
+
+    left: 37px;
+
+    bottom: 19px;
+
+    border-radius: 50%;
+
+    background: #f9dda0;
+
+    box-shadow: 7px 4px #f9dda0,2px -5px #f9dda0,10px -3px #f9dda0;
+
+}
+
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-art::before {
+
+    width: 43px;
+
+    height: 27px;
+
+    left: 20px;
+
+    bottom: 4px;
+
+    border-radius: 48%;
+
+    background: radial-gradient(circle at 50% 50%,#ee9a36 0 58%,#cf7725 60% 100%);
+
+    box-shadow: 0 0 0 2px rgba(145,79,31,.18);
+
+}
+
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::before {
+
+    width: 52px;
+
+    height: 11px;
+
+    left: 14px;
+
+    bottom: 24px;
+
+    border-radius: 100%;
+
+    background: #66964a;
+
+    transform: rotate(-5deg);
+
+}
+
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::after {
+
+    width: 12px;
+
+    height: 9px;
+
+    left: 52px;
+
+    bottom: 31px;
+
+    border: 3px solid #6b9a4c;
+
+    border-left: 0;
+
+    border-bottom: 0;
+
+    border-radius: 0 12px 0 0;
+
+    transform: rotate(12deg);
+
+}
+
+#st-mini-game-center .farm-crop-watermelon .farm-plant-art::before {
+
+    width: 48px;
+
+    height: 26px;
+
+    left: 17px;
+
+    bottom: 3px;
+
+    border-radius: 50% 50% 45% 45%;
+
+    background: repeating-linear-gradient(90deg,#3e8e54 0 7px,#6caf55 7px 11px,#3e8e54 11px 18px);
+
+    transform: rotate(-6deg);
+
+}
+
+#st-mini-game-center .farm-crop-watermelon .farm-plant-leaves::before {
+
+    width: 53px;
+
+    height: 8px;
+
+    left: 12px;
+
+    bottom: 24px;
+
+    border-radius: 100%;
+
+    background: #528e49;
+
+    transform: rotate(7deg);
+
+}
+
+#st-mini-game-center .farm-crop-blueberry .farm-plant-leaves::before {
+
+    width: 50px;
+
+    height: 38px;
+
+    left: 16px;
+
+    bottom: 10px;
+
+    border-radius: 50%;
+
+    background: radial-gradient(circle at 30% 30%,#6e9e52 0 11px,transparent 12px),radial-gradient(circle at 60% 48%,#5c9145 0 13px,transparent 14px),radial-gradient(circle at 76% 24%,#75a85a 0 9px,transparent 10px);
+
+}
+
+#st-mini-game-center .farm-crop-blueberry .farm-plant-fruit::before {
+
+    width: 9px;
+
+    height: 9px;
+
+    left: 32px;
+
+    bottom: 23px;
+
+    border-radius: 50%;
+
+    background: #4e6fa6;
+
+    box-shadow: 14px -7px #5878ab,10px 9px #416294,-4px 7px #627fad;
+
+}
+
+#st-mini-game-center .farm-crop-grape .farm-plant-art::before {
+
+    width: 4px;
+
+    height: 45px;
+
+    left: 39px;
+
+    bottom: 3px;
+
+    border-radius: 4px;
+
+    background: #5d8f4a;
+
+    transform: rotate(6deg);
+
+}
+
+#st-mini-game-center .farm-crop-grape .farm-plant-leaves::before {
+
+    width: 34px;
+
+    height: 23px;
+
+    left: 15px;
+
+    bottom: 25px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #679b4d;
+
+    transform: rotate(-18deg);
+
+}
+
+#st-mini-game-center .farm-crop-grape .farm-plant-fruit::before {
+
+    width: 9px;
+
+    height: 9px;
+
+    left: 34px;
+
+    bottom: 12px;
+
+    border-radius: 50%;
+
+    background: #6d4b98;
+
+    box-shadow: 7px 3px #7651a0,-7px 3px #63458f,3px 10px #62458f,-4px 10px #6e4b98,0 16px #574081;
+
+}
+
+#st-mini-game-center .farm-crop-tea .farm-plant-art::before {
+
+    width: 58px;
+
+    height: 39px;
+
+    left: 11px;
+
+    bottom: 4px;
+
+    border-radius: 50%;
+
+    background: radial-gradient(circle at 28% 52%,#668f4b 0 12px,transparent 13px),radial-gradient(circle at 54% 35%,#739f50 0 14px,transparent 15px),radial-gradient(circle at 78% 58%,#5b8744 0 12px,transparent 13px);
+
+}
+
+#st-mini-game-center .farm-crop-tea .farm-plant-leaves::before {
+
+    width: 13px;
+
+    height: 24px;
+
+    left: 35px;
+
+    bottom: 22px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #86ae60;
+
+    transform: rotate(-28deg);
+
+    box-shadow: 8px 1px #6e9e4d;
+
+}
+
+#st-mini-game-center .farm-crop-lavender .farm-plant-art::before {
+
+    width: 3px;
+
+    height: 47px;
+
+    left: 30px;
+
+    bottom: 3px;
+
+    border-radius: 3px;
+
+    background: #70994f;
+
+    box-shadow: 13px 2px #739d52,26px 0 #6e954e;
+
+}
+
+#st-mini-game-center .farm-crop-lavender .farm-plant-fruit::before {
+
+    width: 9px;
+
+    height: 23px;
+
+    left: 26px;
+
+    bottom: 24px;
+
+    border-radius: 9px;
+
+    background: #8d76bb;
+
+    box-shadow: 13px 3px 0 -1px #9a80c6,26px 0 0 -1px #866db2,5px 8px 0 -2px #a08acb,19px 9px 0 -2px #947cc0;
+
+}
+
+#st-mini-game-center .farm-crop-lavender .farm-plant-leaves::before {
+
+    width: 34px;
+
+    height: 7px;
+
+    left: 24px;
+
+    bottom: 10px;
+
+    border-radius: 100%;
+
+    background: #628e4d;
+
+}
+
+#st-mini-game-center .farm-plant-icon.farm-stage-sprout {
+
+    transform: scale(.72);
+
+    transform-origin: 50% 80%;
+
+}
+
+#st-mini-game-center .farm-plant-icon.farm-stage-soil {
+
+    transform: scale(.58);
+
+    transform-origin: 50% 88%;
+
+}
+
+#st-mini-game-center .farm-plant-icon.farm-stage-growing {
+
+    transform: scale(.86);
+
+}
+
+#st-mini-game-center .farm-seed-visual::after {
+
+    width: 12px;
+
+    height: 8px;
+
+    left: 15px;
+
+    bottom: 6px;
+
+    border-radius: 60%;
+
+    background: #6b4b31;
+
+    box-shadow: 12px -3px 0 -2px #7a5837;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-carrot::before {
+
+    content: "";
+
+    width: 18px;
+
+    height: 18px;
+
+    left: 12px;
+
+    bottom: 10px;
+
+    border-radius: 50%;
+
+    background: #5f984e;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-potato::before {
+
+    content: "";
+
+    width: 22px;
+
+    height: 15px;
+
+    left: 10px;
+
+    bottom: 8px;
+
+    border-radius: 50%;
+
+    background: #9a7047;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-radish::before {
+
+    content: "";
+
+    width: 18px;
+
+    height: 16px;
+
+    left: 12px;
+
+    bottom: 9px;
+
+    border-radius: 55%;
+
+    background: #d95555;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-tomato::before {
+
+    content: "";
+
+    width: 18px;
+
+    height: 18px;
+
+    left: 11px;
+
+    bottom: 8px;
+
+    border-radius: 50%;
+
+    background: #dc5b45;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-corn::before {
+
+    content: "";
+
+    width: 13px;
+
+    height: 24px;
+
+    left: 14px;
+
+    bottom: 5px;
+
+    border-radius: 50%;
+
+    background: #e6c64d;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-strawberry::before {
+
+    content: "";
+
+    width: 16px;
+
+    height: 17px;
+
+    left: 13px;
+
+    bottom: 7px;
+
+    border-radius: 45%;
+
+    background: #e45b69;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-pumpkin::before {
+
+    content: "";
+
+    width: 22px;
+
+    height: 18px;
+
+    left: 10px;
+
+    bottom: 7px;
+
+    border-radius: 50%;
+
+    background: #ea9134;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-watermelon::before {
+
+    content: "";
+
+    width: 24px;
+
+    height: 14px;
+
+    left: 9px;
+
+    bottom: 8px;
+
+    border-radius: 50%;
+
+    background: #4b9455;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-blueberry::before {
+
+    content: "";
+
+    width: 21px;
+
+    height: 17px;
+
+    left: 11px;
+
+    bottom: 8px;
+
+    border-radius: 50%;
+
+    background: #6489b2;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-grape::before {
+
+    content: "";
+
+    width: 15px;
+
+    height: 19px;
+
+    left: 14px;
+
+    bottom: 6px;
+
+    border-radius: 50%;
+
+    background: #6d4b98;
+
+    box-shadow: 8px 4px #7651a0;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-tea::before {
+
+    content: "";
+
+    width: 26px;
+
+    height: 17px;
+
+    left: 8px;
+
+    bottom: 8px;
+
+    border-radius: 50%;
+
+    background: #6c984f;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-lavender::before {
+
+    content: "";
+
+    width: 4px;
+
+    height: 25px;
+
+    left: 20px;
+
+    bottom: 4px;
+
+    background: #749c50;
+
+    box-shadow: 8px 1px #7b9f52;
+
+}
+
+#st-mini-game-center .farm-progress {
+
+    width: 84%;
+
+    height: 5px;
+
+    border-radius: 999px;
+
     overflow: hidden;
+
+    background: rgba(255,255,255,.14);
+
+    border: 1px solid rgba(255,255,255,.07);
+
+}
+
+#st-mini-game-center .farm-progress span {
+
+    display: block;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background: var(--SmartThemeQuoteColor,currentColor);
+
+    opacity: .72;
+
+}
+
+#st-mini-game-center .farm-actions {
+
+    display: grid;
+
+    grid-template-columns: minmax(0,1fr) repeat(3,auto);
+
+    align-items: center;
+
+    gap: 8px;
+
+    width: min(700px,100%);
+
+    margin: 0 auto;
+
+}
+
+#st-mini-game-center .farm-selection-text {
+
+    min-width: 0;
+
+    font-size: 12px;
+
+    opacity: .78;
+
+}
+
+#st-mini-game-center .farm-action-btn:disabled {
+
+    opacity: .42;
+
+    cursor: not-allowed;
+
+}
+
+#st-mini-game-center .farm-harvest-btn:not(:disabled) {
+
+    font-weight: 700;
+
+}
+
+#st-mini-game-center .farm-seed-hint,#st-mini-game-center .farm-crop-note {
+
+    width: min(700px,100%);
+
+    margin-left: auto;
+
+    margin-right: auto;
+
+}
+
+#st-mini-game-center .farm-action-bubble {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 8px;
+
+    transform: translate(-50%,-4px);
+
+    min-width: 42px;
+
+    height: 28px;
+
+    padding: 0 9px 0 6px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    border-radius: 999px;
+
+    border: 1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
+
+    background: color-mix(in srgb,var(--SmartThemeBodyBgColor,#fff) 82%,transparent);
+
+    color: var(--SmartThemeBodyColor,currentColor);
+
+    box-shadow: 0 5px 14px rgba(0,0,0,.14);
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    pointer-events: none;
+
+    z-index: 5;
+
+    animation: farmBubbleFloat 1.45s ease-out forwards;
+
+}
+
+#st-mini-game-center .farm-action-bubble::after {
+
+    content: "";
+
+    position: absolute;
+
+    left: 50%;
+
+    bottom: -5px;
+
+    width: 9px;
+
+    height: 9px;
+
+    background: inherit;
+
+    border-right: 1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
+
+    border-bottom: 1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
+
+    transform: translateX(-50%) rotate(45deg);
+
+}
+
+#st-mini-game-center .farm-bubble-mark {
+
+    position: relative;
+
+    display: block;
+
+    width: 14px;
+
+    height: 14px;
+
+    flex: 0 0 auto;
+
+}
+
+#st-mini-game-center .farm-action-water .farm-bubble-mark::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 9px;
+
+    height: 12px;
+
+    left: 3px;
+
+    top: 0;
+
+    border-radius: 70% 30% 65% 35%;
+
+    background: #65a9df;
+
+    transform: rotate(45deg);
+
+}
+
+#st-mini-game-center .farm-action-water .farm-bubble-mark::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 4px;
+
+    height: 4px;
+
+    left: 8px;
+
+    top: 1px;
+
+    border-radius: 50%;
+
+    background: #fff;
+
+    opacity: .75;
+
+}
+
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::before,
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after {
+
+    content: "";
+
+    position: absolute;
+
+    left: 6px;
+
+    top: 2px;
+
+    width: 3px;
+
+    height: 11px;
+
+    border-radius: 3px;
+
+    background: #d2ad52;
+
+    box-shadow: 0 0 7px rgba(210,173,82,.4);
+
+}
+
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after {
+
+    transform: rotate(90deg);
+
+}
+
+@keyframes farmBubbleFloat {
+
+    0% {
+
+        opacity: 0;
+
+        transform: translate(-50%,7px) scale(.78);
+
+    }
+
+    20% {
+
+        opacity: 1;
+
+        transform: translate(-50%,-4px) scale(1);
+
+    }
+
+    78% {
+
+        opacity: 1;
+
+        transform: translate(-50%,-18px) scale(1);
+
+    }
+
+    100% {
+
+        opacity: 0;
+
+        transform: translate(-50%,-28px) scale(.94);
+
+    }
+
+}
+
+@media (max-width:760px) {
+
+    #st-mini-game-center .farm-seed-row {
+
+        grid-template-columns: repeat(4,minmax(0,1fr));
+
+    }
+
+    #st-mini-game-center .farm-field {
+
+        grid-template-columns: repeat(3,minmax(0,1fr));
+
+    }
+
+    #st-mini-game-center .farm-actions {
+
+        grid-template-columns: 1fr 1fr 1fr;
+
+    }
+
+    #st-mini-game-center .farm-selection-text {
+
+        grid-column: 1/-1;
+
+        order: -1;
+
+    }
+
+}
+
+@media (max-width:480px) {
+
+    #st-mini-game-center .farm-seed-row {
+
+        grid-template-columns: repeat(3,minmax(0,1fr));
+
+    }
+
+    #st-mini-game-center .farm-seed-card {
+
+        min-height: 76px;
+
+    }
+
+    #st-mini-game-center .farm-field {
+
+        grid-template-columns: repeat(3,minmax(0,1fr));
+
+        gap: 7px;
+
+    }
+
+    #st-mini-game-center .farm-plot {
+
+        min-height: 112px;
+
+        padding: 8px 5px;
+
+    }
+
+    #st-mini-game-center .farm-plant-icon {
+
+        width: 70px;
+
+        height: 54px;
+
+    }
+
+    #st-mini-game-center .farm-actions {
+
+        gap: 6px;
+
+    }
+
+    #st-mini-game-center .farm-action-btn {
+
+        padding-left: 8px;
+
+        padding-right: 8px;
+
+    }
+
+}
+
+#st-mini-game-center .link-match-board {
+
+    width: min(680px,100%);
+
+    margin: 8px auto 14px;
+
+    padding: clamp(7px,1vw,10px);
+
+    display: grid;
+
+    grid-template-columns: repeat(12,minmax(0,1fr));
+
+    gap: clamp(4px,.65vw,7px);
+
+    border-radius: 16px;
+
+    background: var(--tetris-fill,var(--customThemeColor,var(--SmartThemeQuoteColor,var(--SmartThemeBodyColor,currentColor))));
+
+    border: 1px solid var(--SmartThemeBorderColor,var(--stgc-browser-border));
+
+    box-shadow: inset 0 1px 0 color-mix(in srgb,var(--SmartThemeBodyColor,var(--stgc-browser-text)) 8%,transparent),
+    0 10px 30px color-mix(in srgb,var(--SmartThemeBodyColor,var(--stgc-browser-text)) 16%,transparent);
+
+    touch-action: manipulation;
+
+    user-select: none;
+
+}
+
+#st-mini-game-center .link-match-cell.star-pop-cell {
+
+    width: 100%;
+
+    aspect-ratio: 1;
+
+    min-width: 0;
+
+    min-height: 0;
+
+    padding: 0;
+
+    font: inherit;
+
+}
+
+#st-mini-game-center .link-match-cell.star-pop-cell::before {
+
+    content: none;
+
+}
+
+#st-mini-game-center .link-match-cell.star-pop-cell > i {
+
+    position: relative;
+
+    z-index: 3;
+
+    font-size: clamp(14px,3.3vw,26px);
+
+    color: rgba(255,255,255,.86);
+
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.18));
+
+    pointer-events: none;
+
+}
+
+#st-mini-game-center .link-match-cell.star-pop-cell.selected {
+
+    outline: 3px solid var(--SmartThemeQuoteColor,var(--customThemeColor,#fff));
+
+}
+
+#st-mini-game-center .link-match-cell.star-pop-cell.empty {
+
+    visibility: hidden;
+
+}
+
+#st-mini-game-center .link-match-cell[data-color="pink"] {
+
+    --tile-hi: #d8a5ac;
+
+    --tile-mid: #c98e99;
+
+    --tile-low: #b87984;
+
+}
+
+#st-mini-game-center .link-match-cell[data-color="blue"] {
+
+    --tile-hi: #abc4d7;
+
+    --tile-mid: #91afc7;
+
+    --tile-low: #7999b4;
+
+}
+
+#st-mini-game-center .link-match-cell[data-color="yellow"] {
+
+    --tile-hi: #e5d09b;
+
+    --tile-mid: #d7bd78;
+
+    --tile-low: #c6a861;
+
+}
+
+#st-mini-game-center .link-match-cell[data-color="green"] {
+
+    --tile-hi: #b2cda3;
+
+    --tile-mid: #98ba8b;
+
+    --tile-low: #7ea872;
+
+}
+
+#st-mini-game-center .link-match-cell[data-color="purple"] {
+
+    --tile-hi: #c0b3d7;
+
+    --tile-mid: #aa97ca;
+
+    --tile-low: #937db5;
+
+}
+
+@media (max-width:640px) {
+
+    #st-mini-game-center .link-match-board {
+
+        width: min(96vw,560px);
+
+        gap: 3px;
+
+        padding: 5px;
+
+        border-radius: 14px;
+
+    }
+
+    #st-mini-game-center .link-match-cell.star-pop-cell > i {
+
+        font-size: clamp(12px,4.2vw,22px);
+
+    }
+
+}
+
+#st-mini-game-center .cake-game-wrap {
+
+    width: min(720px, 100%);
+
+    margin: 0 auto;
+
+}
+
+#st-mini-game-center .cake-topbar {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin: 0 auto 10px;
+
+}
+
+#st-mini-game-center .cake-status {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    color: var(--SmartThemeBodyColor, currentColor);
+
+    font-size: 12px;
+
+}
+
+#st-mini-game-center .cake-status span {
+
+    padding: 7px 10px;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
+
+    border-radius: 10px;
+
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.08));
+
+}
+
+#st-mini-game-center .cake-hint {
+
+    text-align: center;
+
+    margin: 0 0 10px;
+
+    font-size: 11px;
+
+    opacity: .62;
+
+}
+
+#st-mini-game-center .cake-scene {
+
+    position: relative;
+
+    width: 100%;
+
+    height: min(70dvh, 620px);
+
+    min-height: 440px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
+
     border-radius: 18px;
-    background:
-      radial-gradient(circle at 18% 18%, rgba(255,255,255,.18), transparent 16%),
+
+    background: radial-gradient(circle at 18% 18%, rgba(255,255,255,.18), transparent 16%),
       radial-gradient(circle at 82% 12%, rgba(255,255,255,.14), transparent 18%),
       linear-gradient(180deg, color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4dfe0) 96%, #ffd5dc), var(--SmartThemeBodyBgColor, #f4dfe0));
+
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+
     cursor: pointer;
+
     touch-action: manipulation;
+
     user-select: none;
+
 }
+
 #st-mini-game-center .cake-sky::before,
 #st-mini-game-center .cake-sky::after {
-    content: '✦';
+
+    content: "✦";
+
     position: absolute;
+
     color: rgba(255,255,255,.35);
+
     font-size: 18px;
+
 }
-#st-mini-game-center .cake-sky::before { left: 12%; top: 12%; }
-#st-mini-game-center .cake-sky::after { right: 16%; top: 24%; }
+
+#st-mini-game-center .cake-sky::before {
+
+    left: 12%;
+
+    top: 12%;
+
+}
+
+#st-mini-game-center .cake-sky::after {
+
+    right: 16%;
+
+    top: 24%;
+
+}
+
 #st-mini-game-center .cake-stack {
+
     position: absolute;
+
     left: 0;
+
     right: 0;
+
     bottom: 30px;
+
     top: 0;
+
     will-change: transform;
+
     transform: translate3d(0, 0, 0);
+
 }
-\n#st-mini-game-center .cake-camera-indicator {\n    position: absolute;\n    left: 50%;\n    top: 12px;\n    z-index: 8;\n    transform: translate(-50%, -4px);\n    padding: 5px 10px;\n    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));\n    border-radius: 999px;\n    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20,20,20,.4)) 82%, transparent);\n    color: var(--SmartThemeBodyColor, currentColor);\n    font-size: 11px;\n    opacity: .0;\n    pointer-events: none;\n    transition: opacity .18s ease, transform .18s ease;\n}\n#st-mini-game-center .cake-camera-indicator.show {\n    opacity: .78;\n    transform: translate(-50%, 0);\n}\n
+
+n#st-mini-game-center .cake-camera-indicator {
+
+}
+
+n#st-mini-game-center .cake-camera-indicator.show {
+
+}
+
+n
 #st-mini-game-center .cake-floor {
+
     position: absolute;
+
     left: 4%;
+
     right: 4%;
+
     bottom: 18px;
+
     height: 12px;
+
     border-radius: 999px;
+
     background: color-mix(in srgb, var(--SmartThemeBodyColor, #5b4650) 24%, transparent);
+
     opacity: .5;
+
 }
+
 #st-mini-game-center .cake-layer {
+
     position: absolute;
+
     height: 22px;
+
     border-radius: 7px 7px 4px 4px;
+
     background: linear-gradient(180deg, hsl(var(--cake-hue, 352) 58% 88%), hsl(var(--cake-hue, 352) 45% 72%));
+
     border: 1px solid rgba(112,64,70,.18);
+
     box-shadow: 0 3px 7px rgba(86,45,52,.16), inset 0 2px 0 rgba(255,255,255,.42);
+
     transform-origin: center bottom;
+
     z-index: 2;
+
 }
-#st-mini-game-center .cake-layer.moving { filter: saturate(1.04); }
+
+#st-mini-game-center .cake-layer.moving {
+
+    filter: saturate(1.04);
+
+}
+
 #st-mini-game-center .cake-layer .cake-frosting {
+
     position: absolute;
+
     left: -1px;
+
     right: -1px;
+
     top: -5px;
+
     height: 8px;
+
     border-radius: 8px 8px 5px 5px;
+
     background: linear-gradient(180deg, #fff8f7, #f9e8e8);
+
     border: 1px solid rgba(255,255,255,.55);
+
 }
+
 #st-mini-game-center .cake-layer .cake-cream {
+
     position: absolute;
+
     left: 8%;
+
     right: 8%;
+
     bottom: 4px;
+
     height: 4px;
+
     border-radius: 999px;
+
     background: rgba(255,245,240,.72);
+
 }
+
 #st-mini-game-center .cake-layer .cake-sprinkle {
+
     position: absolute;
+
     width: 4px;
+
     height: 2px;
+
     border-radius: 2px;
+
     background: rgba(255,255,255,.7);
+
 }
-#st-mini-game-center .cake-layer .s1 { left: 26%; top: 9px; transform: rotate(-20deg); }
-#st-mini-game-center .cake-layer .s2 { left: 61%; top: 13px; transform: rotate(22deg); }
-#st-mini-game-center .cake-layer .s3 { left: 79%; top: 7px; transform: rotate(-8deg); }
-#st-mini-game-center .cake-layer.perfect { animation: cakePerfect .34s ease; }
-#st-mini-game-center .cake-layer.landed { animation: cakeLand .18s ease; }
+
+#st-mini-game-center .cake-layer .s1 {
+
+    left: 26%;
+
+    top: 9px;
+
+    transform: rotate(-20deg);
+
+}
+
+#st-mini-game-center .cake-layer .s2 {
+
+    left: 61%;
+
+    top: 13px;
+
+    transform: rotate(22deg);
+
+}
+
+#st-mini-game-center .cake-layer .s3 {
+
+    left: 79%;
+
+    top: 7px;
+
+    transform: rotate(-8deg);
+
+}
+
+#st-mini-game-center .cake-layer.perfect {
+
+    animation: cakePerfect .34s ease;
+
+}
+
+#st-mini-game-center .cake-layer.landed {
+
+    animation: cakeLand .18s ease;
+
+}
+
 #st-mini-game-center .cake-overlay {
+
     position: absolute;
+
     inset: 0;
+
     z-index: 20;
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 12px;
+
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20,20,20,.72)) 74%, transparent);
+
     backdrop-filter: blur(3px);
+
     -webkit-backdrop-filter: blur(3px);
+
 }
-#st-mini-game-center .cake-overlay[hidden] { display: none; }
+
+#st-mini-game-center .cake-overlay[hidden] {
+
+    display: none;
+
+}
+
 #st-mini-game-center .cake-overlay-text {
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     gap: 4px;
+
     color: var(--SmartThemeBodyColor, #fff);
+
     text-align: center;
+
 }
-#st-mini-game-center .cake-overlay-text strong { font-size: 22px; }
-#st-mini-game-center .cake-overlay-text span { font-size: 13px; opacity: .72; }
-@keyframes cakePerfect { 50% { transform: scaleY(1.13); } }
-@keyframes cakeLand { 0% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
-@media (max-width: 560px) {
-    #st-mini-game-center .cake-scene {
-        min-height: 420px;
-        height: min(66dvh, 560px);
+
+#st-mini-game-center .cake-overlay-text strong {
+
+    font-size: 22px;
+
+}
+
+#st-mini-game-center .cake-overlay-text span {
+
+    font-size: 13px;
+
+    opacity: .72;
+
+}
+
+@keyframes cakePerfect {
+
+    50% {
+
+        transform: scaleY(1.13);
+
     }
-    #st-mini-game-center .cake-topbar { align-items: flex-start; }
-    #st-mini-game-center .cake-status { flex: 1; }
+
 }
 
+@keyframes cakeLand {
 
-/* ==================== 消灭星星 ==================== */
+    0% {
+
+        transform: translateY(-3px);
+
+    }
+
+    100% {
+
+        transform: translateY(0);
+
+    }
+
+}
+
+@media (max-width: 560px) {
+
+    #st-mini-game-center .cake-scene {
+
+        min-height: 420px;
+
+        height: min(66dvh, 560px);
+
+    }
+
+    #st-mini-game-center .cake-topbar {
+
+        align-items: flex-start;
+
+    }
+
+    #st-mini-game-center .cake-status {
+
+        flex: 1;
+
+    }
+
+}
+
 #st-mini-game-center .star-pop-board {
-  width: min(620px, 100%);
-  margin: 8px auto 14px;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: clamp(4px, .65vw, 7px);
-  padding: clamp(7px, 1vw, 10px);
-  border-radius: 16px;
-  /* 与俄罗斯方块“已填方块”的主题色保持一致：优先使用 customThemeColor，其次使用酒馆引用色。 */
-  background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
-  border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent),
+
+    width: min(620px, 100%);
+
+    margin: 8px auto 14px;
+
+    display: grid;
+
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+
+    gap: clamp(4px, .65vw, 7px);
+
+    padding: clamp(7px, 1vw, 10px);
+
+    border-radius: 16px;
+
+    background: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor)));
+
+    border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
+
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent),
     0 10px 30px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 16%, transparent);
-  touch-action: manipulation;
-  user-select: none;
+
+    touch-action: manipulation;
+
+    user-select: none;
+
 }
 
 #st-mini-game-center .star-pop-cell {
-  aspect-ratio: 1;
-  min-width: 0;
-  position: relative;
-  display: grid;
-  place-items: center;
-  border-radius: 22%;
-  cursor: pointer;
-  outline: none;
-  isolation: isolate;
-  overflow: hidden;
-  background:
-    linear-gradient(145deg,
+
+    aspect-ratio: 1;
+
+    min-width: 0;
+
+    position: relative;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 22%;
+
+    cursor: pointer;
+
+    outline: none;
+
+    isolation: isolate;
+
+    overflow: hidden;
+
+    background: linear-gradient(145deg,
       var(--tile-hi),
       var(--tile-mid) 47%,
       var(--tile-low));
-  border: 1px solid rgba(255,255,255,.13);
-  box-shadow:
-    inset 0 2px 2px rgba(255,255,255,.20),
+
+    border: 1px solid rgba(255,255,255,.13);
+
+    box-shadow: inset 0 2px 2px rgba(255,255,255,.20),
     inset 0 -3px 5px rgba(50,40,45,.18),
     0 3px 6px rgba(0,0,0,.23);
-  transition:
-    transform .12s ease,
+
+    transition: transform .12s ease,
     filter .12s ease,
     box-shadow .12s ease;
+
 }
 
 #st-mini-game-center .star-pop-cell:not(.empty):hover {
-  transform: translateY(-1px) scale(1.025);
-  filter: brightness(1.04) saturate(1.03);
-  box-shadow:
-    inset 0 2px 2px rgba(255,255,255,.23),
+
+    transform: translateY(-1px) scale(1.025);
+
+    filter: brightness(1.04) saturate(1.03);
+
+    box-shadow: inset 0 2px 2px rgba(255,255,255,.23),
     inset 0 -3px 5px rgba(50,40,45,.16),
     0 5px 9px rgba(0,0,0,.24);
+
 }
 
 #st-mini-game-center .star-pop-cell:not(.empty):active {
-  transform: translateY(1px) scale(.96);
-  box-shadow:
-    inset 0 3px 6px rgba(50,40,45,.20),
+
+    transform: translateY(1px) scale(.96);
+
+    box-shadow: inset 0 3px 6px rgba(50,40,45,.20),
     0 1px 2px rgba(0,0,0,.20);
+
 }
 
-/* 柔和高光，让方块有接近图片里那种“软糖/磨砂玻璃糖块”的质感。 */
 #st-mini-game-center .star-pop-cell:not(.empty)::after {
-  content: '';
-  position: absolute;
-  left: 10%;
-  top: 7%;
-  width: 68%;
-  height: 38%;
-  border-radius: 45%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 18%, transparent), transparent);
-  transform: rotate(-8deg);
-  filter: blur(.25px);
-  opacity: .72;
-  pointer-events: none;
-  z-index: 1;
+
+    content: "";
+
+    position: absolute;
+
+    left: 10%;
+
+    top: 7%;
+
+    width: 68%;
+
+    height: 38%;
+
+    border-radius: 45%;
+
+    background: linear-gradient(180deg, color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 18%, transparent), transparent);
+
+    transform: rotate(-8deg);
+
+    filter: blur(.25px);
+
+    opacity: .72;
+
+    pointer-events: none;
+
+    z-index: 1;
+
 }
 
-/* 中央星星：纯 CSS 五角星，不使用 emoji。 */
 #st-mini-game-center .star-pop-cell:not(.empty)::before {
-  content: '';
-  position: absolute;
-  width: 60%;
-  height: 60%;
-  left: 20%;
-  top: 20%;
-  clip-path: polygon(
+
+    content: "";
+
+    position: absolute;
+
+    width: 60%;
+
+    height: 60%;
+
+    left: 20%;
+
+    top: 20%;
+
+    clip-path: polygon(
     50% 1%,
     61% 34%,
     97% 35%,
@@ -2245,271 +5190,695 @@
     3% 35%,
     39% 34%
   );
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.26));
-  filter: drop-shadow(0 2px 1px color-mix(in srgb, var(--SmartThemeBodyColor, #000) 22%, transparent));
-  z-index: 2;
+
+    background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.26));
+
+    filter: drop-shadow(0 2px 1px color-mix(in srgb, var(--SmartThemeBodyColor, #000) 22%, transparent));
+
+    z-index: 2;
+
 }
 
 #st-mini-game-center .star-pop-cell.empty {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  pointer-events: none;
-  opacity: 0;
+
+    background: transparent;
+
+    border-color: transparent;
+
+    box-shadow: none;
+
+    pointer-events: none;
+
+    opacity: 0;
+
 }
 
-
 #st-mini-game-center .star-pop-cell:focus-visible {
-  box-shadow:
-    0 0 0 3px var(--SmartThemeQuoteColor, rgba(255,255,255,.75)),
+
+    box-shadow: 0 0 0 3px var(--SmartThemeQuoteColor, rgba(255,255,255,.75)),
     inset 0 2px 2px rgba(255,255,255,.20),
     0 4px 9px rgba(0,0,0,.22);
+
 }
 
 #st-mini-game-center .star-pop-palette-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  flex: 0 0 auto;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    flex: 0 0 auto;
+
 }
 
 #st-mini-game-center .star-pop-palette-label {
-  font-size: 12px;
-  opacity: .72;
-  white-space: nowrap;
+
+    font-size: 12px;
+
+    opacity: .72;
+
+    white-space: nowrap;
+
 }
 
 #st-mini-game-center .star-pop-palette-select {
-  min-width: 112px;
-  width: auto;
-  padding: 6px 28px 6px 9px;
+
+    min-width: 112px;
+
+    width: auto;
+
+    padding: 6px 28px 6px 9px;
+
 }
 
-/* 配色套装：只改变星星方块本身，不碰酒馆主题背景。 */
-#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-pink { --tile-hi:#d8a5ac; --tile-mid:#c98e99; --tile-low:#b87984; }
-#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-blue { --tile-hi:#abc4d7; --tile-mid:#91afc7; --tile-low:#7999b4; }
-#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-yellow { --tile-hi:#e5d09b; --tile-mid:#d7bd78; --tile-low:#c6a861; }
-#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-green { --tile-hi:#b2cda3; --tile-mid:#98ba8b; --tile-low:#7ea872; }
-#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-purple { --tile-hi:#c0b3d7; --tile-mid:#aa97ca; --tile-low:#937db5; }
+#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-pink {
 
-#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-pink { --tile-hi:#ff91c6; --tile-mid:#ff5ca9; --tile-low:#e74492; }
-#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-blue { --tile-hi:#82d8ff; --tile-mid:#43bff3; --tile-low:#2098d3; }
-#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-yellow { --tile-hi:#ffe86d; --tile-mid:#ffd43d; --tile-low:#edb81e; }
-#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-green { --tile-hi:#8ee86d; --tile-mid:#57d844; --tile-low:#37ad31; }
-#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-purple { --tile-hi:#c59bff; --tile-mid:#a66cff; --tile-low:#8245da; }
+    --tile-hi: #d8a5ac;
 
-#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-pink { --tile-hi:#ffc7d8; --tile-mid:#f5a8bf; --tile-low:#e58ca7; }
-#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-blue { --tile-hi:#c6e6ff; --tile-mid:#acd5f0; --tile-low:#8ec0df; }
-#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-yellow { --tile-hi:#fff1b8; --tile-mid:#f7dfa0; --tile-low:#e9ca7c; }
-#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-green { --tile-hi:#cdf1cc; --tile-mid:#b2dfb1; --tile-low:#96cb95; }
-#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-purple { --tile-hi:#e1d0ff; --tile-mid:#cbb4ef; --tile-low:#b29ad6; }
+    --tile-mid: #c98e99;
 
-#st-mini-game-center .star-pop-board[data-palette="cream"] .color-pink { --tile-hi:#f5d8d0; --tile-mid:#e8bcb0; --tile-low:#d59d90; }
-#st-mini-game-center .star-pop-board[data-palette="cream"] .color-blue { --tile-hi:#d6e1dd; --tile-mid:#b9cdc4; --tile-low:#9db6ab; }
-#st-mini-game-center .star-pop-board[data-palette="cream"] .color-yellow { --tile-hi:#f6e9bd; --tile-mid:#ead89f; --tile-low:#d5bd75; }
-#st-mini-game-center .star-pop-board[data-palette="cream"] .color-green { --tile-hi:#dce5c9; --tile-mid:#c4d3a8; --tile-low:#a8bc86; }
-#st-mini-game-center .star-pop-board[data-palette="cream"] .color-purple { --tile-hi:#dfd1c5; --tile-mid:#c7b2a0; --tile-low:#aa927d; }
+    --tile-low: #b87984;
 
-#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-pink { --tile-hi:#ffd7df; --tile-mid:#f6b9c8; --tile-low:#e99cad; }
-#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-blue { --tile-hi:#d8f0ff; --tile-mid:#b5dff4; --tile-low:#91cae5; }
-#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-yellow { --tile-hi:#fff1c8; --tile-mid:#f8ddb2; --tile-low:#eac496; }
-#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-green { --tile-hi:#dff3d8; --tile-mid:#c1e1b7; --tile-low:#a4c99b; }
-#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-purple { --tile-hi:#eadcf5; --tile-mid:#d3bee5; --tile-low:#baa0cf; }
+}
+
+#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-blue {
+
+    --tile-hi: #abc4d7;
+
+    --tile-mid: #91afc7;
+
+    --tile-low: #7999b4;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-yellow {
+
+    --tile-hi: #e5d09b;
+
+    --tile-mid: #d7bd78;
+
+    --tile-low: #c6a861;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-green {
+
+    --tile-hi: #b2cda3;
+
+    --tile-mid: #98ba8b;
+
+    --tile-low: #7ea872;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="morandi"] .color-purple {
+
+    --tile-hi: #c0b3d7;
+
+    --tile-mid: #aa97ca;
+
+    --tile-low: #937db5;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-pink {
+
+    --tile-hi: #ff91c6;
+
+    --tile-mid: #ff5ca9;
+
+    --tile-low: #e74492;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-blue {
+
+    --tile-hi: #82d8ff;
+
+    --tile-mid: #43bff3;
+
+    --tile-low: #2098d3;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-yellow {
+
+    --tile-hi: #ffe86d;
+
+    --tile-mid: #ffd43d;
+
+    --tile-low: #edb81e;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-green {
+
+    --tile-hi: #8ee86d;
+
+    --tile-mid: #57d844;
+
+    --tile-low: #37ad31;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="dopamine"] .color-purple {
+
+    --tile-hi: #c59bff;
+
+    --tile-mid: #a66cff;
+
+    --tile-low: #8245da;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-pink {
+
+    --tile-hi: #ffc7d8;
+
+    --tile-mid: #f5a8bf;
+
+    --tile-low: #e58ca7;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-blue {
+
+    --tile-hi: #c6e6ff;
+
+    --tile-mid: #acd5f0;
+
+    --tile-low: #8ec0df;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-yellow {
+
+    --tile-hi: #fff1b8;
+
+    --tile-mid: #f7dfa0;
+
+    --tile-low: #e9ca7c;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-green {
+
+    --tile-hi: #cdf1cc;
+
+    --tile-mid: #b2dfb1;
+
+    --tile-low: #96cb95;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="macaron"] .color-purple {
+
+    --tile-hi: #e1d0ff;
+
+    --tile-mid: #cbb4ef;
+
+    --tile-low: #b29ad6;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="cream"] .color-pink {
+
+    --tile-hi: #f5d8d0;
+
+    --tile-mid: #e8bcb0;
+
+    --tile-low: #d59d90;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="cream"] .color-blue {
+
+    --tile-hi: #d6e1dd;
+
+    --tile-mid: #b9cdc4;
+
+    --tile-low: #9db6ab;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="cream"] .color-yellow {
+
+    --tile-hi: #f6e9bd;
+
+    --tile-mid: #ead89f;
+
+    --tile-low: #d5bd75;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="cream"] .color-green {
+
+    --tile-hi: #dce5c9;
+
+    --tile-mid: #c4d3a8;
+
+    --tile-low: #a8bc86;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="cream"] .color-purple {
+
+    --tile-hi: #dfd1c5;
+
+    --tile-mid: #c7b2a0;
+
+    --tile-low: #aa927d;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-pink {
+
+    --tile-hi: #ffd7df;
+
+    --tile-mid: #f6b9c8;
+
+    --tile-low: #e99cad;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-blue {
+
+    --tile-hi: #d8f0ff;
+
+    --tile-mid: #b5dff4;
+
+    --tile-low: #91cae5;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-yellow {
+
+    --tile-hi: #fff1c8;
+
+    --tile-mid: #f8ddb2;
+
+    --tile-low: #eac496;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-green {
+
+    --tile-hi: #dff3d8;
+
+    --tile-mid: #c1e1b7;
+
+    --tile-low: #a4c99b;
+
+}
+
+#st-mini-game-center .star-pop-board[data-palette="icecream"] .color-purple {
+
+    --tile-hi: #eadcf5;
+
+    --tile-mid: #d3bee5;
+
+    --tile-low: #baa0cf;
+
+}
 
 #st-mini-game-center .star-pop-result {
-  min-height: 24px;
-  text-align: center;
-  font-weight: 700;
-  color: var(--SmartThemeBodyColor, inherit);
+
+    min-height: 24px;
+
+    text-align: center;
+
+    font-weight: 700;
+
+    color: var(--SmartThemeBodyColor, inherit);
+
 }
 
 @media (max-width: 640px) {
-  #st-mini-game-center .star-pop-board {
-    width: min(96vw, 540px);
-    gap: 3px;
-    padding: 5px;
-    border-radius: 14px;
-  }
 
-  #st-mini-game-center .star-pop-cell {
-    border-radius: 20%;
-  }
+    #st-mini-game-center .star-pop-board {
 
-  #st-mini-game-center .star-pop-palette-wrap {
-    width: 100%;
-    justify-content: center;
-    order: 4;
-    margin-top: 2px;
-  }
+        width: min(96vw, 540px);
+
+        gap: 3px;
+
+        padding: 5px;
+
+        border-radius: 14px;
+
+    }
+
+    #st-mini-game-center .star-pop-cell {
+
+        border-radius: 20%;
+
+    }
+
+    #st-mini-game-center .star-pop-palette-wrap {
+
+        width: 100%;
+
+        justify-content: center;
+
+        order: 4;
+
+        margin-top: 2px;
+
+    }
+
 }
 
-/* v1.4.2 — newly unlocked farm crops for the newer games */
-#st-mini-game-center .farm-crop-cherry .farm-plant-art::before{
-    width:4px;height:36px;left:39px;bottom:6px;border-radius:5px;
-    background:#6f9752;transform:rotate(5deg);
+#st-mini-game-center .farm-crop-cherry .farm-plant-art::before {
+
+    width: 4px;
+
+    height: 36px;
+
+    left: 39px;
+
+    bottom: 6px;
+
+    border-radius: 5px;
+
+    background: #6f9752;
+
+    transform: rotate(5deg);
+
     box-shadow: -8px 6px 0 -1px #78a15a;
-}
-#st-mini-game-center .farm-crop-cherry .farm-plant-leaves::before{
-    width:18px;height:10px;left:20px;bottom:31px;border-radius:100% 0 100% 0;
-    background:#6c9a4f;transform:rotate(-25deg);
-    box-shadow:18px 4px 0 -1px #7da85d;
-}
-#st-mini-game-center .farm-crop-cherry .farm-plant-fruit::before{
-    width:16px;height:16px;left:27px;bottom:10px;border-radius:50%;
-    background:#bd5b67;
-    box-shadow:11px -2px 0 -1px #c96a74, 5px 8px 0 -2px #a84f5a;
-}
-#st-mini-game-center .farm-crop-cherry.farm-stage-sprout .farm-plant-fruit::before{
-    width:10px;height:8px;left:34px;bottom:14px;box-shadow:none;background:#709d52;
+
 }
 
-#st-mini-game-center .farm-crop-sunflower .farm-plant-art::before{
-    width:6px;height:48px;left:38px;bottom:2px;border-radius:8px;
-    background:linear-gradient(90deg,#5b8f48,#78a955,#5d8f49);
+#st-mini-game-center .farm-crop-cherry .farm-plant-leaves::before {
+
+    width: 18px;
+
+    height: 10px;
+
+    left: 20px;
+
+    bottom: 31px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #6c9a4f;
+
+    transform: rotate(-25deg);
+
+    box-shadow: 18px 4px 0 -1px #7da85d;
+
 }
-#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::before{
-    width:24px;height:12px;left:15px;bottom:18px;border-radius:100% 0 100% 0;
-    background:#6c9b4f;transform:rotate(-24deg);
-    box-shadow:22px 8px 0 -1px #77a857;
+
+#st-mini-game-center .farm-crop-cherry .farm-plant-fruit::before {
+
+    width: 16px;
+
+    height: 16px;
+
+    left: 27px;
+
+    bottom: 10px;
+
+    border-radius: 50%;
+
+    background: #bd5b67;
+
+    box-shadow: 11px -2px 0 -1px #c96a74, 5px 8px 0 -2px #a84f5a;
+
 }
-#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::after{
-    content:"";position:absolute;width:20px;height:12px;left:42px;bottom:23px;
-    border-radius:0 100% 0 100%;background:#61934a;transform:rotate(24deg);
+
+#st-mini-game-center .farm-crop-cherry.farm-stage-sprout .farm-plant-fruit::before {
+
+    width: 10px;
+
+    height: 8px;
+
+    left: 34px;
+
+    bottom: 14px;
+
+    box-shadow: none;
+
+    background: #709d52;
+
 }
-#st-mini-game-center .farm-crop-sunflower .farm-plant-fruit::before{
-    width:26px;height:26px;left:27px;bottom:35px;border-radius:50%;
-    background:#d4a95b;
-    box-shadow:
-      0 -11px 0 -5px #e2c06d,
+
+#st-mini-game-center .farm-crop-sunflower .farm-plant-art::before {
+
+    width: 6px;
+
+    height: 48px;
+
+    left: 38px;
+
+    bottom: 2px;
+
+    border-radius: 8px;
+
+    background: linear-gradient(90deg,#5b8f48,#78a955,#5d8f49);
+
+}
+
+#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::before {
+
+    width: 24px;
+
+    height: 12px;
+
+    left: 15px;
+
+    bottom: 18px;
+
+    border-radius: 100% 0 100% 0;
+
+    background: #6c9b4f;
+
+    transform: rotate(-24deg);
+
+    box-shadow: 22px 8px 0 -1px #77a857;
+
+}
+
+#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 20px;
+
+    height: 12px;
+
+    left: 42px;
+
+    bottom: 23px;
+
+    border-radius: 0 100% 0 100%;
+
+    background: #61934a;
+
+    transform: rotate(24deg);
+
+}
+
+#st-mini-game-center .farm-crop-sunflower .farm-plant-fruit::before {
+
+    width: 26px;
+
+    height: 26px;
+
+    left: 27px;
+
+    bottom: 35px;
+
+    border-radius: 50%;
+
+    background: #d4a95b;
+
+    box-shadow: 0 -11px 0 -5px #e2c06d,
       11px -4px 0 -5px #e2c06d,
       -11px -4px 0 -5px #e2c06d,
       8px 8px 0 -5px #e2c06d,
       -8px 8px 0 -5px #e2c06d;
-}
-#st-mini-game-center .farm-crop-sunflower.farm-stage-sprout .farm-plant-fruit::before{
-    width:9px;height:7px;left:34px;bottom:23px;box-shadow:none;background:#789f54;
+
 }
 
-/* seed-card miniatures for the two newer crops */
-#st-mini-game-center .farm-seed-visual.farm-crop-cherry::before{
-    content:"";position:absolute;width:11px;height:11px;left:11px;bottom:9px;border-radius:50%;
-    background:#bd5b67;box-shadow:9px 2px 0 -1px #c96a74;
-}
-#st-mini-game-center .farm-seed-visual.farm-crop-cherry::after{
-    width:3px;height:19px;left:20px;bottom:15px;border-radius:4px;background:#6f9752;box-shadow:-6px 2px 0 -1px #78a15a;
-}
-#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::before{
-    content:"";position:absolute;width:18px;height:18px;left:12px;bottom:11px;border-radius:50%;
-    background:#d4a95b;
-    box-shadow:0 -7px 0 -3px #e2c06d,7px 0 0 -3px #e2c06d,-7px 0 0 -3px #e2c06d,0 7px 0 -3px #e2c06d;
-}
-#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::after{
-    width:3px;height:15px;left:20px;bottom:2px;border-radius:4px;background:#6b9850;
+#st-mini-game-center .farm-crop-sunflower.farm-stage-sprout .farm-plant-fruit::before {
+
+    width: 9px;
+
+    height: 7px;
+
+    left: 34px;
+
+    bottom: 23px;
+
+    box-shadow: none;
+
+    background: #789f54;
+
 }
 
-/* =====================================================================
-   v1.4.4 — SillyTavern 原生 UI 风格
-   外层容器使用 SillyTavern 的 BlurTintColor；游戏内控件模拟 .text_pole / .menu_button。
-   ===================================================================== */
-#st-mini-game-center {
-    /* 不再人为混成灰色；与酒馆自己的 UI 底色保持一致。 */
-    background: transparent !important;
-    background-color: transparent !important;
-    color: var(--SmartThemeBodyColor) !important;
+#st-mini-game-center .farm-seed-visual.farm-crop-cherry::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 11px;
+
+    height: 11px;
+
+    left: 11px;
+
+    bottom: 9px;
+
+    border-radius: 50%;
+
+    background: #bd5b67;
+
+    box-shadow: 9px 2px 0 -1px #c96a74;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-cherry::after {
+
+    width: 3px;
+
+    height: 19px;
+
+    left: 20px;
+
+    bottom: 15px;
+
+    border-radius: 4px;
+
+    background: #6f9752;
+
+    box-shadow: -6px 2px 0 -1px #78a15a;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 18px;
+
+    height: 18px;
+
+    left: 12px;
+
+    bottom: 11px;
+
+    border-radius: 50%;
+
+    background: #d4a95b;
+
+    box-shadow: 0 -7px 0 -3px #e2c06d,7px 0 0 -3px #e2c06d,-7px 0 0 -3px #e2c06d,0 7px 0 -3px #e2c06d;
+
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::after {
+
+    width: 3px;
+
+    height: 15px;
+
+    left: 20px;
+
+    bottom: 2px;
+
+    border-radius: 4px;
+
+    background: #6b9850;
+
 }
 
 #st-mini-game-center::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     inset: 0;
+
     background: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1));
+
     opacity: .72;
+
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+
     pointer-events: none;
+
 }
 
 #st-mini-game-center > * {
+
     position: relative;
+
     z-index: 1;
+
 }
 
-#st-mini-game-center .stgc-panel {
-    color: var(--SmartThemeBodyColor) !important;
-    background: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
-    background-color: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
-    border: 1px solid var(--SmartThemeBorderColor) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 0 20px var(--SmartThemeShadowColor, rgba(0, 0, 0, .5)) !important;
-    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
-    -webkit-backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
-}
-
-/* 跟酒馆 <select class="text_pole"> 一样：主题底色 + 主题边框 + 统一圆角。
-   游戏内部不使用固定灰色。 */
 #st-mini-game-center .stgc-btn,
 #st-mini-game-center .stgc-pill,
 #st-mini-game-center .stgc-select,
 #st-mini-game-center .stgc-level-select,
 #st-mini-game-center .stgc-difficulty-btn,
 #st-mini-game-center .stgc-extension-update-btn {
+
     color: var(--SmartThemeBodyColor) !important;
+
     background: var(--SmartThemeBlurTintColor) !important;
+
     background-color: var(--SmartThemeBlurTintColor) !important;
+
     border: 1px solid var(--SmartThemeBorderColor) !important;
+
     border-radius: 5px !important;
+
     box-shadow: none !important;
+
     text-shadow: 0 0 calc(var(--shadowWidth, 2) * 1px) var(--SmartThemeShadowColor) !important;
+
     filter: none;
+
     transition: filter var(--animation-duration-2x, 250ms), background-color var(--animation-duration-2x, 250ms);
+
 }
 
 #st-mini-game-center .stgc-btn:hover,
 #st-mini-game-center .stgc-pill:hover,
 #st-mini-game-center .stgc-select:hover {
+
     filter: brightness(1.12);
+
 }
 
 #st-mini-game-center .stgc-btn:active,
 #st-mini-game-center .stgc-select:active {
+
     filter: brightness(.96);
+
 }
 
 #st-mini-game-center .stgc-btn.active,
 #st-mini-game-center .stgc-difficulty-btn.active,
 #st-mini-game-center .stgc-game-card.active {
+
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 76%, var(--SmartThemeQuoteColor) 24%) !important;
+
     border-color: var(--SmartThemeBorderColor) !important;
+
     outline: 1px solid var(--SmartThemeQuoteColor);
+
     outline-offset: -1px;
-}
 
-#st-mini-game-center .stgc-btn-quiet {
-    background: var(--SmartThemeBlurTintColor) !important;
-}
-
-#st-mini-game-center .stgc-btn-icon {
-    min-width: 34px;
-    width: 34px;
-}
-
-#st-mini-game-center .stgc-game-card {
-    color: var(--SmartThemeBodyColor) !important;
-    background: var(--SmartThemeBlurTintColor) !important;
-    background-color: var(--SmartThemeBlurTintColor) !important;
-    border: 1px solid var(--SmartThemeBorderColor) !important;
-    border-radius: 5px !important;
-}
-
-#st-mini-game-center .stgc-game-card:hover {
-    background: var(--white30a, rgba(255,255,255,.3)) !important;
-}
-
-#st-mini-game-center .stgc-card-icon {
-    color: var(--SmartThemeBodyColor) !important;
-    border-color: var(--SmartThemeBorderColor) !important;
-    background: transparent !important;
 }
 
 #st-mini-game-center .stgc-title,
@@ -2519,7 +5888,9 @@
 #st-mini-game-center .stgc-card-desc,
 #st-mini-game-center .stgc-setting-desc,
 #st-mini-game-center .stgc-setting-note {
+
     color: var(--SmartThemeBodyColor) !important;
+
 }
 
 #st-mini-game-center .stgc-subtitle,
@@ -2527,52 +5898,59 @@
 #st-mini-game-center .stgc-setting-desc,
 #st-mini-game-center .stgc-setting-note,
 #st-mini-game-center .stgc-game-hint {
+
     opacity: .68;
+
 }
 
-/* 让下拉框本身真正使用 SillyTavern 的 text_pole 外观。 */
 #st-mini-game-center select.stgc-select,
 #st-mini-game-center select.stgc-level-select {
+
     min-height: 34px;
+
     margin: 0;
+
     padding: 3px 8px;
+
     font: inherit;
+
     color: var(--SmartThemeBodyColor) !important;
+
     background-color: var(--SmartThemeBlurTintColor) !important;
+
     border: 1px solid var(--SmartThemeBorderColor) !important;
+
     border-radius: 5px !important;
+
 }
 
 #st-mini-game-center select.stgc-select option,
 #st-mini-game-center select.stgc-level-select option {
+
     color: var(--SmartThemeBodyColor);
+
     background: var(--SmartThemeBlurTintColor);
+
 }
 
-/* 内层“状态气泡”不要再半透明灰化，和 text_pole 统一。 */
 #st-mini-game-center .stgc-status-text,
 #st-mini-game-center .stgc-game-info,
 #st-mini-game-center .stgc-status-row,
 #st-mini-game-center .stgc-2048-bar {
+
     color: var(--SmartThemeBodyColor);
+
 }
 
-/* 游戏专属棋盘继续自己配色，但不能污染外层 UI。 */
 #st-mini-game-center .mine-cell,
 #st-mini-game-center .tile-2048,
 #st-mini-game-center .soko-tile,
-#st-mini-game-center .star-cell,
-#st-mini-game-center .cake-piece,
-#st-mini-game-center .water-bottle,
-#st-mini-game-center .tetris-cell {
+
+
     isolation: isolate;
+
 }
 
-
-/* =====================================================================
-   v1.4.8 — 统一控件为 SillyTavern .text_pole / 原生表单风格
-   原则：外层与所有“功能控件框”跟随酒馆 UI；真正的游戏棋子/格子保留游戏自己的视觉。
-   ===================================================================== */
 #st-mini-game-center .stgc-btn,
 #st-mini-game-center .stgc-game-card,
 #st-mini-game-center .stgc-difficulty-btn,
@@ -2586,14 +5964,23 @@
 #st-mini-game-center .go-size-btn,
 #st-mini-game-center .stgc-home-update-btn,
 #st-mini-game-center .stgc-extension-update-btn {
+
     font-family: inherit !important;
+
     color: var(--SmartThemeBodyColor, currentColor) !important;
+
     background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) !important;
+
     background-color: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) !important;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+
     border-radius: 5px !important;
+
     box-shadow: none !important;
+
     text-shadow: 0 0 calc(var(--shadowWidth, 2) * 1px) var(--SmartThemeShadowColor, transparent) !important;
+
 }
 
 #st-mini-game-center .stgc-btn,
@@ -2606,12 +5993,14 @@
 #st-mini-game-center .go-size-btn,
 #st-mini-game-center .stgc-home-update-btn,
 #st-mini-game-center .stgc-extension-update-btn {
+
     cursor: pointer;
-    transition:
-        background-color var(--animation-duration-2x, 250ms),
+
+    transition: background-color var(--animation-duration-2x, 250ms),
         border-color var(--animation-duration-2x, 250ms),
         filter var(--animation-duration-2x, 250ms),
         transform 120ms ease;
+
 }
 
 #st-mini-game-center .stgc-btn:hover,
@@ -2626,7 +6015,9 @@
 #st-mini-game-center .stgc-extension-update-btn:hover,
 #st-mini-game-center .stgc-select:hover,
 #st-mini-game-center .stgc-level-select:hover {
+
     filter: brightness(1.08);
+
 }
 
 #st-mini-game-center .stgc-btn:active,
@@ -2641,8 +6032,11 @@
 #st-mini-game-center .stgc-extension-update-btn:active,
 #st-mini-game-center .stgc-select:active,
 #st-mini-game-center .stgc-level-select:active {
+
     filter: brightness(.96);
+
     transform: translateY(1px);
+
 }
 
 #st-mini-game-center .stgc-btn.active,
@@ -2650,44 +6044,49 @@
 #st-mini-game-center .stgc-difficulty-btn.active,
 #st-mini-game-center .go-size-btn.is-selected,
 #st-mini-game-center .farm-seed-card.selected {
+
     background: color-mix(in srgb,
         var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) 78%,
         var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor))) 22%) !important;
+
     border-color: var(--SmartThemeBorderColor, rgba(127,127,127,.35)) !important;
+
     outline: 1px solid var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor))) !important;
+
     outline-offset: -1px;
+
 }
 
-/* select 本身保持真正的 SillyTavern .text_pole 使用习惯，包括浏览器下拉箭头。 */
 #st-mini-game-center select.stgc-select,
 #st-mini-game-center select.stgc-level-select,
 #st-mini-game-center select.star-pop-palette-select {
+
     appearance: auto !important;
+
     -webkit-appearance: auto !important;
+
     cursor: pointer;
+
     min-height: 34px;
+
     margin: 0;
+
     padding: 5px 9px;
+
 }
 
-/* 原有“安静按钮”也不要脱离酒馆控件体系。 */
-#st-mini-game-center .stgc-btn-quiet {
-    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) !important;
-}
-
-/* 星星棋盘、2048、扫雷等真正的游戏元素不套这套控件皮肤。 */
 #st-mini-game-center .star-pop-cell,
 #st-mini-game-center .mine-cell,
 #st-mini-game-center .tile-2048,
 #st-mini-game-center .sudoku-cell,
 #st-mini-game-center .soko-tile,
 #st-mini-game-center .spider-card,
-#st-mini-game-center .go-stone,
 #st-mini-game-center .gomoku-cell,
-#st-mini-game-center .puzzle15-cell,
-#st-mini-game-center .tetris-cell,
 #st-mini-game-center .water-tube,
-#st-mini-game-center .cake-piece {
+
+
     filter: none !important;
+
     transform: none;
+
 }
