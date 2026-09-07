@@ -21,8 +21,9 @@
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
-    const EXTENSION_FOLDER = 'st-game-center';
-    const CURRENT_VERSION = '0.12.1';
+    const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
+    const LOADED_SCRIPT_URL = document.currentScript?.src || '';
+    const CURRENT_VERSION = '0.12.2';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -96,6 +97,14 @@
         });
     }
 
+    function getLoadedExtensionFolder() {
+        // SillyTavern loads third-party extensions from /third-party/<folder>/index.js.
+        // Use the real loaded folder when possible instead of assuming the GitHub
+        // repository is named st-game-center.
+        const match = LOADED_SCRIPT_URL.match(/\/third-party\/([^/]+)\/index\.js(?:[?#].*)?$/i);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
     async function discoverInstallScope() {
         const headers = await getSTRequestHeaders();
         const response = await fetch('/api/extensions/discover', {
@@ -108,20 +117,33 @@
         }
 
         const extensions = await response.json();
-        const targetName = `third-party/${EXTENSION_FOLDER}`;
-        const found = Array.isArray(extensions)
-            ? extensions.find(extension => extension?.name === targetName)
-            : null;
+        if (!Array.isArray(extensions)) return null;
 
-        if (!found) {
-            return null;
+        const loadedFolder = getLoadedExtensionFolder();
+        const candidates = [loadedFolder, DEFAULT_EXTENSION_FOLDER, 'Silly-Game', 'Silly Game']
+            .filter(Boolean)
+            .map(String);
+
+        let found = null;
+        for (const folder of candidates) {
+            found = extensions.find(extension => extension?.name === `third-party/${folder}`);
+            if (found) break;
         }
 
-        if (found.type === 'local') return { global: false, type: 'local' };
-        if (found.type === 'global') return { global: true, type: 'global' };
+        if (!found) {
+            // Fallback for a GitHub repo whose folder name differs from the usual one.
+            found = extensions.find(extension => {
+                const name = String(extension?.name || '').toLowerCase();
+                return name.startsWith('third-party/') && /silly[-_ ]?game/.test(name);
+            });
+        }
 
-        // System extensions are not third-party git installs and should not be
-        // managed by the Silly Game updater.
+        if (!found) return null;
+
+        const folder = String(found.name).replace(/^third-party\//, '');
+        if (!folder) return null;
+        if (found.type === 'local') return { global: false, type: 'local', extensionName: folder };
+        if (found.type === 'global') return { global: true, type: 'global', extensionName: folder };
         return null;
     }
 
@@ -130,7 +152,7 @@
         const response = await fetch('/api/extensions/version', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: !!scope.global }),
+            body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
         });
         if (!response.ok) {
             const text = await response.text();
@@ -144,7 +166,7 @@
         const response = await fetch('/api/extensions/update', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: !!scope.global }),
+            body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
         });
         if (!response.ok) {
             const text = await response.text();
