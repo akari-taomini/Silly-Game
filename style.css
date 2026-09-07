@@ -2347,3 +2347,163 @@
 #st-mini-game-center .farm-seed-visual.farm-crop-sunflower::after{
     width:3px;height:15px;left:20px;bottom:2px;border-radius:4px;background:#6b9850;
 }
+
+/* =====================================================================
+   v1.4.4 — SillyTavern 原生 UI 风格
+   外层容器使用 SillyTavern 的 BlurTintColor；游戏内控件模拟 .text_pole / .menu_button。
+   ===================================================================== */
+#st-mini-game-center {
+    /* 不再人为混成灰色；与酒馆自己的 UI 底色保持一致。 */
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--SmartThemeBodyColor) !important;
+}
+
+#st-mini-game-center::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1));
+    opacity: .72;
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+    pointer-events: none;
+}
+
+#st-mini-game-center > * {
+    position: relative;
+    z-index: 1;
+}
+
+#st-mini-game-center .stgc-panel {
+    color: var(--SmartThemeBodyColor) !important;
+    background: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
+    background-color: var(--SmartThemeBlurTintColor, rgba(23, 23, 23, 1)) !important;
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 0 20px var(--SmartThemeShadowColor, rgba(0, 0, 0, .5)) !important;
+    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
+    -webkit-backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.1));
+}
+
+/* 跟酒馆 <select class="text_pole"> 一样：主题底色 + 主题边框 + 统一圆角。
+   游戏内部不使用固定灰色。 */
+#st-mini-game-center .stgc-btn,
+#st-mini-game-center .stgc-pill,
+#st-mini-game-center .stgc-select,
+#st-mini-game-center .stgc-level-select,
+#st-mini-game-center .stgc-difficulty-btn,
+#st-mini-game-center .stgc-extension-update-btn {
+    color: var(--SmartThemeBodyColor) !important;
+    background: var(--SmartThemeBlurTintColor) !important;
+    background-color: var(--SmartThemeBlurTintColor) !important;
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+    border-radius: 5px !important;
+    box-shadow: none !important;
+    text-shadow: 0 0 calc(var(--shadowWidth, 2) * 1px) var(--SmartThemeShadowColor) !important;
+    filter: none;
+    transition: filter var(--animation-duration-2x, 250ms), background-color var(--animation-duration-2x, 250ms);
+}
+
+#st-mini-game-center .stgc-btn:hover,
+#st-mini-game-center .stgc-pill:hover,
+#st-mini-game-center .stgc-select:hover {
+    filter: brightness(1.12);
+}
+
+#st-mini-game-center .stgc-btn:active,
+#st-mini-game-center .stgc-select:active {
+    filter: brightness(.96);
+}
+
+#st-mini-game-center .stgc-btn.active,
+#st-mini-game-center .stgc-difficulty-btn.active,
+#st-mini-game-center .stgc-game-card.active {
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor) 76%, var(--SmartThemeQuoteColor) 24%) !important;
+    border-color: var(--SmartThemeBorderColor) !important;
+    outline: 1px solid var(--SmartThemeQuoteColor);
+    outline-offset: -1px;
+}
+
+#st-mini-game-center .stgc-btn-quiet {
+    background: var(--SmartThemeBlurTintColor) !important;
+}
+
+#st-mini-game-center .stgc-btn-icon {
+    min-width: 34px;
+    width: 34px;
+}
+
+#st-mini-game-center .stgc-game-card {
+    color: var(--SmartThemeBodyColor) !important;
+    background: var(--SmartThemeBlurTintColor) !important;
+    background-color: var(--SmartThemeBlurTintColor) !important;
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+    border-radius: 5px !important;
+}
+
+#st-mini-game-center .stgc-game-card:hover {
+    background: var(--white30a, rgba(255,255,255,.3)) !important;
+}
+
+#st-mini-game-center .stgc-card-icon {
+    color: var(--SmartThemeBodyColor) !important;
+    border-color: var(--SmartThemeBorderColor) !important;
+    background: transparent !important;
+}
+
+#st-mini-game-center .stgc-title,
+#st-mini-game-center .stgc-subtitle,
+#st-mini-game-center .stgc-difficulty-label,
+#st-mini-game-center .stgc-game-hint,
+#st-mini-game-center .stgc-card-desc,
+#st-mini-game-center .stgc-setting-desc,
+#st-mini-game-center .stgc-setting-note {
+    color: var(--SmartThemeBodyColor) !important;
+}
+
+#st-mini-game-center .stgc-subtitle,
+#st-mini-game-center .stgc-card-desc,
+#st-mini-game-center .stgc-setting-desc,
+#st-mini-game-center .stgc-setting-note,
+#st-mini-game-center .stgc-game-hint {
+    opacity: .68;
+}
+
+/* 让下拉框本身真正使用 SillyTavern 的 text_pole 外观。 */
+#st-mini-game-center select.stgc-select,
+#st-mini-game-center select.stgc-level-select {
+    min-height: 34px;
+    margin: 0;
+    padding: 3px 8px;
+    font: inherit;
+    color: var(--SmartThemeBodyColor) !important;
+    background-color: var(--SmartThemeBlurTintColor) !important;
+    border: 1px solid var(--SmartThemeBorderColor) !important;
+    border-radius: 5px !important;
+}
+
+#st-mini-game-center select.stgc-select option,
+#st-mini-game-center select.stgc-level-select option {
+    color: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeBlurTintColor);
+}
+
+/* 内层“状态气泡”不要再半透明灰化，和 text_pole 统一。 */
+#st-mini-game-center .stgc-status-text,
+#st-mini-game-center .stgc-game-info,
+#st-mini-game-center .stgc-status-row,
+#st-mini-game-center .stgc-2048-bar {
+    color: var(--SmartThemeBodyColor);
+}
+
+/* 游戏专属棋盘继续自己配色，但不能污染外层 UI。 */
+#st-mini-game-center .mine-cell,
+#st-mini-game-center .tile-2048,
+#st-mini-game-center .soko-tile,
+#st-mini-game-center .star-cell,
+#st-mini-game-center .cake-piece,
+#st-mini-game-center .water-bottle,
+#st-mini-game-center .tetris-cell {
+    isolation: isolate;
+}
