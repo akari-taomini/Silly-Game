@@ -1293,8 +1293,8 @@
         const overlayText = el('div', { class: 'cake-overlay-text' });
         const overlayButton = el('button', { class: 'stgc-btn', type: 'button', text: '再来一块' });
         overlay.append(overlayText, overlayButton);
-        world.append(sky, stack, floor);
-        scene.append(world, cameraIndicator, overlay);
+        world.append(stack, floor);
+        scene.append(sky, world, cameraIndicator, overlay);
         wrap.append(top, hint, scene);
         body.append(wrap);
 
@@ -1329,9 +1329,12 @@
             // 整个世界一起滚动，因此底部不会越玩越出现大片固定空白。
             const targetTop = sceneHeight() * 0.50;
             const worldTop = highestWorldTop();
+            // highestWorldTop 使用“距场景底部的高度”表示，所以镜头移动方向要与屏幕 Y 相反。
+            // worldTop 小于目标时：把蛋糕向上移到屏幕中间；
+            // worldTop 大于目标时：把整个蛋糕世界向下移，等价于镜头继续向上跟随高度。
             const offset = worldTop - targetTop;
             game.cameraY = offset;
-            world.style.transform = `translate3d(0, ${-offset}px, 0)`;
+            world.style.transform = `translate3d(0, ${offset}px, 0)`;
             cameraIndicator.textContent = `层数 ${Math.max(1, game.layers.length)}`;
             if (animate) {
                 cameraIndicator.classList.remove('show');
