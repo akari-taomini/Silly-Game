@@ -18,12 +18,14 @@
         tetris: null,
         go: null,
         waterSort: null,
+        farm: null,
+        cake: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '0.12.2';
+    const CURRENT_VERSION = '0.13.0';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -31,6 +33,113 @@
         lastUpdateCheck: 0,
     });
     let updateCheckPromise = null;
+
+    const FARM_STORAGE_KEY = 'silly-game-farm-v1';
+    const GAME_WINS_STORAGE_KEY = 'silly-game-wins-v1';
+    const FARM_CROPS = {
+        carrot:   { name: '胡萝卜', emoji: '🥕', seedCost: 2, sell: 6,  grow: 70, starter: true },
+        potato:   { name: '土豆',   emoji: '🥔', seedCost: 3, sell: 9,  grow: 85, starter: true },
+        radish:   { name: '萝卜',   emoji: '🌱', seedCost: 3, sell: 10, grow: 95, unlock: 'mines' },
+        tomato:   { name: '番茄',   emoji: '🍅', seedCost: 4, sell: 13, grow: 110, unlock: '2048' },
+        corn:     { name: '玉米',   emoji: '🌽', seedCost: 5, sell: 16, grow: 125, unlock: 'sokoban' },
+        strawberry:{ name: '草莓',  emoji: '🍓', seedCost: 5, sell: 18, grow: 140, unlock: 'sudoku' },
+        pumpkin:  { name: '南瓜',   emoji: '🎃', seedCost: 6, sell: 22, grow: 155, unlock: 'spider' },
+        watermelon:{ name: '西瓜',  emoji: '🍉', seedCost: 7, sell: 26, grow: 175, unlock: 'gomoku' },
+        blueberry:{ name: '蓝莓',   emoji: '🫐', seedCost: 7, sell: 28, grow: 185, unlock: 'puzzle15' },
+        grape:    { name: '葡萄',   emoji: '🍇', seedCost: 8, sell: 32, grow: 200, unlock: 'tetris' },
+        tea:      { name: '茶叶',   emoji: '🍃', seedCost: 9, sell: 36, grow: 220, unlock: 'go' },
+        lavender: { name: '薰衣草', emoji: '🪻', seedCost: 10, sell: 42, grow: 240, unlock: 'waterSort' },
+    };
+    const FARM_GAME_NAMES = {
+        mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
+        gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
+    };
+
+    function loadGameWins() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(GAME_WINS_STORAGE_KEY) || '[]');
+            return new Set(Array.isArray(raw) ? raw.filter(key => typeof key === 'string') : []);
+        } catch { return new Set(); }
+    }
+
+    function saveGameWins(wins) {
+        try { localStorage.setItem(GAME_WINS_STORAGE_KEY, JSON.stringify([...wins])); } catch { /* ignore */ }
+    }
+
+    function recordGameWin(gameId) {
+        if (!gameId || !FARM_GAME_NAMES[gameId]) return;
+        const wins = loadGameWins();
+        if (wins.has(gameId)) return;
+        wins.add(gameId);
+        saveGameWins(wins);
+        const crop = Object.entries(FARM_CROPS).find(([, data]) => data.unlock === gameId)?.[1];
+        if (crop) notify(`你赢下了${FARM_GAME_NAMES[gameId]}，解锁新作物：${crop.emoji} ${crop.name}`, 'Silly Farm');
+    }
+
+    function farmDefaultState() {
+        return {
+            coins: 30,
+            selectedCrop: 'carrot',
+            plots: Array.from({ length: 12 }, () => null),
+            harvested: 0,
+            lastTick: Date.now(),
+        };
+    }
+
+    function farmLoad() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(FARM_STORAGE_KEY) || 'null');
+            if (!raw || !Array.isArray(raw.plots) || raw.plots.length !== 12) return null;
+            return {
+                ...farmDefaultState(),
+                ...raw,
+                plots: raw.plots.map(plot => plot && typeof plot === 'object' ? plot : null),
+            };
+        } catch { return null; }
+    }
+
+    function farmSave(game = state.farm) {
+        try {
+            if (game) localStorage.setItem(FARM_STORAGE_KEY, JSON.stringify(game));
+        } catch { /* ignore */ }
+    }
+
+    function farmIsUnlocked(cropId) {
+        const crop = FARM_CROPS[cropId];
+        if (!crop) return false;
+        if (crop.starter) return true;
+        return loadGameWins().has(crop.unlock);
+    }
+
+    function farmGrowth(plot) {
+        if (!plot || !FARM_CROPS[plot.crop]) return 0;
+        const crop = FARM_CROPS[plot.crop];
+        let duration = crop.grow;
+        if (plot.watered) duration *= 0.72;
+        if (plot.fertilized) duration *= 0.62;
+        const elapsed = Math.max(0, (Date.now() - Number(plot.plantedAt || Date.now())) / 1000);
+        return Math.min(1, elapsed / duration);
+    }
+
+    function farmStage(plot) {
+        const progress = farmGrowth(plot);
+        if (progress >= 1) return { key: 'ripe', text: '成熟', icon: '🌾' };
+        if (progress >= 0.66) return { key: 'growing', text: '生长中', icon: '🌿' };
+        if (progress >= 0.30) return { key: 'sprout', text: '发芽', icon: '🌱' };
+        return { key: 'soil', text: '刚种下', icon: '🪴' };
+    }
+
+    function farmFormatTimeLeft(plot) {
+        const progress = farmGrowth(plot);
+        if (progress >= 1) return '可以收获';
+        const crop = FARM_CROPS[plot.crop];
+        let duration = crop.grow;
+        if (plot.watered) duration *= 0.72;
+        if (plot.fertilized) duration *= 0.62;
+        const remaining = Math.max(0, Math.ceil(duration * (1 - progress)));
+        if (remaining >= 60) return `约 ${Math.ceil(remaining / 60)} 分钟`;
+        return `${remaining} 秒`;
+    }
 
     function getSTContext() {
         try {
@@ -663,6 +772,8 @@
             { id: 'tetris', icon: 'fa-shapes', name: '俄罗斯方块', desc: '10×20 · 消行 · 方向键 / 虚拟键' },
             { id: 'go', icon: 'fa-circle-half-stroke', name: '围棋', desc: '9×9 / 13×13 / 19×19 · 本地 AI / 双人' },
             { id: 'waterSort', icon: 'fa-droplet', name: '倒水瓶', desc: '颜色分类 · 60关 + 无尽模式 · 自动保存' },
+            { id: 'farm', icon: 'fa-seedling', name: '小农场', desc: '种地 · 浇水 · 施肥 · 作物随胜利解锁' },
+            { id: 'cake', icon: 'fa-cake-candles', name: '叠蛋糕', desc: '左右移动 · 点击落下 · 越叠越高' },
         ]; 
 
         for (const game of games) {
@@ -715,6 +826,8 @@
             tetris: '俄罗斯方块',
             go: '围棋',
             waterSort: '倒水瓶',
+            farm: '小农场',
+            cake: '叠蛋糕',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -732,9 +845,224 @@
         else if (game === 'tetris') renderTetris(body);
         else if (game === 'go') renderGo(body);
         else if (game === 'waterSort') renderWaterSort(body);
+        else if (game === 'farm') renderFarm(body);
+        else if (game === 'cake') renderCake(body);
     }
 
-    /* ==================== Minesweeper ==================== */
+    /* ==================== 叠蛋糕 ==================== */
+
+
+
+    const CAKE_STORAGE_KEY = 'silly-game:cake:v1';
+
+    function cakeLoad() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(CAKE_STORAGE_KEY) || 'null');
+            if (!raw || typeof raw !== 'object') return { best: 0, bestScore: 0 };
+            return {
+                best: Number.isFinite(raw.best) ? raw.best : 0,
+                bestScore: Number.isFinite(raw.bestScore) ? raw.bestScore : 0,
+            };
+        } catch {
+            return { best: 0, bestScore: 0 };
+        }
+    }
+
+    function cakeSave(record) {
+        try { localStorage.setItem(CAKE_STORAGE_KEY, JSON.stringify(record)); } catch { /* ignore */ }
+    }
+
+    function renderCake(body) {
+        const savedBest = cakeLoad();
+        const game = {
+            layers: [],
+            current: null,
+            direction: 1,
+            speed: 145,
+            score: 0,
+            running: true,
+            over: false,
+            raf: 0,
+            lastTime: performance.now(),
+            areaWidth: 0,
+        };
+        state.cake = game;
+
+        const wrap = el('div', { class: 'cake-game-wrap' });
+        const top = el('div', { class: 'cake-topbar' });
+        const status = el('div', { class: 'cake-status' });
+        const scoreText = el('span', { text: '层数 1 · 分数 0' });
+        const bestText = el('span', { text: `最高 ${savedBest.best} 层` });
+        status.append(scoreText, bestText);
+        const reset = el('button', { class: 'stgc-btn', type: 'button' });
+        reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+        reset.addEventListener('click', () => renderCake(body));
+        top.append(status, reset);
+
+        const hint = el('div', { class: 'cake-hint', text: '点击蛋糕落下 · 电脑可按空格 / Enter · 手机直接点屏幕' });
+        const scene = el('div', { class: 'cake-scene', role: 'application', 'aria-label': '叠蛋糕' });
+        const sky = el('div', { class: 'cake-sky', 'aria-hidden': 'true' });
+        const stack = el('div', { class: 'cake-stack' });
+        const floor = el('div', { class: 'cake-floor' });
+        const overlay = el('div', { class: 'cake-overlay' });
+        overlay.hidden = true;
+        const overlayText = el('div', { class: 'cake-overlay-text' });
+        const overlayButton = el('button', { class: 'stgc-btn', type: 'button', text: '再来一块' });
+        overlayButton.addEventListener('click', () => renderCake(body));
+        overlay.append(overlayText, overlayButton);
+        scene.append(sky, stack, floor, overlay);
+        wrap.append(top, hint, scene);
+        body.append(wrap);
+
+        function sceneWidth() {
+            return Math.max(280, scene.clientWidth || 320);
+        }
+
+        function layerNode(width, left, bottom, moving, index) {
+            const node = el('div', { class: `cake-layer${moving ? ' moving' : ''}` });
+            node.style.width = `${width}px`;
+            node.style.left = `${left}px`;
+            node.style.bottom = `${bottom}px`;
+            node.style.setProperty('--cake-hue', `${350 + (index % 6) * 7}`);
+            node.innerHTML = '<span class="cake-frosting"></span><span class="cake-cream"></span><span class="cake-sprinkle s1"></span><span class="cake-sprinkle s2"></span><span class="cake-sprinkle s3"></span>';
+            stack.append(node);
+            return node;
+        }
+
+        function resetBoard() {
+            stack.innerHTML = '';
+            game.layers = [];
+            game.current = null;
+            game.areaWidth = sceneWidth();
+            const width = Math.min(230, Math.max(150, game.areaWidth * 0.45));
+            const left = (game.areaWidth - width) / 2;
+            const node = layerNode(width, left, 9, false, 0);
+            game.layers.push({ width, left, bottom: 9, node });
+            updateStatus();
+        }
+
+        function spawnLayer() {
+            const below = game.layers[game.layers.length - 1];
+            const width = below.width;
+            const left = game.direction > 0 ? 0 : Math.max(0, game.areaWidth - width);
+            const bottom = below.bottom + 27;
+            const node = layerNode(width, left, bottom, true, game.layers.length);
+            game.current = { width, left, bottom, node };
+        }
+
+        function updateStatus() {
+            scoreText.textContent = `层数 ${Math.max(1, game.layers.length)} · 分数 ${game.score}`;
+            bestText.textContent = `最高 ${Math.max(savedBest.best, Math.max(0, game.layers.length - 1))} 层`;
+        }
+
+        function finish() {
+            if (game.over) return;
+            game.over = true;
+            game.running = false;
+            const height = Math.max(0, game.layers.length - 1);
+            const record = {
+                best: Math.max(savedBest.best, height),
+                bestScore: Math.max(savedBest.bestScore, game.score),
+            };
+            cakeSave(record);
+            overlayText.innerHTML = `<strong>蛋糕倒塌了</strong><span>你叠了 ${height} 层 · ${game.score} 分</span>`;
+            overlay.hidden = false;
+            updateStatus();
+        }
+
+        function drop() {
+            if (!game.running || game.over || !game.current) return;
+            const top = game.current;
+            const below = game.layers[game.layers.length - 1];
+            const left = Math.max(top.left, below.left);
+            const right = Math.min(top.left + top.width, below.left + below.width);
+            const overlap = right - left;
+            if (overlap <= 0.5) {
+                finish();
+                return;
+            }
+            const perfect = Math.abs(overlap - below.width) <= 2;
+            const width = perfect ? below.width : overlap;
+            const finalLeft = perfect ? below.left : left;
+            top.node.style.width = `${width}px`;
+            top.node.style.left = `${finalLeft}px`;
+            top.node.classList.remove('moving');
+            top.node.classList.add(perfect ? 'perfect' : 'landed');
+
+            game.layers.push({ width, left: finalLeft, bottom: top.bottom, node: top.node });
+            game.current = null;
+            game.score += perfect ? 50 + game.layers.length * 5 : 10 + game.layers.length * 2;
+            game.direction *= -1;
+            game.speed = Math.min(360, 145 + game.layers.length * 6);
+            updateStatus();
+
+            if (width < 8) {
+                finish();
+                return;
+            }
+            spawnLayer();
+        }
+
+        function step(now) {
+            if (!game.running || game.over) return;
+            const dt = Math.min(35, now - game.lastTime) / 1000;
+            game.lastTime = now;
+            if (!game.current) spawnLayer();
+            const c = game.current;
+            c.left += game.direction * game.speed * dt;
+            const maxLeft = Math.max(0, game.areaWidth - c.width);
+            if (c.left <= 0) {
+                c.left = 0;
+                game.direction = 1;
+            } else if (c.left >= maxLeft) {
+                c.left = maxLeft;
+                game.direction = -1;
+            }
+            c.node.style.left = `${c.left}px`;
+            game.raf = requestAnimationFrame(step);
+        }
+
+        function resize() {
+            game.areaWidth = sceneWidth();
+            for (const layer of game.layers) {
+                const maxLeft = Math.max(0, game.areaWidth - layer.width);
+                layer.left = Math.min(Math.max(layer.left, 0), maxLeft);
+                layer.node.style.left = `${layer.left}px`;
+            }
+            if (game.current) {
+                const maxLeft = Math.max(0, game.areaWidth - game.current.width);
+                game.current.left = Math.min(Math.max(game.current.left, 0), maxLeft);
+                game.current.node.style.left = `${game.current.left}px`;
+            }
+        }
+
+        const onKey = event => {
+            if (state.currentGame !== 'cake') return;
+            if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault();
+                drop();
+            }
+        };
+        const onResize = () => resize();
+        scene.addEventListener('pointerdown', event => {
+            if (event.target.closest('button')) return;
+            event.preventDefault();
+            drop();
+        }, { passive: false });
+        document.addEventListener('keydown', onKey, true);
+        window.addEventListener('resize', onResize);
+
+        resetBoard();
+        spawnLayer();
+        game.lastTime = performance.now();
+        game.raf = requestAnimationFrame(step);
+        state.cleanup = () => {
+            game.running = false;
+            cancelAnimationFrame(game.raf);
+            document.removeEventListener('keydown', onKey, true);
+            window.removeEventListener('resize', onResize);
+        };
+    }
 
     const MINES_DIFFICULTIES = {
         beginner: { name: '新手', size: 9, mines: 10 },
@@ -835,6 +1163,7 @@
         if (safeCells.every(item => item.open)) {
             s.won = true;
             s.time = s.startedAt ? Math.floor((Date.now() - s.startedAt) / 1000) : 0;
+            recordGameWin('mines');
         }
     }
 
@@ -1364,7 +1693,7 @@
                 const merged = values[i] * 2;
                 result.push(merged);
                 game.score += merged;
-                if (merged >= 2048) game.won = true;
+                if (merged >= 2048) { game.won = true; recordGameWin('2048'); }
                 i++;
             } else {
                 result.push(values[i]);
@@ -1702,6 +2031,7 @@
         game.complete = game.puzzle.every((v, i) => v === game.solution[i]);
         if (game.complete) {
             game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+            recordGameWin('sudoku');
         }
         return true;
     }
@@ -2080,6 +2410,7 @@
         game.py = ny;
         game.moves++;
         game.won = game.boxes.length === game.targets.length && game.boxes.every(box => game.targets.includes(`${box.x},${box.y}`));
+        if (game.won) recordGameWin('sokoban');
     }
 
     function renderSokoban(body) {
@@ -2353,6 +2684,7 @@
         if (gomokuCheckWin(game, index, player)) {
             game.winner = player;
             game.over = true;
+            if (player === 1) recordGameWin('gomoku');
         } else if (game.board.every(Boolean)) {
             game.over = true;
             game.winner = 0;
@@ -2522,6 +2854,7 @@
         game.moves++;
         game.time = Math.floor((Date.now() - game.startedAt) / 1000);
         game.won = puzzle15Solved(game.board);
+        if (game.won) recordGameWin('puzzle15');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
         save15Puzzle();
         return true;
@@ -2866,6 +3199,7 @@
             game.moves++;
             game.selected = -1;
             game.won = waterSolved(game);
+            if (game.won) recordGameWin('waterSort');
             waterSave(game);
             draw();
         }
@@ -2973,6 +3307,185 @@
         }
 
         state.cleanup = () => { waterSave(state.waterSort); };
+        draw();
+    }
+
+
+    /* ==================== 小农场 ==================== */
+    function renderFarm(body) {
+        cleanupGame();
+        state.farm = farmLoad() || farmDefaultState();
+        if (!farmIsUnlocked(state.farm.selectedCrop)) state.farm.selectedCrop = 'carrot';
+        farmSave();
+
+        const top = el('div', { class: 'stgc-game-toolbar farm-top' });
+        const info = el('div', { class: 'stgc-game-info farm-info' });
+        const coinPill = el('span', { class: 'stgc-pill' });
+        const unlockPill = el('span', { class: 'stgc-pill' });
+        info.append(coinPill, unlockPill);
+        const seedHint = el('div', { class: 'stgc-game-hint farm-seed-hint', text: '先选种子，再点空地种下。点已种下的土地，可以浇水、施肥或收获。作物会在你关闭游戏时继续生长。' });
+        top.append(info);
+
+        const seedRow = el('div', { class: 'farm-seed-row' });
+        const field = el('div', { class: 'farm-field', 'aria-label': '农场土地' });
+        const actionRow = el('div', { class: 'farm-actions' });
+        const selectionText = el('div', { class: 'farm-selection-text', text: '请选择一块土地' });
+        const waterBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button', text: '💧 浇水' });
+        const feedBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button', text: '✨ 施肥' });
+        const harvestBtn = el('button', { class: 'stgc-btn farm-action-btn farm-harvest-btn', type: 'button', text: '🧺 收获' });
+        actionRow.append(selectionText, waterBtn, feedBtn, harvestBtn);
+
+        const cropNote = el('div', { class: 'farm-crop-note' });
+        body.append(top, seedRow, seedHint, field, actionRow, cropNote);
+
+        let selectedPlot = -1;
+
+        function drawSeedRow() {
+            seedRow.innerHTML = '';
+            for (const [id, crop] of Object.entries(FARM_CROPS)) {
+                const unlocked = farmIsUnlocked(id);
+                const button = el('button', { class: `farm-seed-card${state.farm.selectedCrop === id ? ' selected' : ''}${unlocked ? '' : ' locked'}`, type: 'button' });
+                button.innerHTML = unlocked
+                    ? `<span class="farm-seed-emoji">${crop.emoji}</span><span class="farm-seed-name">${crop.name}</span><span class="farm-seed-price">种子 ${crop.seedCost} · 收获 +${crop.sell}</span>`
+                    : `<span class="farm-seed-emoji">🔒</span><span class="farm-seed-name">未解锁</span><span class="farm-seed-price">赢下${FARM_GAME_NAMES[crop.unlock] || '小游戏'}</span>`;
+                button.disabled = !unlocked;
+                button.addEventListener('click', () => {
+                    state.farm.selectedCrop = id;
+                    drawSeedRow();
+                    drawSelection();
+                    farmSave();
+                });
+                seedRow.append(button);
+            }
+            const unlockedCount = Object.keys(FARM_CROPS).filter(farmIsUnlocked).length;
+            unlockPill.textContent = `作物 ${unlockedCount}/${Object.keys(FARM_CROPS).length}`;
+        }
+
+        function drawSelection() {
+            const game = state.farm;
+            if (selectedPlot < 0 || !game.plots[selectedPlot]) {
+                selectionText.textContent = `当前种子：${FARM_CROPS[game.selectedCrop].emoji} ${FARM_CROPS[game.selectedCrop].name}`;
+                waterBtn.disabled = true;
+                feedBtn.disabled = true;
+                harvestBtn.disabled = true;
+                cropNote.textContent = '空地直接点一下就能种下当前选中的种子。';
+                return;
+            }
+            const plot = game.plots[selectedPlot];
+            const crop = FARM_CROPS[plot.crop];
+            const stage = farmStage(plot);
+            selectionText.textContent = `第 ${selectedPlot + 1} 块 · ${crop.emoji} ${crop.name} · ${stage.text}`;
+            waterBtn.disabled = !!plot.watered || stage.key === 'ripe';
+            feedBtn.disabled = !!plot.fertilized || stage.key === 'ripe';
+            harvestBtn.disabled = stage.key !== 'ripe';
+            cropNote.textContent = `成长进度 ${(farmGrowth(plot) * 100).toFixed(0)}% · ${farmFormatTimeLeft(plot)}${plot.watered ? ' · 已浇水' : ''}${plot.fertilized ? ' · 已施肥' : ''}`;
+        }
+
+        function plantPlot(index) {
+            const game = state.farm;
+            const cropId = game.selectedCrop;
+            const crop = FARM_CROPS[cropId];
+            if (!farmIsUnlocked(cropId) || game.plots[index]) return;
+            if (game.coins < crop.seedCost) {
+                notify(`种子不够买啦，需要 ${crop.seedCost} 金币。`, 'Silly Farm');
+                return;
+            }
+            game.coins -= crop.seedCost;
+            game.plots[index] = {
+                crop: cropId,
+                plantedAt: Date.now(),
+                watered: false,
+                fertilized: false,
+            };
+            selectedPlot = index;
+            farmSave();
+            draw();
+        }
+
+        function waterSelected() {
+            const plot = state.farm.plots[selectedPlot];
+            if (!plot || plot.watered || farmStage(plot).key === 'ripe') return;
+            plot.watered = true;
+            farmSave();
+            draw();
+        }
+
+        function fertilizeSelected() {
+            const plot = state.farm.plots[selectedPlot];
+            if (!plot || plot.fertilized || farmStage(plot).key === 'ripe') return;
+            plot.fertilized = true;
+            farmSave();
+            draw();
+        }
+
+        function harvestSelected() {
+            const game = state.farm;
+            const plot = game.plots[selectedPlot];
+            if (!plot || farmStage(plot).key !== 'ripe') return;
+            const crop = FARM_CROPS[plot.crop];
+            game.coins += crop.sell;
+            game.harvested++;
+            game.plots[selectedPlot] = null;
+            selectedPlot = -1;
+            farmSave();
+            notify(`收获了 ${crop.emoji} ${crop.name}！+${crop.sell} 金币`, 'Silly Farm');
+            draw();
+        }
+
+        waterBtn.addEventListener('click', waterSelected);
+        feedBtn.addEventListener('click', fertilizeSelected);
+        harvestBtn.addEventListener('click', harvestSelected);
+
+        function drawField() {
+            field.innerHTML = '';
+            state.farm.plots.forEach((plot, index) => {
+                const tile = el('button', { class: `farm-plot${selectedPlot === index ? ' selected' : ''}${plot ? '' : ' empty'}`, type: 'button' });
+                if (!plot) {
+                    tile.innerHTML = '<span class="farm-plot-icon">＋</span><span class="farm-plot-label">空地</span>';
+                } else {
+                    const crop = FARM_CROPS[plot.crop];
+                    const stage = farmStage(plot);
+                    const progress = Math.round(farmGrowth(plot) * 100);
+                    tile.innerHTML = `<span class="farm-plant-icon">${stage.key === 'ripe' ? crop.emoji : stage.icon}</span><span class="farm-plant-name">${crop.name}</span><span class="farm-progress"><span style="width:${progress}%"></span></span><span class="farm-plant-meta">${stage.text} · ${farmFormatTimeLeft(plot)}</span>`;
+                    if (plot.watered) tile.classList.add('watered');
+                    if (plot.fertilized) tile.classList.add('fertilized');
+                    if (stage.key === 'ripe') tile.classList.add('ripe');
+                }
+                tile.addEventListener('click', () => {
+                    if (!state.farm.plots[index]) {
+                        plantPlot(index);
+                    } else {
+                        selectedPlot = selectedPlot === index ? -1 : index;
+                        drawSelection();
+                        drawField();
+                    }
+                });
+                field.append(tile);
+            });
+        }
+
+        function drawInfo() {
+            coinPill.textContent = `金币 ${state.farm.coins}`;
+        }
+
+        function draw() {
+            drawInfo();
+            drawSeedRow();
+            drawField();
+            drawSelection();
+        }
+
+        const timer = window.setInterval(() => {
+            if (state.currentGame !== 'farm' || !state.farm) return;
+            drawField();
+            drawSelection();
+        }, 1000);
+
+        state.cleanup = () => {
+            window.clearInterval(timer);
+            farmSave();
+        };
+
         draw();
     }
 
@@ -3498,6 +4011,7 @@
         game.score = Math.max(0, game.score - 1);
         spiderCheckCompleted(game, toColumn);
         game.won = game.completed >= 8;
+        if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
         return true;
     }
@@ -3526,6 +4040,7 @@
         game.message = '';
         for (let col = 0; col < 10; col++) spiderCheckCompleted(game, col);
         game.won = game.completed >= 8;
+        if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
         return true;
     }

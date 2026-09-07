@@ -1641,3 +1641,402 @@
     }
 }
 \n\n/* v0.12.0 update controls */\n#stgc-extension-settings .stgc-extension-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  margin-top: 8px;\n}\n\n#stgc-extension-settings .stgc-extension-update-row > span {\n  opacity: .72;\n  font-size: 12px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 6px 10px;\n  min-width: 92px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn:disabled {\n  opacity: .65;\n  cursor: wait;\n}\n\n#st-mini-game-center .stgc-home-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  margin-top: 16px;\n  padding: 10px 12px;\n  border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.2));\n  border-radius: var(--panel-radius, 10px);\n  background: color-mix(in srgb, var(--SmartThemeBlurTintColor, transparent) 55%, transparent);\n}\n\n#st-mini-game-center .stgc-home-update-info {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  min-width: 0;\n}\n\n#st-mini-game-center .stgc-home-update-version {\n  font-size: 11px;\n  opacity: .58;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-text {\n  font-size: 12px;\n  opacity: .78;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  flex: 0 0 auto;\n}\n\n@media (max-width: 640px) {\n  #stgc-extension-settings .stgc-extension-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #stgc-extension-settings .stgc-extension-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n\n  #st-mini-game-center .stgc-home-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #st-mini-game-center .stgc-home-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n}\n
+/* ---------- 小农场 ---------- */
+#st-mini-game-center .farm-top {
+    margin-bottom: 8px;
+}
+
+#st-mini-game-center .farm-info {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#st-mini-game-center .farm-seed-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin: 8px 0 10px;
+}
+
+#st-mini-game-center .farm-seed-card {
+    min-width: 0;
+    min-height: 82px;
+    padding: 8px 6px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, transparent) 58%, transparent);
+    color: var(--SmartThemeBodyColor, currentColor);
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    cursor: pointer;
+    font: inherit;
+    appearance: none;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+#st-mini-game-center .farm-seed-card:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+#st-mini-game-center .farm-seed-card.selected {
+    outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 9%, var(--SmartThemeBlurTintColor, transparent));
+}
+
+#st-mini-game-center .farm-seed-card:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+}
+
+#st-mini-game-center .farm-seed-emoji {
+    font-size: 26px;
+    line-height: 1.1;
+}
+
+#st-mini-game-center .farm-seed-name {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#st-mini-game-center .farm-seed-price {
+    max-width: 100%;
+    font-size: 9px;
+    line-height: 1.25;
+    opacity: .62;
+    text-align: center;
+}
+
+#st-mini-game-center .farm-field {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+    width: min(700px, 100%);
+    margin: 10px auto 12px;
+}
+
+#st-mini-game-center .farm-plot {
+    position: relative;
+    min-width: 0;
+    min-height: 118px;
+    padding: 11px 8px;
+    border: 1px solid color-mix(in srgb, #8f6b48 30%, var(--SmartThemeBorderColor, rgba(127,127,127,.25)));
+    border-radius: 14px;
+    background: linear-gradient(160deg, color-mix(in srgb, #8f6b48 26%, var(--SmartThemeBodyBgColor, transparent)), color-mix(in srgb, #64462f 20%, var(--SmartThemeBodyBgColor, transparent)));
+    color: var(--SmartThemeBodyColor, currentColor);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    font: inherit;
+    appearance: none;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 4px 12px var(--black10a, rgba(0,0,0,.08));
+}
+
+#st-mini-game-center .farm-plot:hover {
+    filter: brightness(1.05);
+}
+
+#st-mini-game-center .farm-plot.selected {
+    outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
+    transform: translateY(-1px);
+}
+
+#st-mini-game-center .farm-plot.empty {
+    opacity: .82;
+}
+
+#st-mini-game-center .farm-plot.watered {
+    box-shadow: inset 0 0 0 1px rgba(100,170,255,.26), 0 4px 12px var(--black10a, rgba(0,0,0,.08));
+}
+
+#st-mini-game-center .farm-plot.fertilized {
+    border-color: color-mix(in srgb, #d9b34e 45%, var(--SmartThemeBorderColor, rgba(127,127,127,.25)));
+}
+
+#st-mini-game-center .farm-plot.ripe {
+    background: linear-gradient(160deg, color-mix(in srgb, #e5c875 19%, var(--SmartThemeBodyBgColor, transparent)), color-mix(in srgb, #a97b38 16%, var(--SmartThemeBodyBgColor, transparent)));
+}
+
+#st-mini-game-center .farm-plot-icon {
+    font-size: 25px;
+    opacity: .46;
+}
+
+#st-mini-game-center .farm-plot-label,
+#st-mini-game-center .farm-plant-name,
+#st-mini-game-center .farm-plant-meta {
+    font-size: 10px;
+    line-height: 1.25;
+    text-align: center;
+}
+
+#st-mini-game-center .farm-plant-icon {
+    font-size: 32px;
+    line-height: 1.15;
+}
+
+#st-mini-game-center .farm-plant-name {
+    font-weight: 700;
+}
+
+#st-mini-game-center .farm-plant-meta {
+    opacity: .58;
+}
+
+#st-mini-game-center .farm-progress {
+    width: 84%;
+    height: 5px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.07);
+}
+
+#st-mini-game-center .farm-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--SmartThemeQuoteColor, currentColor);
+    opacity: .72;
+}
+
+#st-mini-game-center .farm-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+    align-items: center;
+    gap: 8px;
+    width: min(700px, 100%);
+    margin: 0 auto;
+}
+
+#st-mini-game-center .farm-selection-text {
+    min-width: 0;
+    font-size: 12px;
+    opacity: .78;
+}
+
+#st-mini-game-center .farm-action-btn:disabled {
+    opacity: .42;
+    cursor: not-allowed;
+}
+
+#st-mini-game-center .farm-harvest-btn:not(:disabled) {
+    font-weight: 700;
+}
+
+#st-mini-game-center .farm-seed-hint,
+#st-mini-game-center .farm-crop-note {
+    width: min(700px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 760px) {
+    #st-mini-game-center .farm-seed-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    #st-mini-game-center .farm-field {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #st-mini-game-center .farm-actions {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    #st-mini-game-center .farm-selection-text {
+        grid-column: 1 / -1;
+        order: -1;
+    }
+}
+
+@media (max-width: 480px) {
+    #st-mini-game-center .farm-seed-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #st-mini-game-center .farm-seed-card {
+        min-height: 76px;
+    }
+
+    #st-mini-game-center .farm-field {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    #st-mini-game-center .farm-plot {
+        min-height: 104px;
+        padding: 8px 5px;
+    }
+
+    #st-mini-game-center .farm-plant-icon {
+        font-size: 28px;
+    }
+
+    #st-mini-game-center .farm-actions {
+        gap: 6px;
+    }
+
+    #st-mini-game-center .farm-action-btn {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
+
+/* ==================== 叠蛋糕 ==================== */
+#st-mini-game-center .cake-game-wrap {
+    width: min(720px, 100%);
+    margin: 0 auto;
+}
+#st-mini-game-center .cake-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 auto 10px;
+}
+#st-mini-game-center .cake-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--SmartThemeBodyColor, currentColor);
+    font-size: 12px;
+}
+#st-mini-game-center .cake-status span {
+    padding: 7px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
+    border-radius: 10px;
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.08));
+}
+#st-mini-game-center .cake-hint {
+    text-align: center;
+    margin: 0 0 10px;
+    font-size: 11px;
+    opacity: .62;
+}
+#st-mini-game-center .cake-scene {
+    position: relative;
+    width: 100%;
+    height: min(70dvh, 620px);
+    min-height: 440px;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255,255,255,.18), transparent 16%),
+      radial-gradient(circle at 82% 12%, rgba(255,255,255,.14), transparent 18%),
+      linear-gradient(180deg, color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4dfe0) 96%, #ffd5dc), var(--SmartThemeBodyBgColor, #f4dfe0));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+}
+#st-mini-game-center .cake-sky::before,
+#st-mini-game-center .cake-sky::after {
+    content: '✦';
+    position: absolute;
+    color: rgba(255,255,255,.35);
+    font-size: 18px;
+}
+#st-mini-game-center .cake-sky::before { left: 12%; top: 12%; }
+#st-mini-game-center .cake-sky::after { right: 16%; top: 24%; }
+#st-mini-game-center .cake-stack {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 30px;
+    top: 0;
+}
+#st-mini-game-center .cake-floor {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: 18px;
+    height: 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #5b4650) 24%, transparent);
+    opacity: .5;
+}
+#st-mini-game-center .cake-layer {
+    position: absolute;
+    height: 22px;
+    border-radius: 7px 7px 4px 4px;
+    background: linear-gradient(180deg, hsl(var(--cake-hue, 352) 58% 88%), hsl(var(--cake-hue, 352) 45% 72%));
+    border: 1px solid rgba(112,64,70,.18);
+    box-shadow: 0 3px 7px rgba(86,45,52,.16), inset 0 2px 0 rgba(255,255,255,.42);
+    transform-origin: center bottom;
+    z-index: 2;
+}
+#st-mini-game-center .cake-layer.moving { filter: saturate(1.04); }
+#st-mini-game-center .cake-layer .cake-frosting {
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    top: -5px;
+    height: 8px;
+    border-radius: 8px 8px 5px 5px;
+    background: linear-gradient(180deg, #fff8f7, #f9e8e8);
+    border: 1px solid rgba(255,255,255,.55);
+}
+#st-mini-game-center .cake-layer .cake-cream {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255,245,240,.72);
+}
+#st-mini-game-center .cake-layer .cake-sprinkle {
+    position: absolute;
+    width: 4px;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(255,255,255,.7);
+}
+#st-mini-game-center .cake-layer .s1 { left: 26%; top: 9px; transform: rotate(-20deg); }
+#st-mini-game-center .cake-layer .s2 { left: 61%; top: 13px; transform: rotate(22deg); }
+#st-mini-game-center .cake-layer .s3 { left: 79%; top: 7px; transform: rotate(-8deg); }
+#st-mini-game-center .cake-layer.perfect { animation: cakePerfect .34s ease; }
+#st-mini-game-center .cake-layer.landed { animation: cakeLand .18s ease; }
+#st-mini-game-center .cake-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(20,20,20,.72)) 74%, transparent);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+#st-mini-game-center .cake-overlay[hidden] { display: none; }
+#st-mini-game-center .cake-overlay-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--SmartThemeBodyColor, #fff);
+    text-align: center;
+}
+#st-mini-game-center .cake-overlay-text strong { font-size: 22px; }
+#st-mini-game-center .cake-overlay-text span { font-size: 13px; opacity: .72; }
+@keyframes cakePerfect { 50% { transform: scaleY(1.13); } }
+@keyframes cakeLand { 0% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
+@media (max-width: 560px) {
+    #st-mini-game-center .cake-scene {
+        min-height: 420px;
+        height: min(66dvh, 560px);
+    }
+    #st-mini-game-center .cake-topbar { align-items: flex-start; }
+    #st-mini-game-center .cake-status { flex: 1; }
+}
