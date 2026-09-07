@@ -26,7 +26,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '0.14.0';
+    const CURRENT_VERSION = '1.4.2';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -51,10 +51,13 @@
         grape:     { name: '葡萄',   seedCost: 8, sell: 32, grow: 200, unlock: 'tetris' },
         tea:       { name: '茶叶',   seedCost: 9, sell: 36, grow: 220, unlock: 'go' },
         lavender:  { name: '薰衣草', seedCost: 10, sell: 42, grow: 240, unlock: 'waterSort' },
+        cherry:    { name: '樱桃',   seedCost: 11, sell: 48, grow: 260, unlock: 'cake' },
+        sunflower: { name: '向日葵', seedCost: 12, sell: 55, grow: 285, unlock: 'starPop' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
+        cake: '叠蛋糕', starPop: '消灭星星',
     };
 
     function loadGameWins() {
@@ -860,9 +863,10 @@
 
 
     /* ==================== 消灭星星 ==================== */
-    const STARPOP_STORAGE_KEY = 'silly-game:star-pop:v1';
+    const STARPOP_STORAGE_KEY = 'silly-game:star-pop:v2';
+    const STARPOP_LEGACY_STORAGE_KEY = 'silly-game:star-pop:v1';
     const STARPOP_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
-    const STARPOP_SIZE = 10;
+    const STARPOP_SIZE = 12;
 
     function starPopNewBoard() {
         const board = Array.from({ length: STARPOP_SIZE }, () =>
@@ -892,7 +896,12 @@
 
     function starPopLoad() {
         try {
-            return starPopNormalize(JSON.parse(localStorage.getItem(STARPOP_STORAGE_KEY) || 'null'));
+            const current = JSON.parse(localStorage.getItem(STARPOP_STORAGE_KEY) || 'null');
+            if (current && Array.isArray(current.board)) return starPopNormalize(current);
+            const legacy = JSON.parse(localStorage.getItem(STARPOP_LEGACY_STORAGE_KEY) || 'null');
+            const next = starPopNewBoard();
+            if (legacy && Number.isFinite(legacy.best)) next.best = Math.max(0, legacy.best);
+            return next;
         } catch { return starPopNewBoard(); }
     }
 
@@ -975,6 +984,7 @@
             game.won = true;
             game.over = true;
             game.best = Math.max(game.best, game.score);
+            recordGameWin('starPop');
         } else if (!starPopHasMoves(game.board)) {
             game.over = true;
             game.best = Math.max(game.best, game.score);
@@ -1227,6 +1237,8 @@
             game.layers.push({ width, left: finalLeft, bottom: top.bottom, node: top.node });
             game.current = null;
             game.score += perfect ? 50 + game.layers.length * 5 : 10 + game.layers.length * 2;
+            // 叠到 20 层视为该小游戏的里程碑，解锁农场樱桃。
+            if (game.layers.length - 1 >= 20) recordGameWin('cake');
             game.direction *= -1;
             game.speed = Math.min(360, 145 + game.layers.length * 6);
             updateStatus();

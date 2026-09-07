@@ -3,6 +3,27 @@
  * 只使用少量自定义样式，颜色/背景/边框尽量继承 SillyTavern 当前主题变量。
  */
 
+/* Silly Game 主题基色：优先跟随 SillyTavern；没有主题变量时跟随浏览器日夜间。 */
+#st-mini-game-center,
+#st-mini-game-center-launcher,
+#st-mini-game-center-restore {
+    --stgc-browser-bg: #f3f3f3;
+    --stgc-browser-surface: #ffffff;
+    --stgc-browser-text: #202124;
+    --stgc-browser-border: rgba(0,0,0,.16);
+}
+
+@media (prefers-color-scheme: dark) {
+    #st-mini-game-center,
+    #st-mini-game-center-launcher,
+    #st-mini-game-center-restore {
+        --stgc-browser-bg: #18191b;
+        --stgc-browser-surface: #232528;
+        --stgc-browser-text: #f2f2f2;
+        --stgc-browser-border: rgba(255,255,255,.16);
+    }
+}
+
 #st-mini-game-center-launcher {
     position: fixed !important;
     left: auto;
@@ -116,7 +137,7 @@
     padding-right: max(12px, env(safe-area-inset-right));
     padding-bottom: max(12px, env(safe-area-inset-bottom));
     padding-left: max(12px, env(safe-area-inset-left));
-    background: var(--black50a, rgba(0,0,0,.5));
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-bg)) 78%, #000 22%);
     box-sizing: border-box;
     overflow: auto;
     overscroll-behavior: contain;
@@ -137,7 +158,7 @@
     overflow: auto;
     padding: 12px;
     color: var(--SmartThemeBodyColor, inherit);
-    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, inherit));
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 88%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 4%, transparent);
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
     border-radius: var(--SmartThemeBorderRadius, 8px);
     box-shadow: 0 12px 40px var(--black50a, rgba(0,0,0,.35));
@@ -439,11 +460,11 @@
     padding: 0;
     display: grid;
     place-items: center;
-    color: #333;
-    background: #fff;
-    border: 1px solid #d9d9d9;
+    color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 82%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 5%);
+    border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
     border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent), 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 12%, transparent);
     font-size: max(10px, calc(var(--mine-cell-size, 32px) * .48));
     font-weight: 800;
     line-height: 1;
@@ -490,13 +511,13 @@
 }
 
 #st-mini-game-center .mine-cell:hover:not(.open) {
-    background: #f7f7f7;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 72%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 6%);
 }
 
 #st-mini-game-center .mine-cell.open {
-    background: #f1f1f1;
-    border-color: #e4e4e4;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 92%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 2%);
+    border-color: var(--SmartThemeBorderColor, var(--stgc-browser-border));
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 10%, transparent);
 }
 
 #st-mini-game-center .mine-cell.flagged {
@@ -505,7 +526,7 @@
 
 #st-mini-game-center .mine-cell.mine {
     color: #a61e1e;
-    background: #ffe4e4;
+    background: color-mix(in srgb, #c96f7a 18%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)));
 }
 
 #st-mini-game-center .mine-cell[data-n="1"] { color: #1976d2; }
@@ -2071,15 +2092,18 @@
   width: min(620px, 100%);
   margin: 8px auto 14px;
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: clamp(4px, .65vw, 7px);
   padding: clamp(7px, 1vw, 10px);
   border-radius: 16px;
- background: transparent;
-border: none;
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 96%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 2%),
+      color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 84%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 6%));
+  border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    0 10px 30px rgba(0,0,0,.18);
+    inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent),
+    0 10px 30px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 16%, transparent);
   touch-action: manipulation;
   user-select: none;
 }
@@ -2136,7 +2160,7 @@ border: none;
   width: 68%;
   height: 38%;
   border-radius: 45%;
-  background: linear-gradient(180deg, rgba(255,255,255,.27), rgba(255,255,255,0));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 18%, transparent), transparent);
   transform: rotate(-8deg);
   filter: blur(.25px);
   opacity: .72;
@@ -2166,7 +2190,7 @@ border: none;
   );
   background:
     linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.26));
-  filter: drop-shadow(0 2px 1px rgba(55,42,48,.20));
+  filter: drop-shadow(0 2px 1px color-mix(in srgb, var(--SmartThemeBodyColor, #000) 22%, transparent));
   z-index: 2;
 }
 
@@ -2234,4 +2258,68 @@ border: none;
   #st-mini-game-center .star-pop-cell {
     border-radius: 20%;
   }
+}
+
+/* v1.4.2 — newly unlocked farm crops for the newer games */
+#st-mini-game-center .farm-crop-cherry .farm-plant-art::before{
+    width:4px;height:36px;left:39px;bottom:6px;border-radius:5px;
+    background:#6f9752;transform:rotate(5deg);
+    box-shadow: -8px 6px 0 -1px #78a15a;
+}
+#st-mini-game-center .farm-crop-cherry .farm-plant-leaves::before{
+    width:18px;height:10px;left:20px;bottom:31px;border-radius:100% 0 100% 0;
+    background:#6c9a4f;transform:rotate(-25deg);
+    box-shadow:18px 4px 0 -1px #7da85d;
+}
+#st-mini-game-center .farm-crop-cherry .farm-plant-fruit::before{
+    width:16px;height:16px;left:27px;bottom:10px;border-radius:50%;
+    background:#bd5b67;
+    box-shadow:11px -2px 0 -1px #c96a74, 5px 8px 0 -2px #a84f5a;
+}
+#st-mini-game-center .farm-crop-cherry.farm-stage-sprout .farm-plant-fruit::before{
+    width:10px;height:8px;left:34px;bottom:14px;box-shadow:none;background:#709d52;
+}
+
+#st-mini-game-center .farm-crop-sunflower .farm-plant-art::before{
+    width:6px;height:48px;left:38px;bottom:2px;border-radius:8px;
+    background:linear-gradient(90deg,#5b8f48,#78a955,#5d8f49);
+}
+#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::before{
+    width:24px;height:12px;left:15px;bottom:18px;border-radius:100% 0 100% 0;
+    background:#6c9b4f;transform:rotate(-24deg);
+    box-shadow:22px 8px 0 -1px #77a857;
+}
+#st-mini-game-center .farm-crop-sunflower .farm-plant-leaves::after{
+    content:"";position:absolute;width:20px;height:12px;left:42px;bottom:23px;
+    border-radius:0 100% 0 100%;background:#61934a;transform:rotate(24deg);
+}
+#st-mini-game-center .farm-crop-sunflower .farm-plant-fruit::before{
+    width:26px;height:26px;left:27px;bottom:35px;border-radius:50%;
+    background:#d4a95b;
+    box-shadow:
+      0 -11px 0 -5px #e2c06d,
+      11px -4px 0 -5px #e2c06d,
+      -11px -4px 0 -5px #e2c06d,
+      8px 8px 0 -5px #e2c06d,
+      -8px 8px 0 -5px #e2c06d;
+}
+#st-mini-game-center .farm-crop-sunflower.farm-stage-sprout .farm-plant-fruit::before{
+    width:9px;height:7px;left:34px;bottom:23px;box-shadow:none;background:#789f54;
+}
+
+/* seed-card miniatures for the two newer crops */
+#st-mini-game-center .farm-seed-visual.farm-crop-cherry::before{
+    content:"";position:absolute;width:11px;height:11px;left:11px;bottom:9px;border-radius:50%;
+    background:#bd5b67;box-shadow:9px 2px 0 -1px #c96a74;
+}
+#st-mini-game-center .farm-seed-visual.farm-crop-cherry::after{
+    width:3px;height:19px;left:20px;bottom:15px;border-radius:4px;background:#6f9752;box-shadow:-6px 2px 0 -1px #78a15a;
+}
+#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::before{
+    content:"";position:absolute;width:18px;height:18px;left:12px;bottom:11px;border-radius:50%;
+    background:#d4a95b;
+    box-shadow:0 -7px 0 -3px #e2c06d,7px 0 0 -3px #e2c06d,-7px 0 0 -3px #e2c06d,0 7px 0 -3px #e2c06d;
+}
+#st-mini-game-center .farm-seed-visual.farm-crop-sunflower::after{
+    width:3px;height:15px;left:20px;bottom:2px;border-radius:4px;background:#6b9850;
 }
