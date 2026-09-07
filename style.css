@@ -4786,6 +4786,20 @@ n
 
 }
 
+#st-mini-game-center .cake-world {
+
+    position: absolute;
+
+    inset: 0;
+
+    overflow: visible;
+
+    will-change: transform;
+
+    transform: translate3d(0, 0, 0);
+
+}
+
 #st-mini-game-center .cake-stack {
 
     position: absolute;
@@ -4798,37 +4812,17 @@ n
 
     top: 0;
 
-    will-change: transform;
+}
 
-    transform: translate3d(0, 0, 0);
+n#st-mini-game-center .cake-camera-indicator {
 
 }
 
-#st-mini-game-center .cake-current-layer-host {
-
-    position: absolute;
-
-    inset: 0;
-
-    z-index: 6;
-
-    pointer-events: none;
+n#st-mini-game-center .cake-camera-indicator.show {
 
 }
 
-#st-mini-game-center .cake-current-layer-host .cake-layer {
-
-    pointer-events: none;
-
-}
-
-#st-mini-game-center .cake-camera-indicator {
-}
-
-#st-mini-game-center .cake-camera-indicator.show {
-}
-
-
+n
 #st-mini-game-center .cake-floor {
 
     position: absolute;
