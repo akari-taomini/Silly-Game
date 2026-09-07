@@ -4804,15 +4804,31 @@ n
 
 }
 
-n#st-mini-game-center .cake-camera-indicator {
+#st-mini-game-center .cake-current-layer-host {
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 6;
+
+    pointer-events: none;
 
 }
 
-n#st-mini-game-center .cake-camera-indicator.show {
+#st-mini-game-center .cake-current-layer-host .cake-layer {
+
+    pointer-events: none;
 
 }
 
-n
+#st-mini-game-center .cake-camera-indicator {
+}
+
+#st-mini-game-center .cake-camera-indicator.show {
+}
+
+
 #st-mini-game-center .cake-floor {
 
     position: absolute;

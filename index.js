@@ -1269,6 +1269,7 @@
             lastTime: performance.now(),
             areaWidth: 0,
             cameraY: 0,
+            cameraTargetY: 0,
         };
         state.cake = game;
 
@@ -1285,6 +1286,7 @@
         const scene = el('div', { class: 'cake-scene', role: 'application', 'aria-label': '叠蛋糕' });
         const sky = el('div', { class: 'cake-sky', 'aria-hidden': 'true' });
         const stack = el('div', { class: 'cake-stack' });
+        const currentHost = el('div', { class: 'cake-current-layer-host', 'aria-hidden': 'true' });
         const floor = el('div', { class: 'cake-floor' });
         const cameraIndicator = el('div', { class: 'cake-camera-indicator', text: '层数 1' });
         const overlay = el('div', { class: 'cake-overlay' });
@@ -1292,7 +1294,7 @@
         const overlayText = el('div', { class: 'cake-overlay-text' });
         const overlayButton = el('button', { class: 'stgc-btn', type: 'button', text: '再来一块' });
         overlay.append(overlayText, overlayButton);
-        scene.append(sky, stack, floor, cameraIndicator, overlay);
+        scene.append(sky, stack, currentHost, floor, cameraIndicator, overlay);
         wrap.append(top, hint, scene);
         body.append(wrap);
 
@@ -1304,29 +1306,44 @@
             return Math.max(320, scene.clientHeight || 420);
         }
 
-        function layerNode(width, left, bottom, moving, index) {
+        function layerNode(width, left, bottom, moving, index, host = stack) {
             const node = el('div', { class: `cake-layer${moving ? ' moving' : ''}` });
             node.style.width = `${width}px`;
             node.style.left = `${left}px`;
-            node.style.bottom = `${bottom}px`;
+            if (host === currentHost) {
+                node.style.bottom = 'auto';
+                node.style.top = `${currentScreenTop()}px`;
+                node.style.pointerEvents = 'none';
+            } else {
+                node.style.bottom = `${bottom}px`;
+            }
             node.style.setProperty('--cake-hue', `${350 + (index % 6) * 7}`);
             node.innerHTML = '<span class="cake-frosting"></span><span class="cake-cream"></span><span class="cake-sprinkle s1"></span><span class="cake-sprinkle s2"></span><span class="cake-sprinkle s3"></span>';
-            stack.append(node);
+            host.append(node);
             return node;
         }
 
+        function currentScreenTop() {
+            return Math.max(64, Math.round(sceneHeight() * 0.15));
+        }
+
+        function currentScreenBottom() {
+            return Math.max(80, sceneHeight() - currentScreenTop() - 22);
+        }
+
         function highestWorldTop() {
+            // 镜头只跟随已经落稳的蛋糕层，不把正在移动的蛋糕算进镜头。
             let top = 0;
             for (const layer of game.layers) top = Math.max(top, layer.bottom + 27);
-            if (game.current) top = Math.max(top, game.current.bottom + 27);
             return top;
         }
 
-        function updateCamera(animate = false) {
+        function updateCamera(animate = false, immediate = false) {
             const targetCenter = sceneHeight() * 0.56;
             const worldTop = highestWorldTop();
             const desired = Math.max(0, worldTop - targetCenter);
-            game.cameraY = desired;
+            game.cameraTargetY = desired;
+            if (immediate) game.cameraY = desired;
             stack.style.transform = `translate3d(0, ${-game.cameraY}px, 0)`;
             cameraIndicator.textContent = `层数 ${Math.max(1, game.layers.length)}`;
             if (animate) {
@@ -1334,6 +1351,12 @@
                 void cameraIndicator.offsetWidth;
                 cameraIndicator.classList.add('show');
             }
+        }
+
+        function updateCurrentViewportPosition() {
+            if (!game.current) return;
+            game.current.bottom = game.cameraY + currentScreenBottom();
+            game.current.node.style.top = `${currentScreenTop()}px`;
         }
 
         function updateStatus() {
@@ -1351,6 +1374,7 @@
             game.running = true;
             game.over = false;
             game.cameraY = 0;
+            game.cameraTargetY = 0;
             game.areaWidth = sceneWidth();
             stack.innerHTML = '';
             stack.style.transform = 'translate3d(0,0,0)';
@@ -1361,19 +1385,20 @@
             const node = layerNode(width, left, 9, false, 0);
             game.layers.push({ width, left, bottom: 9, node });
             updateStatus();
+            updateCamera(false, true);
             spawnLayer();
             game.lastTime = performance.now();
-            updateCamera();
         }
 
         function spawnLayer() {
             const below = game.layers[game.layers.length - 1];
             const width = below.width;
             const left = game.direction > 0 ? 0 : Math.max(0, game.areaWidth - width);
-            const bottom = below.bottom + 27;
-            const node = layerNode(width, left, bottom, true, game.layers.length);
+            const screenBottom = currentScreenBottom();
+            const bottom = game.cameraY + screenBottom;
+            const node = layerNode(width, left, bottom, true, game.layers.length, currentHost);
             game.current = { width, left, bottom, node };
-            updateCamera();
+            updateCurrentViewportPosition();
         }
 
         function finish() {
@@ -1405,12 +1430,13 @@
             const perfect = Math.abs(overlap - below.width) <= 2;
             const width = perfect ? below.width : overlap;
             const finalLeft = perfect ? below.left : left;
-            top.node.style.width = `${width}px`;
-            top.node.style.left = `${finalLeft}px`;
-            top.node.classList.remove('moving');
-            top.node.classList.add(perfect ? 'perfect' : 'landed');
+            // 把当前层从固定视野容器移入世界容器；镜头只移动已经落稳的蛋糕。
+            top.node.remove();
+            const finalBottom = below.bottom + 27;
+            const landedNode = layerNode(width, finalLeft, finalBottom, false, game.layers.length, stack);
+            landedNode.classList.add(perfect ? 'perfect' : 'landed');
 
-            game.layers.push({ width, left: finalLeft, bottom: top.bottom, node: top.node });
+            game.layers.push({ width, left: finalLeft, bottom: finalBottom, node: landedNode });
             game.current = null;
             game.score += perfect ? 50 + game.layers.length * 5 : 10 + game.layers.length * 2;
             // 叠到 20 层视为该小游戏的里程碑，解锁农场樱桃。
@@ -1418,7 +1444,7 @@
             game.direction *= -1;
             game.speed = Math.min(360, 145 + game.layers.length * 6);
             updateStatus();
-            updateCamera(true);
+            updateCamera(true, false);
 
             if (width < 8) {
                 finish();
@@ -1443,7 +1469,12 @@
                 game.direction = -1;
             }
             c.node.style.left = `${c.left}px`;
-            updateCamera();
+
+            // 镜头平滑追随已落稳的蛋糕层；移动中的蛋糕固定在视野顶部，不会随着镜头一起“飞走”。
+            game.cameraY += (game.cameraTargetY - game.cameraY) * Math.min(1, dt * 8);
+            if (Math.abs(game.cameraTargetY - game.cameraY) < 0.08) game.cameraY = game.cameraTargetY;
+            stack.style.transform = `translate3d(0, ${-game.cameraY}px, 0)`;
+            updateCurrentViewportPosition();
             game.raf = requestAnimationFrame(step);
         }
 
@@ -1458,6 +1489,7 @@
                 const maxLeft = Math.max(0, game.areaWidth - game.current.width);
                 game.current.left = Math.min(Math.max(game.current.left, 0), maxLeft);
                 game.current.node.style.left = `${game.current.left}px`;
+                updateCurrentViewportPosition();
             }
             updateCamera();
         }
