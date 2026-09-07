@@ -747,15 +747,9 @@
         // 首次使用默认“新手”9×9；已有存档则恢复上次的棋盘。
         state.mines = loadMines() || createMinesweeper('beginner');
 
-        let mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
+        let mineZoom = 1;
         let mineCellSize = 32;
 
-        function getMineCellSize(size) {
-            if (size >= 24) return 24;
-            if (size >= 20) return 26;
-            if (size >= 16) return 28;
-            return 34;
-        }
 
         function getMineMaxZoom(size) {
             if (size >= 24) return 2.4;
@@ -775,7 +769,7 @@
             btn.addEventListener('click', () => {
                 clearMinesSave();
                 state.mines = createMinesweeper(id);
-                mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
+                mineZoom = 1;
                 draw();
                 centerMineView();
                 saveMines();
@@ -795,7 +789,7 @@
         resetBtn.addEventListener('click', () => {
             clearMinesSave();
             state.mines = createMinesweeper(state.mines.difficulty);
-            mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
+            mineZoom = 1;
             draw();
             centerMineView();
             saveMines();
@@ -997,8 +991,17 @@
         };
         document.addEventListener('keydown', onKey, true);
 
+        const mineResizeObserver = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(() => {
+                if (state.currentGame !== 'mines') return;
+                requestAnimationFrame(() => draw());
+            })
+            : null;
+        mineResizeObserver?.observe(mineViewport);
+
         state.cleanup = () => {
             saveMines();
+            mineResizeObserver?.disconnect();
             clearTimeout(longPressTimer);
             window.clearInterval(tick);
             board.removeEventListener('pointerdown', onPointerDown);
@@ -1034,11 +1037,19 @@
         function draw() {
             const s = state.mines;
             board.innerHTML = '';
-            mineCellSize = Math.max(20, Math.round(getMineCellSize(s.size) * mineZoom));
-            board.style.gridTemplateColumns = `repeat(${s.size}, ${mineCellSize}px)`;
+
+            // 1× 时让棋盘自动填满“可视区域”的宽度；
+            // 放大后再按比例放大，超出部分交给 viewport + 方向键微调。
+            const gap = 2;
+            const available = Math.max(120, mineViewport.clientWidth - 12);
+            const fitCell = Math.max(14, (available - gap * (s.size - 1)) / s.size);
+            mineCellSize = Math.max(14, Math.round(fitCell * mineZoom));
+
+            board.style.gridTemplateColumns = `repeat(${s.size}, minmax(0, 1fr))`;
             board.style.gridTemplateRows = `repeat(${s.size}, ${mineCellSize}px)`;
-            board.style.width = `${s.size * mineCellSize}px`;
-            board.style.height = `${s.size * mineCellSize}px`;
+            board.style.width = `${Math.max(available, s.size * mineCellSize + gap * (s.size - 1))}px`;
+            board.style.height = `${s.size * mineCellSize + gap * (s.size - 1)}px`;
+            board.style.setProperty('--mine-cell-size', `${mineCellSize}px`);
             board.dataset.size = String(s.size);
             mineViewport.dataset.size = String(s.size);
             zoomText.textContent = `${Math.round(mineZoom * 100)}%`;
