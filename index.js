@@ -22,7 +22,7 @@
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const EXTENSION_FOLDER = 'st-game-center';
-    const CURRENT_VERSION = '0.12.0';
+    const CURRENT_VERSION = '0.12.1';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -96,12 +96,41 @@
         });
     }
 
-    async function getRemoteExtensionVersion() {
+    async function discoverInstallScope() {
+        const headers = await getSTRequestHeaders();
+        const response = await fetch('/api/extensions/discover', {
+            method: 'GET',
+            headers,
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `${response.status} ${response.statusText}`);
+        }
+
+        const extensions = await response.json();
+        const targetName = `third-party/${EXTENSION_FOLDER}`;
+        const found = Array.isArray(extensions)
+            ? extensions.find(extension => extension?.name === targetName)
+            : null;
+
+        if (!found) {
+            return null;
+        }
+
+        if (found.type === 'local') return { global: false, type: 'local' };
+        if (found.type === 'global') return { global: true, type: 'global' };
+
+        // System extensions are not third-party git installs and should not be
+        // managed by the Silly Game updater.
+        return null;
+    }
+
+    async function getRemoteExtensionVersion(scope) {
         const headers = await getSTRequestHeaders();
         const response = await fetch('/api/extensions/version', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: false }),
+            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: !!scope.global }),
         });
         if (!response.ok) {
             const text = await response.text();
@@ -110,12 +139,12 @@
         return response.json();
     }
 
-    async function updateExtensionFromSillyTavern() {
+    async function updateExtensionFromSillyTavern(scope) {
         const headers = await getSTRequestHeaders();
         const response = await fetch('/api/extensions/update', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: false }),
+            body: JSON.stringify({ extensionName: EXTENSION_FOLDER, global: !!scope.global }),
         });
         if (!response.ok) {
             const text = await response.text();
@@ -140,7 +169,14 @@
             updateButtonText('检查更新', true);
 
             try {
-                const version = await getRemoteExtensionVersion();
+                const scope = await discoverInstallScope();
+                if (!scope) {
+                    updateButtonText('无法自动更新');
+                    if (!auto) notify('没有在 SillyTavern 的托管第三方扩展目录中找到 Silly Game。请确认它是通过 GitHub 扩展安装方式安装的。', 'Silly Game');
+                    return { skipped: false, updated: false, available: false, unmanaged: true };
+                }
+
+                const version = await getRemoteExtensionVersion(scope);
                 const available = version?.isUpToDate === false;
                 if (!available) {
                     updateButtonText('已是最新');
@@ -150,7 +186,7 @@
 
                 const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
                 if (!auto) notify(`发现更新（${remoteCommit}），正在更新…`, 'Silly Game');
-                const result = await updateExtensionFromSillyTavern();
+                const result = await updateExtensionFromSillyTavern(scope);
                 if (result?.isUpToDate) {
                     updateButtonText('已是最新');
                     if (!auto) notify('检查完成，当前已经是最新版本。', 'Silly Game');
