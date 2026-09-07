@@ -1043,7 +1043,7 @@
         toolbar.append(info, paletteWrap, reset);
 
         const board = el('div', { class: 'star-pop-board', role: 'grid', 'aria-label': '消灭星星棋盘' });
-        const hint = el('div', { class: 'stgc-game-hint', text: '点击两个以上相连的同色星星即可消除。消除后上方星星会下落，空列会向左收拢。' });
+        const hint = el('div', { class: 'stgc-game-hint', text: '双击两个以上相连的同色星星即可消除。消除后上方星星会下落，空列会向左收拢。' });
         const result = el('div', { class: 'star-pop-result' });
         body.append(toolbar, board, result, hint);
 
@@ -1072,7 +1072,12 @@
                         'aria-label': v < 0 ? '空位' : `${STARPOP_COLORS[v]}星星`,
                     });
                     if (v >= 0) {
-                        cell.addEventListener('click', () => { starPopClick(r, c); draw(); });
+                        cell.addEventListener('dblclick', event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            starPopClick(r, c);
+                            draw();
+                        });
                         cell.addEventListener('keydown', event => {
                             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); starPopClick(r,c); draw(); }
                         });
@@ -2963,8 +2968,15 @@
     /* ==================== Gomoku ==================== */
 
     const GOMOKU_SIZE = 15;
+    const BOARD_PALETTES = {
+        qingstone: { name: '青石', board: '#7f9c9a', line: '#324a49', edge: '#6d8785' },
+        daigreen: { name: '黛绿', board: '#6f8475', line: '#2e3d35', edge: '#5f7466' },
+        warmwood: { name: '檀棕', board: '#b18f73', line: '#5b4637', edge: '#9b785d' },
+        inkstone: { name: '墨砚', board: '#727879', line: '#34383a', edge: '#62686a' },
+        ricepaper: { name: '米杏', board: '#c9b89a', line: '#6f6252', edge: '#b5a27f' },
+    };
 
-    function newGomoku(mode = 'ai') {
+    function newGomoku(mode = 'ai', boardPalette = 'qingstone') {
         return {
             board: Array(GOMOKU_SIZE * GOMOKU_SIZE).fill(0),
             current: 1,
@@ -2973,6 +2985,8 @@
             mode,
             moves: 0,
             aiThinking: false,
+            history: [],
+            boardPalette: Object.hasOwn(BOARD_PALETTES, boardPalette) ? boardPalette : 'qingstone',
         };
     }
 
@@ -3101,6 +3115,13 @@
 
     function gomokuPlace(game, index, player) {
         if (game.over || game.board[index] !== 0) return false;
+        game.history.push({
+            board: game.board.slice(),
+            current: game.current,
+            winner: game.winner,
+            over: game.over,
+            moves: game.moves,
+        });
         game.board[index] = player;
         game.moves++;
         if (gomokuCheckWin(game, index, player)) {
@@ -3117,17 +3138,23 @@
     }
 
     function renderGomoku(body) {
-        state.gomoku = newGomoku('ai');
+        state.gomoku = newGomoku('ai', localStorage.getItem('silly-game:gomoku:palette') || 'qingstone');
 
         const top = el('div', { class: 'stgc-game-toolbar' });
         const info = el('div', { class: 'stgc-game-info' });
         const status = el('span', { class: 'stgc-pill' });
         const mode = el('button', { class: 'stgc-btn stgc-btn-quiet', type: 'button' });
+        const palette = el('select', { class: 'text_pole stgc-select', 'aria-label': '五子棋棋盘配色' });
+        Object.entries(BOARD_PALETTES).forEach(([value, item]) => {
+            palette.append(el('option', { value, text: item.name }));
+        });
+        palette.value = state.gomoku.boardPalette;
+        const undo = el('button', { class: 'stgc-btn', type: 'button', text: '悔棋' });
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         mode.textContent = '人机对战';
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
         info.append(status);
-        top.append(info, mode, reset);
+        top.append(info, mode, palette, undo, reset);
 
         const board = el('div', { class: 'gomoku-board', 'aria-label': '五子棋棋盘' });
         body.append(top, board, el('div', {
@@ -3138,6 +3165,7 @@
         const draw = () => {
             const game = state.gomoku;
             board.innerHTML = '';
+            board.dataset.palette = game.boardPalette;
             board.style.gridTemplateColumns = `repeat(${GOMOKU_SIZE}, minmax(0, 1fr))`;
             board.style.gridTemplateRows = `repeat(${GOMOKU_SIZE}, minmax(0, 1fr))`;
             for (let index = 0; index < game.board.length; index++) {
@@ -3160,6 +3188,8 @@
             else status.textContent = game.current === 1 ? '轮到你' : 'AI 回合';
 
             mode.textContent = game.mode === 'ai' ? '人机对战' : '双人对战';
+            palette.value = game.boardPalette;
+            undo.disabled = game.history.length === 0 || game.aiThinking;
         };
 
         const playAI = () => {
@@ -3167,7 +3197,7 @@
             if (game.mode !== 'ai' || game.over || game.current !== 2) return;
             game.aiThinking = true;
             draw();
-            window.setTimeout(() => {
+            state.gomokuAiTimer = window.setTimeout(() => {
                 // 切换模式/重新开始后，旧回合不能污染新棋盘。
                 if (state.currentGame !== 'gomoku' || state.gomoku !== game) return;
                 const move = chooseGomokuAIMove(game);
@@ -3188,17 +3218,40 @@
             playAI();
         });
 
+        palette.addEventListener('change', () => {
+            state.gomoku.boardPalette = Object.hasOwn(BOARD_PALETTES, palette.value) ? palette.value : 'qingstone';
+            localStorage.setItem('silly-game:gomoku:palette', state.gomoku.boardPalette);
+            draw();
+        });
+        undo.addEventListener('click', () => {
+            const game = state.gomoku;
+            if (game.aiThinking || game.history.length === 0) return;
+            const steps = game.mode === 'ai' ? Math.min(2, game.history.length) : 1;
+            for (let i = 0; i < steps; i++) {
+                const previous = game.history.pop();
+                game.board = previous.board;
+                game.current = previous.current;
+                game.winner = previous.winner;
+                game.over = previous.over;
+                game.moves = previous.moves;
+            }
+            draw();
+        });
         mode.addEventListener('click', () => {
+            if (state.gomokuAiTimer) { window.clearTimeout(state.gomokuAiTimer); state.gomokuAiTimer = null; }
             const next = state.gomoku.mode === 'ai' ? 'pvp' : 'ai';
-            state.gomoku = newGomoku(next);
+            state.gomoku = newGomoku(next, state.gomoku.boardPalette);
             draw();
         });
         reset.addEventListener('click', () => {
-            state.gomoku = newGomoku(state.gomoku.mode);
+            if (state.gomokuAiTimer) { window.clearTimeout(state.gomokuAiTimer); state.gomokuAiTimer = null; }
+            state.gomoku = newGomoku(state.gomoku.mode, state.gomoku.boardPalette);
             draw();
         });
 
-        state.cleanup = () => {};
+        state.cleanup = () => {
+            if (state.gomokuAiTimer) { window.clearTimeout(state.gomokuAiTimer); state.gomokuAiTimer = null; }
+        };
         draw();
     }
 
@@ -4265,7 +4318,7 @@
         }
         return best;
     }
-    function newGo(size = GO_DEFAULT_SIZE, mode = 'ai'){
+    function newGo(size = GO_DEFAULT_SIZE, mode = 'ai', boardPalette = 'qingstone'){
         return {
             size,
             board: Array(size * size).fill(0),
@@ -4277,6 +4330,7 @@
             over: false,
             mode,
             aiThinking: false,
+            boardPalette: Object.hasOwn(BOARD_PALETTES, boardPalette) ? boardPalette : 'qingstone',
         };
     }
     function saveGo(){
@@ -4290,24 +4344,30 @@
             if (!Array.isArray(g.board) || g.board.length !== size * size) return null;
             g.size = size;
             g.mode = g.mode === 'pvp' ? 'pvp' : 'ai';
+            g.boardPalette = Object.hasOwn(BOARD_PALETTES, g.boardPalette) ? g.boardPalette : 'qingstone';
             g.aiThinking = false;
             return g;
         } catch { return null; }
     }
     function renderGo(body){
         cleanupGame();
-        state.go = loadGo() || newGo(GO_DEFAULT_SIZE, 'ai');
+        state.go = loadGo() || newGo(GO_DEFAULT_SIZE, 'ai', 'qingstone');
         saveGo();
 
         const sizeRow = el('div',{class:'go-size-row'});
         const sizeLabel = el('span',{class:'go-size-label',text:'棋盘'});
         sizeRow.append(sizeLabel);
         const sizeButtons = new Map();
+        const paletteLabel = el('span',{class:'go-size-label',text:'棋色'});
+        const paletteSelect = el('select',{class:'text_pole stgc-select go-palette-select', 'aria-label':'围棋棋盘配色'});
+        Object.entries(BOARD_PALETTES).forEach(([value,item])=>paletteSelect.append(el('option',{value,text:item.name})));
+        paletteSelect.value = state.go.boardPalette;
+        sizeRow.append(paletteLabel, paletteSelect);
         GO_SIZE_OPTIONS.forEach(size=>{
             const b = el('button',{class:'stgc-btn go-size-btn',type:'button',text:`${size}×${size}`});
             b.addEventListener('click',()=>{
                 if (state.go.size === size) return;
-                state.go = newGo(size, state.go.mode);
+                state.go = newGo(size, state.go.mode, state.go.boardPalette);
                 saveGo();
                 draw();
                 ai();
@@ -4335,6 +4395,8 @@
             board.style.setProperty('--go-size',String(size));
             board.style.setProperty('--go-step',`calc(100% / ${size - 1})`);
             board.dataset.size=String(size);
+            board.dataset.palette = g.boardPalette;
+            paletteSelect.value = g.boardPalette;
             sizeButtons.forEach((btn,s)=>btn.classList.toggle('is-selected',s===size));
             mode.textContent=g.mode==='ai'?'人机对战':'双人对战';
             undo.disabled = g.history.length===0 || g.aiThinking;
@@ -4407,8 +4469,13 @@
             playIndex(Number(c.dataset.index));
         });
 
+        paletteSelect.addEventListener('change',()=>{
+            state.go.boardPalette = Object.hasOwn(BOARD_PALETTES, paletteSelect.value) ? paletteSelect.value : 'qingstone';
+            saveGo();
+            draw();
+        });
         mode.addEventListener('click',()=>{
-            state.go = newGo(state.go.size,state.go.mode==='ai'?'pvp':'ai');
+            state.go = newGo(state.go.size,state.go.mode==='ai'?'pvp':'ai',state.go.boardPalette);
             saveGo();
             draw();
             ai();
@@ -4434,7 +4501,7 @@
         });
         reset.addEventListener('click',()=>{
             const size=state.go.size, modeNow=state.go.mode;
-            state.go=newGo(size,modeNow);
+            state.go=newGo(size,modeNow,state.go.boardPalette);
             saveGo(); draw(); ai();
         });
 

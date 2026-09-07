@@ -812,12 +812,14 @@
 
     place-items: center;
 
+    --mine-accent: var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, #888)));
+
     color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
 
     background: linear-gradient(
         145deg,
-        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 18%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
-        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 9%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
+        color-mix(in srgb, var(--mine-accent) 18%, var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))) 82%),
+        color-mix(in srgb, var(--mine-accent) 10%, var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))) 90%)
     );
 
     border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #777) 72%, var(--SmartThemeBodyColor, #777) 8%, transparent);
@@ -847,8 +849,8 @@
 
     background: linear-gradient(
         145deg,
-        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 26%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
-        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 14%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
+        color-mix(in srgb, var(--mine-accent) 24%, var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))) 76%),
+        color-mix(in srgb, var(--mine-accent) 14%, var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))) 86%)
     );
 
 }
@@ -6089,4 +6091,78 @@ n
 
     transform: none;
 
+}
+
+
+/* ==================== 固定棋盘配色 ==================== */
+#st-mini-game-center .gomoku-board[data-palette="qingstone"],
+#st-mini-game-center .go-board[data-palette="qingstone"] {
+    --board-surface: #7f9c9a;
+    --board-line: #324a49;
+    --board-edge: #6d8785;
+}
+#st-mini-game-center .gomoku-board[data-palette="daigreen"],
+#st-mini-game-center .go-board[data-palette="daigreen"] {
+    --board-surface: #6f8475;
+    --board-line: #2e3d35;
+    --board-edge: #5f7466;
+}
+#st-mini-game-center .gomoku-board[data-palette="warmwood"],
+#st-mini-game-center .go-board[data-palette="warmwood"] {
+    --board-surface: #b18f73;
+    --board-line: #5b4637;
+    --board-edge: #9b785d;
+}
+#st-mini-game-center .gomoku-board[data-palette="inkstone"],
+#st-mini-game-center .go-board[data-palette="inkstone"] {
+    --board-surface: #727879;
+    --board-line: #34383a;
+    --board-edge: #62686a;
+}
+#st-mini-game-center .gomoku-board[data-palette="ricepaper"],
+#st-mini-game-center .go-board[data-palette="ricepaper"] {
+    --board-surface: #c9b89a;
+    --board-line: #6f6252;
+    --board-edge: #b5a27f;
+}
+
+#st-mini-game-center .gomoku-board {
+    background-color: var(--board-surface, #7f9c9a);
+    border-color: var(--board-edge, #6d8785);
+    background-image:
+        repeating-linear-gradient(to right,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--board-line, #324a49) calc(6.666% - 1px),
+            var(--board-line, #324a49) 6.666%),
+        repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--board-line, #324a49) calc(6.666% - 1px),
+            var(--board-line, #324a49) 6.666%),
+        linear-gradient(var(--board-surface, #7f9c9a), var(--board-surface, #7f9c9a));
+}
+#st-mini-game-center .gomoku-cell.center-star::after {
+    background: var(--board-line, currentColor);
+}
+
+#st-mini-game-center .go-board {
+    background: var(--board-surface, #7f9c9a);
+    border-color: var(--board-edge, #6d8785);
+}
+#st-mini-game-center .go-board::before {
+    background:
+        repeating-linear-gradient(to right,
+            transparent 0,
+            transparent calc(var(--go-step) - .5px),
+            var(--board-line, #324a49) calc(var(--go-step) - .5px),
+            var(--board-line, #324a49) calc(var(--go-step) + .5px)),
+        repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(var(--go-step) - .5px),
+            var(--board-line, #324a49) calc(var(--go-step) - .5px),
+            var(--board-line, #324a49) calc(var(--go-step) + .5px));
+}
+#st-mini-game-center .go-palette-select {
+    min-width: 84px;
 }

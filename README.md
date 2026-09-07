@@ -1,6 +1,6 @@
 # Silly Game
 
-**当前版本：v1.5.1**
+**当前版本：v1.5.2**
 
 Silly Game 是一个 SillyTavern 小游戏扩展。
 
@@ -20,7 +20,7 @@ Silly Game 是一个 SillyTavern 小游戏扩展。
 - 消灭星星
 - 连连看
 
-## v1.5.1 · 代码整理
+## v1.5.2 · 代码整理
 - 合并重复 CSS 选择器与重复属性，保留最终级联结果。
 - 清理旧版遗留的无用游戏元素样式。
 - 同步 JS / manifest / README 版本号。
@@ -28,3 +28,10 @@ Silly Game 是一个 SillyTavern 小游戏扩展。
 
 ## 安装
 通过 SillyTavern 的第三方扩展安装 GitHub 仓库；这样内置更新功能才能正常工作。
+
+
+## v1.5.2
+- 扫雷格子使用 SillyTavern 的 `--SmartThemeUnderlineColor` 作为低亮度主色
+- 消灭星星改为双击消除
+- 五子棋新增悔棋
+- 五子棋 / 围棋新增固定棋盘配色：青石、黛绿、檀棕、墨砚、米杏
