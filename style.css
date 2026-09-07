@@ -2068,15 +2068,19 @@
 
 /* ==================== 消灭星星 ==================== */
 #st-mini-game-center .star-pop-board {
-  width: min(640px, 100%);
-  margin: 4px auto 12px;
+  width: min(620px, 100%);
+  margin: 8px auto 14px;
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: clamp(4px, 0.8vw, 8px);
-  padding: clamp(6px, 1.2vw, 10px);
-  border-radius: var(--SmartThemeBorderRadius, 10px);
-  background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
-  border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+  gap: clamp(4px, .65vw, 7px);
+  padding: clamp(7px, 1vw, 10px);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(25,24,29,.96), rgba(13,13,17,.98));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 10px 30px rgba(0,0,0,.18);
   touch-action: manipulation;
   user-select: none;
 }
@@ -2085,45 +2089,132 @@
   aspect-ratio: 1;
   min-width: 0;
   position: relative;
-  border-radius: 18%;
+  display: grid;
+  place-items: center;
+  border-radius: 22%;
   cursor: pointer;
   outline: none;
-  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg,
+      var(--tile-hi),
+      var(--tile-mid) 47%,
+      var(--tile-low));
+  border: 1px solid rgba(255,255,255,.13);
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.20),
+    inset 0 -3px 5px rgba(50,40,45,.18),
+    0 3px 6px rgba(0,0,0,.23);
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease;
 }
 
 #st-mini-game-center .star-pop-cell:not(.empty):hover {
-  transform: scale(1.07);
-  filter: brightness(1.08) saturate(1.06);
+  transform: translateY(-1px) scale(1.025);
+  filter: brightness(1.04) saturate(1.03);
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.23),
+    inset 0 -3px 5px rgba(50,40,45,.16),
+    0 5px 9px rgba(0,0,0,.24);
 }
 
 #st-mini-game-center .star-pop-cell:not(.empty):active {
-  transform: scale(.94);
+  transform: translateY(1px) scale(.96);
+  box-shadow:
+    inset 0 3px 6px rgba(50,40,45,.20),
+    0 1px 2px rgba(0,0,0,.20);
 }
 
-#st-mini-game-center .star-pop-cell::before {
+/* 柔和高光，让方块有接近图片里那种“软糖/磨砂玻璃糖块”的质感。 */
+#st-mini-game-center .star-pop-cell:not(.empty)::after {
   content: '';
   position: absolute;
-  inset: 9%;
-  clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 92%, 50% 70%, 21% 92%, 32% 56%, 2% 35%, 39% 34%);
-  border-radius: 12%;
-  background: currentColor;
-  box-shadow: inset 0 2px 4px rgba(255,255,255,.38), inset 0 -3px 4px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.12);
+  left: 10%;
+  top: 7%;
+  width: 68%;
+  height: 38%;
+  border-radius: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,.27), rgba(255,255,255,0));
+  transform: rotate(-8deg);
+  filter: blur(.25px);
+  opacity: .72;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 中央星星：纯 CSS 五角星，不使用 emoji。 */
+#st-mini-game-center .star-pop-cell:not(.empty)::before {
+  content: '';
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  left: 20%;
+  top: 20%;
+  clip-path: polygon(
+    50% 1%,
+    61% 34%,
+    97% 35%,
+    68% 56%,
+    79% 93%,
+    50% 72%,
+    21% 93%,
+    32% 56%,
+    3% 35%,
+    39% 34%
+  );
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.26));
+  filter: drop-shadow(0 2px 1px rgba(55,42,48,.20));
+  z-index: 2;
 }
 
 #st-mini-game-center .star-pop-cell.empty {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
   pointer-events: none;
-  opacity: .08;
+  opacity: 0;
 }
 
-#st-mini-game-center .star-pop-cell.color-pink { color: #ef6f96; }
-#st-mini-game-center .star-pop-cell.color-blue { color: #65a7e7; }
-#st-mini-game-center .star-pop-cell.color-yellow { color: #e8bc52; }
-#st-mini-game-center .star-pop-cell.color-green { color: #69b97a; }
-#st-mini-game-center .star-pop-cell.color-purple { color: #9d7de0; }
+/* 莫兰迪马卡龙：低饱和、柔和、彼此区分明显。 */
+#st-mini-game-center .star-pop-cell.color-pink {
+  --tile-hi: #d8a5ac;
+  --tile-mid: #c98e99;
+  --tile-low: #b87984;
+}
 
-#st-mini-game-center .star-pop-cell:focus-visible::before {
-  outline: 3px solid var(--SmartThemeQuoteColor, currentColor);
-  outline-offset: 2px;
+#st-mini-game-center .star-pop-cell.color-blue {
+  --tile-hi: #abc4d7;
+  --tile-mid: #91afc7;
+  --tile-low: #7999b4;
+}
+
+#st-mini-game-center .star-pop-cell.color-yellow {
+  --tile-hi: #e5d09b;
+  --tile-mid: #d7bd78;
+  --tile-low: #c6a861;
+}
+
+#st-mini-game-center .star-pop-cell.color-green {
+  --tile-hi: #b2cda3;
+  --tile-mid: #98ba8b;
+  --tile-low: #7ea872;
+}
+
+#st-mini-game-center .star-pop-cell.color-purple {
+  --tile-hi: #c0b3d7;
+  --tile-mid: #aa97ca;
+  --tile-low: #937db5;
+}
+
+#st-mini-game-center .star-pop-cell:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--SmartThemeQuoteColor, rgba(255,255,255,.75)),
+    inset 0 2px 2px rgba(255,255,255,.20),
+    0 4px 9px rgba(0,0,0,.22);
 }
 
 #st-mini-game-center .star-pop-result {
@@ -2135,11 +2226,13 @@
 
 @media (max-width: 640px) {
   #st-mini-game-center .star-pop-board {
-    width: min(94vw, 520px);
+    width: min(96vw, 540px);
     gap: 3px;
     padding: 5px;
+    border-radius: 14px;
   }
-  #st-mini-game-center .star-pop-cell::before {
-    inset: 7%;
+
+  #st-mini-game-center .star-pop-cell {
+    border-radius: 20%;
   }
 }
