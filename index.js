@@ -21,12 +21,13 @@
         farm: null,
         cake: null,
         starPop: null,
+        linkMatch: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.4.8';
+    const CURRENT_VERSION = '1.4.9';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -53,11 +54,12 @@
         lavender:  { name: '薰衣草', seedCost: 10, sell: 42, grow: 240, unlock: 'waterSort' },
         cherry:    { name: '樱桃',   seedCost: 11, sell: 48, grow: 260, unlock: 'cake' },
         sunflower: { name: '向日葵', seedCost: 12, sell: 55, grow: 285, unlock: 'starPop' },
+        peach:     { name: '蜜桃',   seedCost: 13, sell: 62, grow: 300, unlock: 'linkMatch' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
-        cake: '叠蛋糕', starPop: '消灭星星',
+        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看',
     };
 
     function loadGameWins() {
@@ -784,6 +786,7 @@
             { id: 'farm', icon: 'fa-seedling', name: '小农场', desc: '种地 · 浇水 · 施肥 · 作物随胜利解锁' },
             { id: 'cake', icon: 'fa-cake-candles', name: '叠蛋糕', desc: '左右移动 · 点击落下 · 越叠越高' },
             { id: 'starPop', icon: 'fa-star', name: '消灭星星', desc: '点击相连星星 · 消除 · 下落 · 得分' },
+            { id: 'linkMatch', icon: 'fa-link', name: '连连看', desc: '最多两次转弯 · 星星彩块风格 · 自动保存' },
         ]; 
 
         for (const game of games) {
@@ -839,6 +842,7 @@
             farm: '小农场',
             cake: '叠蛋糕',
             starPop: '消灭星星',
+            linkMatch: '连连看',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -859,6 +863,7 @@
         else if (game === 'farm') renderFarm(body);
         else if (game === 'cake') renderCake(body);
         else if (game === 'starPop') renderStarPop(body);
+        else if (game === 'linkMatch') renderLinkMatch(body);
     }
 
 
@@ -1094,6 +1099,131 @@
             starPopSave(state.starPop);
             starPopPaletteSave(paletteSelect.value);
         };
+        draw();
+    }
+
+    /* ==================== 连连看 ==================== */
+    const LINKMATCH_KEY='silly-game:link-match:v1';
+    const LINK_ROWS=8, LINK_COLS=12;
+    const LINK_TYPES=['circle','diamond','square','triangle','heart','moon','bolt','leaf','flower','gem','ring','sun'];
+    const LINK_FA_ICONS={circle:'fa-circle',diamond:'fa-diamond',square:'fa-square',triangle:'fa-caret-up',heart:'fa-heart',moon:'fa-moon',bolt:'fa-bolt',leaf:'fa-leaf',flower:'fa-clover',gem:'fa-gem',ring:'fa-circle-dot',sun:'fa-sun'};
+    const LINK_COLORS=['pink','blue','yellow','green','purple'];
+
+    function linkEmptyBoard(){return Array.from({length:LINK_ROWS},()=>Array(LINK_COLS).fill(null));}
+    function linkShuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+    function linkLoad(){try{const x=JSON.parse(localStorage.getItem(LINKMATCH_KEY)||'null');if(x?.board?.length===LINK_ROWS&&x.board.every(r=>Array.isArray(r)&&r.length===LINK_COLS))return x;}catch{}return null;}
+    function linkSave(g){try{localStorage.setItem(LINKMATCH_KEY,JSON.stringify(g));}catch{}}
+    function linkNew(){
+        const board=linkEmptyBoard();
+        const pairs=[];
+        for(let i=0;i<(LINK_ROWS*LINK_COLS)/2;i++){
+            const type=LINK_TYPES[i%LINK_TYPES.length],color=LINK_COLORS[i%LINK_COLORS.length];
+            pairs.push({type,color});pairs.push({type,color});
+        }
+        let attempts=0;
+        do{
+            linkShuffle(pairs);
+            for(let r=0,k=0;r<LINK_ROWS;r++)for(let c=0;c<LINK_COLS;c++,k++)board[r][c]=pairs[k];
+            attempts++;
+            if(linkHasAnyMove(board)||attempts>120)break;
+        }while(true);
+        return {board,score:0,removed:0,won:false,over:false,moves:0};
+    }
+    function linkInside(r,c){return r>=0&&r<LINK_ROWS&&c>=0&&c<LINK_COLS;}
+    function linkEmpty(g,r,c){return linkInside(r,c)&&!g.board[r][c];}
+    function linkLineClear(board,r1,c1,r2,c2){
+        if(r1===r2){for(let c=Math.min(c1,c2)+1;c<Math.max(c1,c2);c++)if(board[r1][c])return false;return true;}
+        if(c1===c2){for(let r=Math.min(r1,r2)+1;r<Math.max(r1,r2);r++)if(board[r][c1])return false;return true;}
+        return false;
+    }
+    function linkCan(board,a,b){
+        if(a.r===b.r&&a.c===b.c)return false;
+        // 连线允许经过棋盘外沿的“空白边界”，这也是经典连连看的常见规则。
+        // 在内部棋盘外扩一圈虚拟空格后，用 BFS 记录方向和转弯次数，最多两次转弯。
+        const minR=-1,maxR=LINK_ROWS,minC=-1,maxC=LINK_COLS;
+        const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+        const q=[];
+        const best=new Map();
+        for(let d=0;d<4;d++){
+            const nr=a.r+dirs[d][0],nc=a.c+dirs[d][1];
+            if(nr<minR||nr>maxR||nc<minC||nc>maxC)continue;
+            if((nr!==b.r||nc!==b.c)&&linkInside(nr,nc)&&board[nr][nc])continue;
+            const key=`${nr},${nc},${d}`;best.set(key,0);q.push([nr,nc,d,0]);
+        }
+        while(q.length){
+            const [r,c,d,turns]=q.shift();
+            if(r===b.r&&c===b.c)return true;
+            for(let nd=0;nd<4;nd++){
+                const nr=r+dirs[nd][0],nc=c+dirs[nd][1];
+                if(nr<minR||nr>maxR||nc<minC||nc>maxC)continue;
+                if((nr!==b.r||nc!==b.c)&&linkInside(nr,nc)&&board[nr][nc])continue;
+                const nt=turns+(nd===d?0:1);
+                if(nt>2)continue;
+                const key=`${nr},${nc},${nd}`;
+                const prev=best.get(key);
+                if(prev!==undefined&&prev<=nt)continue;
+                best.set(key,nt);q.push([nr,nc,nd,nt]);
+            }
+        }
+        return false;
+    }
+    function linkHasAnyMove(board){
+        const positions=new Map();
+        for(let r=0;r<LINK_ROWS;r++)for(let c=0;c<LINK_COLS;c++){const t=board[r][c];if(!t)continue;const key=`${t.type}|${t.color}`;if(!positions.has(key))positions.set(key,[]);positions.get(key).push({r,c});}
+        for(const list of positions.values())for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++)if(linkCan(board,list[i],list[j]))return true;
+        return false;
+    }
+    function linkPairScore(g,a,b){const dist=Math.abs(a.r-b.r)+Math.abs(a.c-b.c);g.score+=40+Math.max(0,24-dist*2);g.moves++;g.removed+=2;}
+    function linkRemove(g,a,b){g.board[a.r][a.c]=null;g.board[b.r][b.c]=null;linkPairScore(g,a,b);if(g.removed>=LINK_ROWS*LINK_COLS){g.won=true;recordGameWin('linkMatch');}else if(!linkHasAnyMove(g.board)){g.over=true;}linkSave(g);}
+    function linkShuffleRemaining(g){
+        const items=[];
+        for(let r=0;r<LINK_ROWS;r++)for(let c=0;c<LINK_COLS;c++)if(g.board[r][c])items.push(g.board[r][c]);
+        if(items.length<2)return false;
+        for(let attempt=0;attempt<80;attempt++){
+            linkShuffle(items);
+            let k=0;
+            for(let r=0;r<LINK_ROWS;r++)for(let c=0;c<LINK_COLS;c++)if(g.board[r][c])g.board[r][c]=items[k++];
+            if(linkHasAnyMove(g.board)){g.over=false;linkSave(g);return true;}
+        }
+        linkSave(g);return false;
+    }
+
+    function renderLinkMatch(body){
+        cleanupGame();
+        state.linkMatch=linkLoad()||linkNew();linkSave(state.linkMatch);
+        const top=el('div',{class:'stgc-status-row'}),info=el('div',{class:'stgc-status-text'}),shuffleBtn=el('button',{class:'stgc-btn',type:'button'}),reset=el('button',{class:'stgc-btn',type:'button'});shuffleBtn.innerHTML='<i class="fa-solid fa-shuffle"></i><span>洗牌</span>';reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';
+        const hint=el('div',{class:'stgc-game-hint',text:'点击两个相同图案的星星彩块连接。最多允许两次转弯，路径上的格子必须为空。'});
+        const board=el('div',{class:'link-match-board','aria-label':'连连看棋盘'}),result=el('div',{class:'star-pop-result'});
+        top.append(info,shuffleBtn,reset);body.append(top,board,result,hint);
+        function draw(){
+            const g=state.linkMatch;board.innerHTML='';board.dataset.palette='macaron';
+            info.textContent=g.won?`🎉 清空棋盘 · ${g.score} 分`:g.over?`没有可连接的牌了 · ${g.score} 分`:`已消除 ${g.removed}/${LINK_ROWS*LINK_COLS} · 分数 ${g.score}`;
+            result.textContent=g.won?'🎉 通关！':g.over?'没有可连接的牌了，可以点击“洗牌”':'点击两个相同图案';
+            for(let r=0;r<LINK_ROWS;r++)for(let c=0;c<LINK_COLS;c++){
+                const t=g.board[r][c];
+                const cell=el('button',{class:`link-match-cell${t?` link-${t.type}`:' empty'}`,type:'button'});
+                if(t){cell.dataset.color=t.color;cell.innerHTML=`<i class="fa-solid ${LINK_FA_ICONS[t.type]}" aria-hidden="true"></i>`;cell.addEventListener('click',()=>select(r,c));}
+                else cell.disabled=true;
+                board.append(cell);
+            }
+        }
+        let selected=null;
+        function select(r,c){
+            const g=state.linkMatch;if(g.over||g.won||!g.board[r][c])return;
+            const cur={r,c};
+            if(!selected){selected=cur;draw();board.querySelectorAll('.link-match-cell').forEach((node,i)=>{const rr=Math.floor(i/LINK_COLS),cc=i%LINK_COLS;if(rr===r&&cc===c)node.classList.add('selected');});return;}
+            if(selected.r===r&&selected.c===c){selected=null;draw();return;}
+            const a=selected,b=cur,ta=g.board[a.r][a.c],tb=g.board[b.r][b.c];
+            if(ta.type===tb.type&&ta.color===tb.color&&linkCan(g.board,a,b)){
+                linkRemove(g,a,b);selected=null;draw();
+                if(g.won||g.over)return;
+            }else{
+                selected=cur;draw();board.querySelectorAll('.link-match-cell').forEach((node,i)=>{const rr=Math.floor(i/LINK_COLS),cc=i%LINK_COLS;if(rr===r&&cc===c)node.classList.add('selected');});
+            }
+        }
+        shuffleBtn.addEventListener('click',()=>{selected=null;if(linkShuffleRemaining(state.linkMatch))draw();});
+        reset.addEventListener('click',()=>{state.linkMatch=linkNew();linkSave(state.linkMatch);selected=null;draw();});
+        state.cleanup=()=>linkSave(state.linkMatch);
         draw();
     }
 
@@ -3206,15 +3336,13 @@
     const TETROMINOES={
         I:[[0,0],[1,0],[2,0],[3,0]],O:[[0,0],[1,0],[0,1],[1,1]],T:[[1,0],[0,1],[1,1],[2,1]],S:[[1,0],[2,0],[0,1],[1,1]],Z:[[0,0],[1,0],[1,1],[2,1]],J:[[0,0],[0,1],[1,1],[2,1]],L:[[2,0],[0,1],[1,1],[2,1]]
     };
-    const TETRIS_COLORS={I:'I',O:'O',T:'T',S:'S',Z:'Z',J:'J',L:'L'};
 
     function tetrisBag(){const a=Object.keys(TETROMINOES);for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-    function tetrisPiece(type){return {type, x:3, y:0, rot:0};}
+    function tetrisPiece(type){return {type,x:3,y:0,rot:0};}
     function tetrisCells(piece){
-        const base=TETROMINOES[piece.type];
-        let cells=base.map(([x,y])=>[x,y]);
-        for(let r=0;r<piece.rot%4;r++) cells=cells.map(([x,y])=>[-y,x]);
-        const minX=Math.min(...cells.map(c=>c[0])), minY=Math.min(...cells.map(c=>c[1]));
+        const base=TETROMINOES[piece.type];let cells=base.map(([x,y])=>[x,y]);
+        for(let r=0;r<piece.rot%4;r++)cells=cells.map(([x,y])=>[-y,x]);
+        const minX=Math.min(...cells.map(c=>c[0])),minY=Math.min(...cells.map(c=>c[1]));
         return cells.map(([x,y])=>[x-minX,y-minY]);
     }
     function tetrisCanPlace(g,piece,dx=0,dy=0,rot=piece.rot){
@@ -3223,10 +3351,15 @@
     }
     function tetrisSpawn(g){
         if(!g.queue.length)g.queue.push(...tetrisBag());
-        const type=g.queue.shift();g.queue.push(...(g.queue.length<3?tetrisBag():[]));g.current=tetrisPiece(type);g.current.x=3;g.current.y=0;g.current.rot=0;
+        const type=g.queue.shift();
+        if(g.queue.length<4)g.queue.push(...tetrisBag());
+        g.current=tetrisPiece(type);g.current.x=3;g.current.y=0;g.current.rot=0;
         if(!tetrisCanPlace(g,g.current))g.over=true;
     }
-    function tetrisNew(){const g={board:Array.from({length:20},()=>Array(10).fill(0)),queue:[],current:null,score:0,lines:0,level:1,over:false,paused:false,dropTick:0,startedAt:Date.now()};g.queue.push(...tetrisBag(),...tetrisBag());tetrisSpawn(g);return g;}
+    function tetrisNew(){
+        const g={board:Array.from({length:20},()=>Array(10).fill(0)),queue:[],current:null,score:0,lines:0,level:1,over:false,paused:false,startedAt:Date.now(),lastDropAt:0};
+        g.queue.push(...tetrisBag(),...tetrisBag());tetrisSpawn(g);return g;
+    }
     function saveTetris(){try{localStorage.setItem(TETRIS_KEY,JSON.stringify(state.tetris));}catch{}}
     function loadTetris(){try{const x=JSON.parse(localStorage.getItem(TETRIS_KEY)||'null');if(x?.board?.length===20)return x;}catch{}return null;}
     function clearTetris(){try{localStorage.removeItem(TETRIS_KEY);}catch{}}
@@ -3235,27 +3368,109 @@
         let cleared=0;
         for(let y=19;y>=0;y--){if(g.board[y].every(Boolean)){g.board.splice(y,1);g.board.unshift(Array(10).fill(0));cleared++;y++;}}
         if(cleared){const points=[0,100,300,500,800][cleared]*g.level;g.score+=points;g.lines+=cleared;g.level=1+Math.floor(g.lines/10);}
-        tetrisSpawn(g);
+        tetrisSpawn(g);g.lastDropAt=performance.now();saveTetris();
     }
-    function tetrisMove(dir){const g=state.tetris;if(!g||g.over||g.paused)return false;let moved=false;if(dir==='left'&&tetrisCanPlace(g,g.current,-1,0)){g.current.x--;moved=true;}if(dir==='right'&&tetrisCanPlace(g,g.current,1,0)){g.current.x++;moved=true;}if(dir==='down'){if(tetrisCanPlace(g,g.current,0,1)){g.current.y++;g.score++;moved=true;}else{tetrisLock(g);moved=true;}}if(dir==='drop'){let d=0;while(tetrisCanPlace(g,g.current,0,d+1))d++;g.current.y+=d;g.score+=d*2;tetrisLock(g);moved=true;}if(dir==='rotate'){let r=(g.current.rot+1)%4;if(tetrisCanPlace(g,g.current,0,0,r)){g.current.rot=r;moved=true;}else for(const kick of [-1,1,-2,2])if(tetrisCanPlace(g,g.current,kick,0,r)){g.current.x+=kick;g.current.rot=r;moved=true;break;}}if(moved)saveTetris();return moved;}
+    function tetrisMove(dir){
+        const g=state.tetris;if(!g||g.over||g.paused)return false;let moved=false;
+        if(dir==='left'&&tetrisCanPlace(g,g.current,-1,0)){g.current.x--;moved=true;}
+        if(dir==='right'&&tetrisCanPlace(g,g.current,1,0)){g.current.x++;moved=true;}
+        if(dir==='down'){
+            if(tetrisCanPlace(g,g.current,0,1)){g.current.y++;g.score++;moved=true;}
+            else{tetrisLock(g);moved=true;}
+        }
+        if(dir==='drop'){
+            let d=0;while(tetrisCanPlace(g,g.current,0,d+1))d++;g.current.y+=d;g.score+=d*2;tetrisLock(g);moved=true;
+        }
+        if(dir==='rotate'){
+            const r=(g.current.rot+1)%4;
+            if(tetrisCanPlace(g,g.current,0,0,r)){g.current.rot=r;moved=true;}
+            else for(const kick of [-1,1,-2,2])if(tetrisCanPlace(g,g.current,kick,0,r)){g.current.x+=kick;g.current.rot=r;moved=true;break;}
+        }
+        return moved;
+    }
 
     function renderTetris(body){
-        cleanupGame(); state.tetris=loadTetris()||tetrisNew(); saveTetris();
-        const top=el('div',{class:'stgc-status-row'}),info=el('div',{class:'stgc-status-text'}),reset=el('button',{class:'stgc-btn',type:'button'}),pause=el('button',{class:'stgc-btn',type:'button'});reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';pause.innerHTML='<i class="fa-solid fa-pause"></i><span>暂停</span>';top.append(info,pause,reset);
-        const wrap=el('div',{class:'tetris-wrap'}),board=el('div',{class:'tetris-board'}),side=el('div',{class:'tetris-side'}),nextTitle=el('div',{class:'stgc-side-title',text:'下一个'}),next=el('div',{class:'tetris-next'});side.append(nextTitle,next);wrap.append(board,side);
+        cleanupGame();
+        state.tetris=loadTetris()||tetrisNew();
+        state.tetris.lastDropAt=performance.now();
+        saveTetris();
+
+        const top=el('div',{class:'stgc-status-row'}),info=el('div',{class:'stgc-status-text'}),reset=el('button',{class:'stgc-btn',type:'button'}),pause=el('button',{class:'stgc-btn',type:'button'});
+        reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';
+        top.append(info,pause,reset);
+
+        const wrap=el('div',{class:'tetris-wrap'}),board=el('div',{class:'tetris-board'}),side=el('div',{class:'tetris-side'}),nextTitle=el('div',{class:'stgc-side-title',text:'下一个'}),next=el('div',{class:'tetris-next'});
+        side.append(nextTitle,next);wrap.append(board,side);
         const controls=el('div',{class:'tetris-controls'});
         const add=(text,fn,cls='')=>{const b=el('button',{class:`direction-btn ${cls}`,type:'button',text});b.addEventListener('click',fn);controls.append(b);return b;};
-        add('↺',()=>tetrisMove('rotate'),'tetris-rotate');add('←',()=>tetrisMove('left'));add('↓',()=>tetrisMove('down'));add('→',()=>tetrisMove('right'));add('⤓',()=>tetrisMove('drop'),'tetris-drop');
+        add('↺',()=>{if(tetrisMove('rotate'))draw(true);},'tetris-rotate');
+        add('←',()=>{if(tetrisMove('left'))draw(true);});
+        add('↓',()=>{if(tetrisMove('down'))draw(true);});
+        add('→',()=>{if(tetrisMove('right'))draw(true);});
+        add('⤓',()=>{if(tetrisMove('drop'))draw(true);},'tetris-drop');
         body.append(top,wrap,controls,el('div',{class:'stgc-game-hint',text:'← → 移动 · ↓ 加速 · ↺ 旋转 · ⤓ 直接落底 · 刷新自动保存'}));
-        const draw=()=>{
-            const g=state.tetris;board.innerHTML='';const cells=Array.from({length:20},()=>Array(10).fill(''));for(let y=0;y<20;y++)for(let x=0;x<10;x++)if(g.board[y][x])cells[y][x]=g.board[y][x];
-            if(g.current&&!g.over)for(const [x,y] of tetrisCells(g.current)){const nx=g.current.x+x,ny=g.current.y+y;if(ny>=0&&ny<20&&nx>=0&&nx<10)cells[ny][nx]=g.current.type;}
-            for(let y=0;y<20;y++)for(let x=0;x<10;x++){const c=el('div',{class:`tetris-cell${cells[y][x]?' filled':''}`});if(cells[y][x])c.dataset.t=cells[y][x];board.append(c);}info.textContent=g.over?`游戏结束 · ${g.score} 分`:g.paused?`已暂停 · ${g.score} 分`:`${g.score} 分 · ${g.lines} 行 · Lv.${g.level}`;pause.innerHTML=g.paused?'<i class="fa-solid fa-play"></i><span>继续</span>':'<i class="fa-solid fa-pause"></i><span>暂停</span>';next.innerHTML='';const p=tetrisPiece(g.queue[0]||'I');for(const [x,y] of tetrisCells(p)){const n=el('div',{class:'tetris-mini-cell',text:''});n.style.gridColumn=String(x+1);n.style.gridRow=String(y+1);n.dataset.t=p.type;next.append(n);}
+
+        // 只创建一次 200 个格子，后续只更新 class / data，避免每 90ms 重建整张 DOM。
+        const cellNodes=[];
+        for(let i=0;i<200;i++)cellNodes.push(el('div',{class:'tetris-cell'}));
+        board.replaceChildren(...cellNodes);
+
+        let needsRender=true;
+        let lastInfoTime=0;
+        const onKey=e=>{
+            if(state.currentGame!=='tetris')return;
+            const m={ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',ArrowUp:'rotate',' ':'drop'}[e.key];
+            if(!m)return;
+            e.preventDefault();e.stopPropagation();
+            if(tetrisMove(m)){needsRender=true;render();}
         };
-        const onKey=e=>{if(state.currentGame!=='tetris')return;const m={ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',' ':'drop',ArrowUp:'rotate'}[e.key];if(!m)return;e.preventDefault();e.stopPropagation();if(e.key===' ')tetrisMove('drop');else tetrisMove(m);draw();};document.addEventListener('keydown',onKey,true);
-        pause.addEventListener('click',()=>{state.tetris.paused=!state.tetris.paused;saveTetris();draw();});reset.addEventListener('click',()=>{clearTetris();state.tetris=tetrisNew();saveTetris();draw();});
-        const timer=window.setInterval(()=>{const g=state.tetris;if(!g||g.over||g.paused)return;const speed=Math.max(90,800-(g.level-1)*65);g.dropTick++;if(g.dropTick>=Math.max(1,Math.floor(speed/90))){g.dropTick=0;if(!tetrisCanPlace(g,g.current,0,1))tetrisLock(g);else g.current.y++;saveTetris();}draw();},90);
-        state.cleanup=()=>{document.removeEventListener('keydown',onKey,true);clearInterval(timer);saveTetris();};draw();
+        document.addEventListener('keydown',onKey,true);
+
+        pause.addEventListener('click',()=>{state.tetris.paused=!state.tetris.paused;if(!state.tetris.paused)state.tetris.lastDropAt=performance.now();saveTetris();needsRender=true;render();});
+        reset.addEventListener('click',()=>{const best=state.tetris?.best||0;clearTetris();state.tetris=tetrisNew();state.tetris.best=best;saveTetris();needsRender=true;render();});
+
+        const draw=(force=false)=>{needsRender=true;if(force)render();};
+        function render(){
+            if(!needsRender)return;
+            const g=state.tetris;
+            const cells=Array.from({length:200},(_,i)=>g.board[Math.floor(i/10)][i%10]);
+            if(g.current&&!g.over){for(const [x,y] of tetrisCells(g.current)){const nx=g.current.x+x,ny=g.current.y+y;if(ny>=0&&ny<20&&nx>=0&&nx<10)cells[ny*10+nx]=g.current.type;}}
+            for(let i=0;i<200;i++){
+                const node=cellNodes[i],v=cells[i];
+                node.classList.toggle('filled',!!v);
+                if(v)node.dataset.t=v; else delete node.dataset.t;
+            }
+            const now=performance.now();
+            if(now-lastInfoTime>120 || g.over || g.paused){
+                info.textContent=g.over?`游戏结束 · ${g.score} 分`:g.paused?`已暂停 · ${g.score} 分`:`${g.score} 分 · ${g.lines} 行 · Lv.${g.level}`;
+                pause.innerHTML=g.paused?'<i class="fa-solid fa-play"></i><span>继续</span>':'<i class="fa-solid fa-pause"></i><span>暂停</span>';
+                next.innerHTML='';
+                const p=tetrisPiece(g.queue[0]||'I');
+                for(const [x,y] of tetrisCells(p)){const n=el('div',{class:'tetris-mini-cell'});n.style.gridColumn=String(x+1);n.style.gridRow=String(y+1);n.dataset.t=p.type;next.append(n);}
+                lastInfoTime=now;
+            }
+            needsRender=false;
+        }
+
+        let rafId=0;
+        const loop=(now)=>{
+            rafId=requestAnimationFrame(loop);
+            const g=state.tetris;
+            if(!g||state.currentGame!=='tetris'){return;}
+            if(!g.over&&!g.paused){
+                const interval=Math.max(70,800-(g.level-1)*60);
+                if(now-(g.lastDropAt||now)>=interval){
+                    g.lastDropAt=now;
+                    if(tetrisCanPlace(g,g.current,0,1)){g.current.y++;needsRender=true;}
+                    else{tetrisLock(g);needsRender=true;}
+                    saveTetris();
+                }
+            }
+            render();
+        };
+        loop(performance.now());
+        state.cleanup=()=>{cancelAnimationFrame(rafId);document.removeEventListener('keydown',onKey,true);saveTetris();};
+        render();
     }
 
     /* ==================== Water Sort ==================== */

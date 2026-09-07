@@ -1956,6 +1956,65 @@
 }
 
 
+
+/* ==================== 连连看：复用消灭星星的软糖星块视觉 ==================== */
+#st-mini-game-center .link-match-board{
+  width:min(680px,100%);
+  margin:8px auto 14px;
+  padding:clamp(7px,1vw,10px);
+  display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:clamp(4px,.65vw,7px);
+  border-radius:16px;
+  background:var(--tetris-board-fill,var(--SmartThemeBorderColor,var(--SmartThemeBlurTintColor,rgba(127,127,127,.12))));
+  border:1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.25));
+  touch-action:manipulation;
+  user-select:none;
+}
+#st-mini-game-center .link-match-cell.star-pop-cell{
+  min-width:0;
+  min-height:0;
+  padding:0;
+  border:0;
+  font:inherit;
+}
+#st-mini-game-center .link-match-cell > i{
+  position:relative;
+  z-index:4;
+  font-size:clamp(14px,3.3vw,26px);
+  color:rgba(255,255,255,.84);
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));
+  pointer-events:none;
+}
+#st-mini-game-center .link-match-cell.selected{
+  transform:translateY(-1px) scale(1.035);
+  outline:3px solid var(--SmartThemeQuoteColor,var(--customThemeColor,#fff));
+  outline-offset:1px;
+  filter:brightness(1.08) saturate(1.04);
+}
+#st-mini-game-center .link-match-cell.empty{
+  visibility:hidden;
+}
+#st-mini-game-center .link-match-board .link-color-pink,
+#st-mini-game-center .link-match-board .link-color-blue,
+#st-mini-game-center .link-match-board .link-color-yellow,
+#st-mini-game-center .link-match-board .link-color-green,
+#st-mini-game-center .link-match-board .link-color-purple{ --tile-hi:#ffc7d8;--tile-mid:#f5a8bf;--tile-low:#e58ca7; }
+#st-mini-game-center .link-match-cell[data-color="pink"]{--tile-hi:#d8a5ac;--tile-mid:#c98e99;--tile-low:#b87984;}
+#st-mini-game-center .link-match-cell[data-color="blue"]{--tile-hi:#abc4d7;--tile-mid:#91afc7;--tile-low:#7999b4;}
+#st-mini-game-center .link-match-cell[data-color="yellow"]{--tile-hi:#e5d09b;--tile-mid:#d7bd78;--tile-low:#c6a861;}
+#st-mini-game-center .link-match-cell[data-color="green"]{--tile-hi:#b2cda3;--tile-mid:#98ba8b;--tile-low:#7ea872;}
+#st-mini-game-center .link-match-cell[data-color="purple"]{--tile-hi:#c0b3d7;--tile-mid:#aa97ca;--tile-low:#937db5;}
+#st-mini-game-center .link-match-cell:not(.empty){
+  background:linear-gradient(145deg,var(--tile-hi),var(--tile-mid) 47%,var(--tile-low));
+  border:1px solid rgba(255,255,255,.13);
+  box-shadow:inset 0 2px 2px rgba(255,255,255,.20),inset 0 -3px 5px rgba(50,40,45,.18),0 3px 6px rgba(0,0,0,.23);
+}
+@media(max-width:640px){
+  #st-mini-game-center .link-match-board{width:min(96vw,560px);gap:3px;padding:5px;border-radius:14px;}
+  #st-mini-game-center .link-match-cell > i{font-size:clamp(12px,4.2vw,22px);}
+}
+
 /* ==================== 叠蛋糕 ==================== */
 #st-mini-game-center .cake-game-wrap {
     width: min(720px, 100%);
