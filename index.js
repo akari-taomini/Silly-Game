@@ -33,6 +33,7 @@
         lastUpdateCheck: 0,
     });
     let updateCheckPromise = null;
+    let refreshFarmSeedRow = null;
 
     const FARM_STORAGE_KEY = 'silly-game-farm-v1';
     const GAME_WINS_STORAGE_KEY = 'silly-game-wins-v1';
@@ -73,7 +74,11 @@
         wins.add(gameId);
         saveGameWins(wins);
         const crop = Object.entries(FARM_CROPS).find(([, data]) => data.unlock === gameId)?.[1];
-        if (crop) notify(`你赢下了${FARM_GAME_NAMES[gameId]}，解锁新作物：${crop.name}`, 'Silly Farm');
+        if (crop) {
+            notify(`你赢下了${FARM_GAME_NAMES[gameId]}，解锁新作物：${crop.name}`, 'Silly Farm');
+            // 如果农场当前正开着，立即刷新种子栏，不需要退出再进入。
+            refreshFarmSeedRow?.();
+        }
     }
 
     function farmDefaultState() {
@@ -3546,6 +3551,9 @@
             drawSelection();
         }
 
+        // 让其他小游戏胜利时，可以即时把刚解锁的作物显示在当前农场里。
+        refreshFarmSeedRow = drawSeedRow;
+
         const timer = window.setInterval(() => {
             if (state.currentGame !== 'farm' || !state.farm) return;
             drawField();
@@ -3555,6 +3563,7 @@
         state.cleanup = () => {
             window.clearInterval(timer);
             farmSave();
+            refreshFarmSeedRow = null;
         };
 
         draw();
