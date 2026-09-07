@@ -15,6 +15,37 @@
         spider: null,
     };
 
+    const EXTENSION_SETTINGS_KEY = 'silly-game';
+    const DEFAULT_EXTENSION_SETTINGS = Object.freeze({ launcherEnabled: true });
+
+    function getSTContext() {
+        try {
+            return window.SillyTavern?.getContext?.() || window.TavernAI?.getContext?.() || null;
+        } catch {
+            return null;
+        }
+    }
+
+    function getExtensionSettings() {
+        const context = getSTContext();
+        const settings = context?.extensionSettings;
+        if (!settings) return null;
+        if (!settings[EXTENSION_SETTINGS_KEY]) {
+            settings[EXTENSION_SETTINGS_KEY] = { ...DEFAULT_EXTENSION_SETTINGS };
+        } else if (typeof settings[EXTENSION_SETTINGS_KEY].launcherEnabled !== 'boolean') {
+            settings[EXTENSION_SETTINGS_KEY].launcherEnabled = DEFAULT_EXTENSION_SETTINGS.launcherEnabled;
+        }
+        return settings[EXTENSION_SETTINGS_KEY];
+    }
+
+    function saveExtensionSettings() {
+        try {
+            getSTContext()?.saveSettingsDebounced?.();
+        } catch {
+            // SillyTavern API may not be ready yet; local fallback still works.
+        }
+    }
+
     function el(tag, attrs = {}, children = []) {
         const node = document.createElement(tag);
         for (const [key, value] of Object.entries(attrs)) {
@@ -96,6 +127,8 @@
     }
 
     function isLauncherHidden() {
+        const settings = getExtensionSettings();
+        if (settings) return settings.launcherEnabled === false;
         try {
             return localStorage.getItem(LAUNCHER_HIDDEN_KEY) === '1';
         } catch {
@@ -103,17 +136,27 @@
         }
     }
 
-    function setLauncherHidden(hidden) {
+    function setLauncherHidden(hidden, persist = true) {
         const launcher = document.getElementById(`${APP_ID}-launcher`);
-        if (!launcher) return;
-        launcher.classList.toggle('is-hidden', hidden);
-        launcher.setAttribute('aria-hidden', hidden ? 'true' : 'false');
-        launcher.tabIndex = hidden ? -1 : 0;
+        if (launcher) {
+            launcher.classList.toggle('is-hidden', hidden);
+            launcher.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+            launcher.tabIndex = hidden ? -1 : 0;
+        }
         const restore = document.getElementById(`${APP_ID}-restore`);
         if (restore) restore.classList.toggle('show', hidden);
-        try {
-            localStorage.setItem(LAUNCHER_HIDDEN_KEY, hidden ? '1' : '0');
-        } catch { /* ignore */ }
+
+        const settings = getExtensionSettings();
+        if (settings && settings.launcherEnabled !== !hidden) {
+            settings.launcherEnabled = !hidden;
+            if (persist) saveExtensionSettings();
+        }
+        if (persist) {
+            try {
+                localStorage.setItem(LAUNCHER_HIDDEN_KEY, hidden ? '1' : '0');
+            } catch { /* ignore */ }
+        }
+        updateExtensionSettingsUI();
     }
 
     function toggleLauncherHidden() {
@@ -247,6 +290,48 @@
         state.currentGame = null;
     }
 
+    function updateExtensionSettingsUI() {
+        const checkbox = document.getElementById('stgc_extension_launcher_enabled');
+        if (checkbox) checkbox.checked = !isLauncherHidden();
+    }
+
+    function addExtensionSettingsPanel() {
+        if (document.getElementById('stgc-extension-settings')) return true;
+        const container = document.getElementById('extensions_settings2');
+        if (!container) return false;
+
+        const settings = getExtensionSettings();
+        if (!settings) return false;
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'stgc-extension-settings';
+        wrapper.innerHTML = `
+            <div class="inline-drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <b>Silly Game</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <label class="checkbox_label" for="stgc_extension_launcher_enabled">
+                        <input id="stgc_extension_launcher_enabled" type="checkbox" class="checkbox">
+                        <small>显示 Silly Game 悬浮按钮</small>
+                    </label>
+                    <small class="stgc-extension-note">
+                        关闭后不会显示悬浮入口；重新打开此项即可恢复。按钮也可以在页面中自由拖动。
+                    </small>
+                </div>
+            </div>`;
+
+        container.append(wrapper);
+        const checkbox = wrapper.querySelector('#stgc_extension_launcher_enabled');
+        checkbox.checked = settings.launcherEnabled !== false;
+        checkbox.addEventListener('input', () => {
+            const enabled = checkbox.checked;
+            setLauncherHidden(!enabled, true);
+        });
+        return true;
+    }
+
     function buildHeader({ back = false, title = 'Silly Game', settings = false } = {}) {
         const header = el('header', { class: 'stgc-header' });
 
@@ -361,6 +446,7 @@
             { id: 'sokoban', icon: 'fa-box', name: '推箱子', desc: '11 个关卡 · 方向键 / WASD' },
             { id: 'sudoku', icon: 'fa-table-cells', name: '数独', desc: '9×9 数字逻辑 · 多种难度' },
             { id: 'spider', icon: 'fa-spider', name: '蜘蛛纸牌', desc: '1 / 2 / 4 花色 · 撤销与提示' },
+            { id: 'gomoku', icon: 'fa-circle-dot', name: '五子棋', desc: '15×15 · 本地 AI · 无需 API' },
         ];
 
         for (const game of games) {
@@ -397,6 +483,7 @@
             sokoban: '推箱子',
             sudoku: '数独',
             spider: '蜘蛛纸牌',
+            gomoku: '五子棋',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -409,6 +496,7 @@
         else if (game === 'sokoban') renderSokoban(body);
         else if (game === 'sudoku') renderSudoku(body);
         else if (game === 'spider') renderSpider(body);
+        else if (game === 'gomoku') renderGomoku(body);
     }
 
     /* ==================== Minesweeper ==================== */
@@ -575,31 +663,95 @@
         s.flags += cell.flag ? 1 : -1;
     }
 
-    function renderMinesweeper(body) {
-        state.mines = createMinesweeper('normal');
+    const GAME_MINES_STORAGE_KEY = 'st-mini-game-center:mines-v2';
 
-        // 扫雷视野：棋盘本体可以放大，外层视口只显示局部；
-        // 上下左右按钮每次移动一格，方便手机微调视野。
-        let mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
+    function saveMines() {
+        const s = state.mines;
+        if (!s) return;
+        try {
+            localStorage.setItem(GAME_MINES_STORAGE_KEY, JSON.stringify({
+                version: 2,
+                difficulty: s.difficulty,
+                size: s.size,
+                mineCount: s.mineCount,
+                cells: s.cells,
+                flags: s.flags,
+                gameOver: s.gameOver,
+                won: s.won,
+                mode: s.mode,
+                elapsed: s.startedAt ? Math.floor((Date.now() - s.startedAt) / 1000) : s.time,
+                time: s.time,
+                firstMove: s.firstMove,
+                minesPlaced: s.minesPlaced,
+            }));
+        } catch (error) {
+            console.warn('[Silly Game] 保存扫雷存档失败', error);
+        }
+    }
+
+    function loadMines() {
+        try {
+            const raw = localStorage.getItem(GAME_MINES_STORAGE_KEY);
+            if (!raw) return null;
+            const saved = JSON.parse(raw);
+            const config = MINES_DIFFICULTIES[saved.difficulty];
+            if (!config || saved.size !== config.size || saved.mineCount !== config.mines) return null;
+            if (!Array.isArray(saved.cells) || saved.cells.length !== config.size * config.size) return null;
+            const elapsed = Number.isFinite(saved.elapsed) ? Math.max(0, Math.floor(saved.elapsed)) : 0;
+            const active = !saved.gameOver && !saved.won && !saved.firstMove;
+            return {
+                difficulty: saved.difficulty,
+                size: config.size,
+                mineCount: config.mines,
+                cells: saved.cells.map(cell => ({
+                    mine: !!cell.mine,
+                    open: !!cell.open,
+                    flag: !!cell.flag,
+                    count: Number.isInteger(cell.count) ? cell.count : 0,
+                })),
+                flags: Math.max(0, Math.min(config.mines, Number(saved.flags) || 0)),
+                gameOver: !!saved.gameOver,
+                won: !!saved.won,
+                mode: saved.mode === 'flag' ? 'flag' : 'open',
+                startedAt: active ? Date.now() - elapsed * 1000 : null,
+                time: elapsed,
+                firstMove: !!saved.firstMove,
+                minesPlaced: !!saved.minesPlaced,
+            };
+        } catch (error) {
+            console.warn('[Silly Game] 读取扫雷存档失败', error);
+            return null;
+        }
+    }
+
+    function clearMinesSave() {
+        try {
+            localStorage.removeItem(GAME_MINES_STORAGE_KEY);
+        } catch { /* ignore */ }
+    }
+
+    function renderMinesweeper(body) {
+        // 首次使用默认“新手”9×9；已有存档则恢复上次的棋盘。
+        state.mines = loadMines() || createMinesweeper('beginner');
+
+        let mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
         let mineCellSize = 32;
 
         function getMineCellSize(size) {
             if (size >= 24) return 24;
             if (size >= 20) return 26;
             if (size >= 16) return 28;
-            return 32;
+            return 34;
         }
 
         function getMineMaxZoom(size) {
-            if (size >= 24) return 2.25;
-            if (size >= 20) return 2.5;
+            if (size >= 24) return 2.4;
+            if (size >= 20) return 2.6;
             return 3;
         }
 
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar' });
-        const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '难度' });
-        difficultyBar.append(difficultyLabel);
-
+        difficultyBar.append(el('span', { class: 'stgc-difficulty-label', text: '难度' }));
         for (const [id, config] of Object.entries(MINES_DIFFICULTIES)) {
             const btn = el('button', {
                 class: 'stgc-btn stgc-btn-quiet stgc-difficulty-btn',
@@ -608,11 +760,12 @@
             });
             btn.dataset.difficulty = id;
             btn.addEventListener('click', () => {
+                clearMinesSave();
                 state.mines = createMinesweeper(id);
-                mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
-                updateDifficultyButtons();
+                mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
                 draw();
                 centerMineView();
+                saveMines();
             });
             difficultyBar.append(btn);
         }
@@ -623,25 +776,37 @@
         const mineCounter = el('span', { class: 'stgc-pill' });
         const modeBtn = el('button', { class: 'stgc-btn stgc-btn-quiet', type: 'button' });
         const resetBtn = el('button', { class: 'stgc-btn', type: 'button' });
-
         modeBtn.innerHTML = '<i class="fa-solid fa-flag" aria-hidden="true"></i><span>标记模式</span>';
         resetBtn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
 
-        // 原地重置：只换状态，不重新建立 UI。
         resetBtn.addEventListener('click', () => {
+            clearMinesSave();
             state.mines = createMinesweeper(state.mines.difficulty);
-            mineZoom = window.innerWidth <= 640 ? 1.35 : 1;
+            mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
             draw();
             centerMineView();
+            saveMines();
         });
 
-        modeBtn.addEventListener('click', () => {
+        modeBtn.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!state.mines || state.mines.gameOver || state.mines.won) return;
             state.mines.mode = state.mines.mode === 'open' ? 'flag' : 'open';
             updateToolbar();
+            saveMines();
         });
 
-        const mineViewport = el('div', { class: 'mine-viewport', role: 'region', 'aria-label': '扫雷可视区域' });
-        const board = el('div', { class: 'mine-board', role: 'grid', 'aria-label': '扫雷棋盘' });
+        const mineViewport = el('div', {
+            class: 'mine-viewport',
+            role: 'region',
+            'aria-label': '扫雷可视区域',
+        });
+        const board = el('div', {
+            class: 'mine-board',
+            role: 'grid',
+            'aria-label': '扫雷棋盘',
+        });
         mineViewport.append(board);
 
         const mineViewTools = el('div', { class: 'mine-view-tools' });
@@ -660,7 +825,7 @@
 
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '棋盘可放大查看局部 · 上下左右按钮每次微调一格 · 左键翻开 · 右键标记 · 数字可再次点击展开',
+            text: '手机：长按标记 · 开启标记模式也可直接点 · 电脑：左键翻开、右键标记 · 数字再次点击展开 · 视野可放大并用方向键微调',
         });
 
         info.append(timer, mineCounter);
@@ -686,14 +851,11 @@
             const oldZoom = mineZoom;
             const maxZoom = getMineMaxZoom(s.size);
             mineZoom = Math.max(0.9, Math.min(maxZoom, Math.round(nextZoom * 20) / 20));
-
             if (mineZoom === oldZoom) return;
-
             const centerX = mineViewport.scrollLeft + mineViewport.clientWidth / 2;
             const centerY = mineViewport.scrollTop + mineViewport.clientHeight / 2;
             const ratio = mineZoom / oldZoom;
             draw();
-
             if (keepCenter) {
                 mineViewport.scrollLeft = Math.max(0, centerX * ratio - mineViewport.clientWidth / 2);
                 mineViewport.scrollTop = Math.max(0, centerY * ratio - mineViewport.clientHeight / 2);
@@ -715,6 +877,7 @@
             const move = keyMoves[event.key];
             if (!move) return;
             event.preventDefault();
+            event.stopPropagation();
             scrollMineView(...move);
         };
         document.addEventListener('keydown', onMineViewKey, true);
@@ -723,40 +886,114 @@
             if (!state.mines || state.mines.gameOver || state.mines.won || !state.mines.startedAt) return;
             state.mines.time = Math.floor((Date.now() - state.mines.startedAt) / 1000);
             updateToolbar();
+            saveMines();
         }, 1000);
 
-        // 手机上的长按可能同时触发 contextmenu + click，导致标记一次又被取消。
-        // 只让桌面右键承担“快速标记”，触屏一律交给“标记模式”处理。
+        let longPressTimer = null;
+        let longPressActive = false;
+        let suppressNextTouchClick = false;
         let lastTouchAt = 0;
+
         const onPointerDown = event => {
-            if (event.pointerType === 'touch') lastTouchAt = Date.now();
+            const cell = event.target.closest?.('.mine-cell');
+            if (!cell || !board.contains(cell)) return;
+            if (event.pointerType !== 'touch') return;
+            lastTouchAt = Date.now();
+            longPressActive = false;
+            clearTimeout(longPressTimer);
+            longPressTimer = window.setTimeout(() => {
+                const current = state.mines;
+                if (!current || current.gameOver || current.won) return;
+                longPressActive = true;
+                suppressNextTouchClick = true;
+                minesToggleFlag(Number(cell.dataset.index));
+                saveMines();
+                draw();
+            }, 450);
         };
+
+        const onPointerUp = event => {
+            if (event.pointerType !== 'touch') return;
+            clearTimeout(longPressTimer);
+            if (longPressActive) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            longPressActive = false;
+        };
+
+        const onPointerCancel = event => {
+            if (event.pointerType !== 'touch') return;
+            clearTimeout(longPressTimer);
+            longPressActive = false;
+        };
+
         const onContext = event => {
             const cellElement = event.target.closest?.('.mine-cell');
             if (!cellElement || !board.contains(cellElement)) return;
             event.preventDefault();
-            if (Date.now() - lastTouchAt < 800) return;
+            event.stopPropagation();
+            // 手机长按已经由 pointer timer 处理，避免第二次切换。
+            if (Date.now() - lastTouchAt < 900) return;
             minesToggleFlag(Number(cellElement.dataset.index));
+            saveMines();
             draw();
         };
+
+        const onCellClick = event => {
+            const cellElement = event.target.closest?.('.mine-cell');
+            if (!cellElement || !board.contains(cellElement)) return;
+            if (suppressNextTouchClick && Date.now() - lastTouchAt < 1100) {
+                suppressNextTouchClick = false;
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            const index = Number(cellElement.dataset.index);
+            const current = state.mines;
+            if (!current) return;
+            if (current.mode === 'flag') {
+                minesToggleFlag(index);
+            } else if (current.cells[index].open && current.cells[index].count > 0) {
+                minesChord(index);
+            } else {
+                minesReveal(index);
+            }
+            saveMines();
+            draw();
+        };
+
         board.addEventListener('pointerdown', onPointerDown);
+        board.addEventListener('pointerup', onPointerUp);
+        board.addEventListener('pointercancel', onPointerCancel);
         board.addEventListener('contextmenu', onContext);
+        board.addEventListener('click', onCellClick);
 
         const onKey = event => {
             if (state.currentGame !== 'mines' || !state.mines) return;
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
             if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.metaKey) {
                 event.preventDefault();
-                state.mines.mode = state.mines.mode === 'open' ? 'flag' : 'open';
-                updateToolbar();
+                event.stopPropagation();
+                if (!state.mines.gameOver && !state.mines.won) {
+                    state.mines.mode = state.mines.mode === 'open' ? 'flag' : 'open';
+                    updateToolbar();
+                    saveMines();
+                }
             }
         };
-        document.addEventListener('keydown', onKey);
+        document.addEventListener('keydown', onKey, true);
 
         state.cleanup = () => {
+            saveMines();
+            clearTimeout(longPressTimer);
             window.clearInterval(tick);
             board.removeEventListener('pointerdown', onPointerDown);
+            board.removeEventListener('pointerup', onPointerUp);
+            board.removeEventListener('pointercancel', onPointerCancel);
             board.removeEventListener('contextmenu', onContext);
-            document.removeEventListener('keydown', onKey);
+            board.removeEventListener('click', onCellClick);
+            document.removeEventListener('keydown', onKey, true);
             document.removeEventListener('keydown', onMineViewKey, true);
         };
 
@@ -768,9 +1005,12 @@
 
         function updateToolbar() {
             const s = state.mines;
+            if (s.startedAt && !s.gameOver && !s.won) {
+                s.time = Math.floor((Date.now() - s.startedAt) / 1000);
+            }
             const status = s.gameOver ? '踩雷了' : s.won ? '通关啦' : '';
             timer.textContent = status ? `${status} · ${formatTime(s.time)}` : formatTime(s.time);
-            mineCounter.textContent = `地雷 ${s.mineCount - s.flags}`;
+            mineCounter.textContent = `剩余雷 ${Math.max(0, s.mineCount - s.flags)}`;
             modeBtn.classList.toggle('active', s.mode === 'flag');
             board.classList.toggle('flag-mode', s.mode === 'flag');
             modeBtn.innerHTML = s.mode === 'flag'
@@ -797,7 +1037,6 @@
                     role: 'gridcell',
                 });
                 btn.dataset.index = String(index);
-
                 if (cell.flag && !cell.open) {
                     btn.innerHTML = '<i class="fa-solid fa-flag" aria-hidden="true"></i>';
                     btn.classList.add('flagged');
@@ -808,29 +1047,14 @@
                     btn.textContent = String(cell.count);
                     btn.dataset.n = String(cell.count);
                 }
-
-                btn.addEventListener('click', () => {
-                    const current = state.mines.cells[index];
-                    if (state.mines.mode === 'flag') {
-                        minesToggleFlag(index);
-                    } else if (current.open && current.count > 0) {
-                        minesChord(index);
-                    } else {
-                        minesReveal(index);
-                    }
-                    draw();
-                });
-
                 board.append(btn);
             });
-
             updateDifficultyButtons();
             updateToolbar();
         }
 
         updateDifficultyButtons();
         draw();
-        // 初次打开也从棋盘中心开始，尤其适合大师/地狱难度。
         requestAnimationFrame(centerMineView);
     }
 
@@ -1748,6 +1972,247 @@
     }
 
 
+    /* ==================== Gomoku ==================== */
+
+    const GOMOKU_SIZE = 15;
+
+    function newGomoku(mode = 'ai') {
+        return {
+            board: Array(GOMOKU_SIZE * GOMOKU_SIZE).fill(0),
+            current: 1,
+            winner: 0,
+            over: false,
+            mode,
+            moves: 0,
+            aiThinking: false,
+        };
+    }
+
+    function gomokuXY(index) {
+        return { x: index % GOMOKU_SIZE, y: Math.floor(index / GOMOKU_SIZE) };
+    }
+
+    function gomokuIndex(x, y) {
+        return y * GOMOKU_SIZE + x;
+    }
+
+    function gomokuInBounds(x, y) {
+        return x >= 0 && x < GOMOKU_SIZE && y >= 0 && y < GOMOKU_SIZE;
+    }
+
+    function gomokuCountDirection(game, x, y, dx, dy, player) {
+        let count = 0;
+        let nx = x + dx;
+        let ny = y + dy;
+        while (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === player) {
+            count++;
+            nx += dx;
+            ny += dy;
+        }
+        return count;
+    }
+
+    function gomokuCheckWin(game, index, player) {
+        const { x, y } = gomokuXY(index);
+        return [[1, 0], [0, 1], [1, 1], [1, -1]].some(([dx, dy]) => {
+            const total = 1
+                + gomokuCountDirection(game, x, y, dx, dy, player)
+                + gomokuCountDirection(game, x, y, -dx, -dy, player);
+            return total >= 5;
+        });
+    }
+
+    function gomokuCandidateCells(game) {
+        const stones = [];
+        game.board.forEach((v, i) => { if (v) stones.push(i); });
+        if (!stones.length) return [gomokuIndex(7, 7)];
+
+        const candidates = new Set();
+        for (const index of stones) {
+            const { x, y } = gomokuXY(index);
+            for (let dy = -2; dy <= 2; dy++) {
+                for (let dx = -2; dx <= 2; dx++) {
+                    const nx = x + dx, ny = y + dy;
+                    if (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === 0) {
+                        candidates.add(gomokuIndex(nx, ny));
+                    }
+                }
+            }
+        }
+        return [...candidates];
+    }
+
+    function gomokuLineScore(game, index, player) {
+        const opponent = player === 1 ? 2 : 1;
+        const { x, y } = gomokuXY(index);
+        let score = 0;
+        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+
+        for (const [dx, dy] of directions) {
+            let own = 1, open = 0, blocked = 0;
+            let nx = x + dx, ny = y + dy;
+            while (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === player) {
+                own++; nx += dx; ny += dy;
+            }
+            if (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === 0) open++;
+            else blocked++;
+
+            nx = x - dx; ny = y - dy;
+            while (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === player) {
+                own++; nx -= dx; ny -= dy;
+            }
+            if (gomokuInBounds(nx, ny) && game.board[gomokuIndex(nx, ny)] === 0) open++;
+            else blocked++;
+
+            if (own >= 5) score += 100000;
+            else if (own === 4 && open === 2) score += 12000;
+            else if (own === 4 && open === 1) score += 3500;
+            else if (own === 3 && open === 2) score += 1000;
+            else if (own === 3 && open === 1) score += 220;
+            else if (own === 2 && open === 2) score += 110;
+            else if (own === 2 && open === 1) score += 25;
+            else score += Math.max(1, own * 2 - blocked);
+        }
+
+        // 中心位置略有偏好，帮助开局更自然。
+        const dist = Math.abs(x - 7) + Math.abs(y - 7);
+        score += Math.max(0, 18 - dist);
+        score += player === opponent ? 0 : 0;
+        return score;
+    }
+
+    function gomokuWouldWin(game, index, player) {
+        game.board[index] = player;
+        const win = gomokuCheckWin(game, index, player);
+        game.board[index] = 0;
+        return win;
+    }
+
+    function chooseGomokuAIMove(game) {
+        const candidates = gomokuCandidateCells(game);
+        const ai = 2;
+        const human = 1;
+
+        // 先抢自己的必胜点，再堵玩家的必胜点。
+        for (const index of candidates) if (gomokuWouldWin(game, index, ai)) return index;
+        for (const index of candidates) if (gomokuWouldWin(game, index, human)) return index;
+
+        let best = candidates[0];
+        let bestScore = -Infinity;
+        for (const index of candidates) {
+            const attack = gomokuLineScore(game, index, ai);
+            const defense = gomokuLineScore(game, index, human);
+            const score = attack * 1.15 + defense * 1.05 + Math.random() * 5;
+            if (score > bestScore) {
+                bestScore = score;
+                best = index;
+            }
+        }
+        return best;
+    }
+
+    function gomokuPlace(game, index, player) {
+        if (game.over || game.board[index] !== 0) return false;
+        game.board[index] = player;
+        game.moves++;
+        if (gomokuCheckWin(game, index, player)) {
+            game.winner = player;
+            game.over = true;
+        } else if (game.board.every(Boolean)) {
+            game.over = true;
+            game.winner = 0;
+        } else {
+            game.current = player === 1 ? 2 : 1;
+        }
+        return true;
+    }
+
+    function renderGomoku(body) {
+        state.gomoku = newGomoku('ai');
+
+        const top = el('div', { class: 'stgc-game-toolbar' });
+        const info = el('div', { class: 'stgc-game-info' });
+        const status = el('span', { class: 'stgc-pill' });
+        const mode = el('button', { class: 'stgc-btn stgc-btn-quiet', type: 'button' });
+        const reset = el('button', { class: 'stgc-btn', type: 'button' });
+        mode.textContent = '人机对战';
+        reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+        info.append(status);
+        top.append(info, mode, reset);
+
+        const board = el('div', { class: 'gomoku-board', 'aria-label': '五子棋棋盘' });
+        body.append(top, board, el('div', {
+            class: 'stgc-game-hint',
+            text: '默认与你对战本地 AI，不需要配置 API · 点击棋盘落子 · 可切换双人对战',
+        }));
+
+        const draw = () => {
+            const game = state.gomoku;
+            board.innerHTML = '';
+            board.style.gridTemplateColumns = `repeat(${GOMOKU_SIZE}, minmax(0, 1fr))`;
+            board.style.gridTemplateRows = `repeat(${GOMOKU_SIZE}, minmax(0, 1fr))`;
+            for (let index = 0; index < game.board.length; index++) {
+                const cell = el('button', {
+                    class: 'gomoku-cell',
+                    type: 'button',
+                    'aria-label': `第 ${Math.floor(index / GOMOKU_SIZE) + 1} 行，第 ${index % GOMOKU_SIZE + 1} 列`,
+                });
+                if (game.board[index] === 1) cell.classList.add('black');
+                else if (game.board[index] === 2) cell.classList.add('white');
+                if (index === 112) cell.classList.add('center-star');
+                cell.dataset.index = String(index);
+                board.append(cell);
+            }
+
+            if (game.winner === 1) status.textContent = '你赢了 🎉';
+            else if (game.winner === 2) status.textContent = 'AI 赢了';
+            else if (game.over) status.textContent = '和棋';
+            else if (game.aiThinking) status.textContent = 'AI 思考中…';
+            else status.textContent = game.current === 1 ? '轮到你' : 'AI 回合';
+
+            mode.textContent = game.mode === 'ai' ? '人机对战' : '双人对战';
+        };
+
+        const playAI = () => {
+            const game = state.gomoku;
+            if (game.mode !== 'ai' || game.over || game.current !== 2) return;
+            game.aiThinking = true;
+            draw();
+            window.setTimeout(() => {
+                // 切换模式/重新开始后，旧回合不能污染新棋盘。
+                if (state.currentGame !== 'gomoku' || state.gomoku !== game) return;
+                const move = chooseGomokuAIMove(game);
+                game.aiThinking = false;
+                gomokuPlace(game, move, 2);
+                draw();
+            }, 160);
+        };
+
+        board.addEventListener('click', event => {
+            const cell = event.target.closest?.('.gomoku-cell');
+            if (!cell) return;
+            const game = state.gomoku;
+            if (!game || game.over || game.aiThinking) return;
+            if (game.mode === 'ai' && game.current !== 1) return;
+            if (!gomokuPlace(game, Number(cell.dataset.index), game.current)) return;
+            draw();
+            playAI();
+        });
+
+        mode.addEventListener('click', () => {
+            const next = state.gomoku.mode === 'ai' ? 'pvp' : 'ai';
+            state.gomoku = newGomoku(next);
+            draw();
+        });
+        reset.addEventListener('click', () => {
+            state.gomoku = newGomoku(state.gomoku.mode);
+            draw();
+        });
+
+        state.cleanup = () => {};
+        draw();
+    }
+
     /* ==================== Spider Solitaire ==================== */
 
     const SPIDER_LEVELS = {
@@ -2144,8 +2609,21 @@
         return `${mins}:${secs}`;
     }
 
-    function init() {
+    function initExtensionUI() {
         injectLauncher();
+        const settings = getExtensionSettings();
+        if (settings) setLauncherHidden(settings.launcherEnabled === false, false);
+
+        let attempts = 0;
+        const tryAddSettings = () => {
+            if (addExtensionSettingsPanel() || attempts++ > 20) return;
+            window.setTimeout(tryAddSettings, 250);
+        };
+        tryAddSettings();
+    }
+
+    function init() {
+        initExtensionUI();
         document.addEventListener('keydown', event => {
             if (event.altKey && event.key.toLowerCase() === 'g') {
                 event.preventDefault();

@@ -1025,3 +1025,122 @@
         order: 3;
     }
 }
+
+/* ---------- Silly Game 扩展设置 ---------- */
+#stgc-extension-settings .stgc-extension-note {
+    display: block;
+    margin: 6px 0 0 30px;
+    opacity: .68;
+    line-height: 1.5;
+}
+
+/* ---------- 五子棋 ---------- */
+#st-mini-game-center .gomoku-board {
+    width: min(560px, 100%);
+    aspect-ratio: 1;
+    margin: 6px auto 12px;
+    padding: 8px;
+    display: grid;
+    background:
+        repeating-linear-gradient(to right,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
+        repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
+        var(--SmartThemeBlurTintColor, var(--black10a, rgba(0,0,0,.10)));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.42));
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+#st-mini-game-center .gomoku-cell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    background: transparent !important;
+    color: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+#st-mini-game-center .gomoku-cell::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 62%;
+    height: 62%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity .08s ease, transform .08s ease;
+}
+
+#st-mini-game-center .gomoku-cell.black::before,
+#st-mini-game-center .gomoku-cell.white::before {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#st-mini-game-center .gomoku-cell.black::before {
+    background: #202020;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 1px 2px 3px rgba(0,0,0,.25);
+}
+
+#st-mini-game-center .gomoku-cell.white::before {
+    background: #f7f7f7;
+    border: 1px solid rgba(0,0,0,.32);
+    box-shadow: inset -1px -1px 3px rgba(0,0,0,.14), 1px 2px 3px rgba(0,0,0,.18);
+}
+
+#st-mini-game-center .gomoku-cell.center-star::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .65;
+}
+
+#st-mini-game-center .gomoku-cell.black.center-star::after,
+#st-mini-game-center .gomoku-cell.white.center-star::after {
+    opacity: 0;
+}
+
+#st-mini-game-center .gomoku-cell:hover::before {
+    opacity: .18;
+}
+
+#st-mini-game-center .gomoku-cell.black:hover::before,
+#st-mini-game-center .gomoku-cell.white:hover::before {
+    opacity: 1;
+}
+
+@media (max-width: 640px) {
+    #st-mini-game-center .gomoku-board {
+        width: min(94vw, 500px);
+        padding: 6px;
+    }
+
+    #st-mini-game-center .gomoku-cell::before {
+        width: 66%;
+        height: 66%;
+    }
+}
