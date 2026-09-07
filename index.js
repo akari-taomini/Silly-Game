@@ -453,7 +453,7 @@
             { id: 'gomoku', icon: 'fa-circle-dot', name: '五子棋', desc: '15×15 · 本地 AI · 无需 API' },
             { id: 'puzzle15', icon: 'fa-border-all', name: '数字华容道', desc: '3×3 / 4×4 / 5×5 · 经典滑块' },
             { id: 'tetris', icon: 'fa-shapes', name: '俄罗斯方块', desc: '10×20 · 消行 · 方向键 / 虚拟键' },
-            { id: 'go', icon: 'fa-circle-half-stroke', name: '围棋', desc: '9×9 · 本地 AI / 双人 · 无需 API' },
+            { id: 'go', icon: 'fa-circle-half-stroke', name: '围棋', desc: '9×9 / 13×13 / 19×19 · 本地 AI / 双人' },
         ]; 
 
         for (const game of games) {
@@ -2411,46 +2411,362 @@
         state.cleanup=()=>{document.removeEventListener('keydown',onKey,true);clearInterval(timer);saveTetris();};draw();
     }
 
-    /* ==================== Go 9x9 ==================== */
-    const GO_SIZE=9;
-    const GO_KEY='silly-game:go:v1';
+    /* ==================== Go ==================== */
+    const GO_DEFAULT_SIZE = 13;
+    const GO_SIZE_OPTIONS = [9, 13, 19];
+    const GO_KEY = 'silly-game:go:v2';
 
-    function goIndex(x,y){return y*GO_SIZE+x}
-    function goXY(i){return [i%GO_SIZE,Math.floor(i/GO_SIZE)]}
-    function goNeighbors(i){const [x,y]=goXY(i),a=[];if(x>0)a.push(i-1);if(x<GO_SIZE-1)a.push(i+1);if(y>0)a.push(i-GO_SIZE);if(y<GO_SIZE-1)a.push(i+GO_SIZE);return a}
-    function goCloneBoard(b){return b.slice()}
-    function goGroup(board,start){const color=board[start];if(!color)return {stones:[],liberties:new Set()};const stones=[],libs=new Set(),seen=new Set([start]),q=[start];while(q.length){const i=q.pop();stones.push(i);for(const n of goNeighbors(i)){if(board[n]===0)libs.add(n);else if(board[n]===color&&!seen.has(n)){seen.add(n);q.push(n);}}}return {stones,liberties:libs};}
-    function goRemoveGroup(board,g){g.stones.forEach(i=>board[i]=0)}
-    function goMove(game,index,player){
-        if(game.over||game.board[index]!==0||player!==game.turn)return false;
-        const prevKey=game.board.join('');
-        if (prevKey===game.ko) { /* ko state is stored as the immediately previous position */ }
-        const next=goCloneBoard(game.board);next[index]=player;const opponent=player===1?2:1;let captured=0;
-        for(const n of goNeighbors(index))if(next[n]===opponent){const g=goGroup(next,n);if(g.liberties.size===0){captured+=g.stones.length;goRemoveGroup(next,g);}}
-        const own=goGroup(next,index);if(own.liberties.size===0&&captured===0)return false;
-        const key=next.join('');if(key===game.ko)return false;
-        game.history.push({board:game.board.slice(),turn:game.turn,ko:game.ko,captured:game.captured.slice(),passes:game.passes});
-        game.board=next;game.turn=opponent;game.captured[player-1]+=captured;game.ko=captured===1?prevKey:'';game.passes=0;return true;
+    function goIndex(size, x, y){ return y * size + x; }
+    function goXY(size, i){ return [i % size, Math.floor(i / size)]; }
+    function goNeighbors(size, i){
+        const [x,y] = goXY(size, i), a = [];
+        if (x > 0) a.push(i - 1);
+        if (x < size - 1) a.push(i + 1);
+        if (y > 0) a.push(i - size);
+        if (y < size - 1) a.push(i + size);
+        return a;
     }
-    function goUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.ko=h.ko;game.captured=h.captured;game.passes=h.passes;game.over=false;return true}
+    function goCloneBoard(b){ return b.slice(); }
+    function goGroup(size, board, start){
+        const color = board[start];
+        if (!color) return { stones: [], liberties: new Set() };
+        const stones = [], libs = new Set(), seen = new Set([start]), q = [start];
+        while (q.length){
+            const i = q.pop();
+            stones.push(i);
+            for (const n of goNeighbors(size, i)){
+                if (board[n] === 0) libs.add(n);
+                else if (board[n] === color && !seen.has(n)){
+                    seen.add(n);
+                    q.push(n);
+                }
+            }
+        }
+        return { stones, liberties: libs };
+    }
+    function goRemoveGroup(board, group){ group.stones.forEach(i => board[i] = 0); }
+    function goStarPoints(size){
+        if (size === 9) return [[2,2],[6,2],[4,4],[2,6],[6,6]];
+        if (size === 13) return [[3,3],[9,3],[6,6],[3,9],[9,9]];
+        return [[3,3],[9,3],[15,3],[3,9],[9,9],[15,9],[3,15],[9,15],[15,15]];
+    }
+    function goMove(game, index, player){
+        const size = game.size;
+        if (game.over || game.board[index] !== 0 || player !== game.turn) return false;
+        const previousKey = game.board.join('');
+        const next = goCloneBoard(game.board);
+        next[index] = player;
+        const opponent = player === 1 ? 2 : 1;
+        let captured = 0;
+
+        for (const n of goNeighbors(size, index)){
+            if (next[n] !== opponent) continue;
+            const group = goGroup(size, next, n);
+            if (group.liberties.size === 0){
+                captured += group.stones.length;
+                goRemoveGroup(next, group);
+            }
+        }
+
+        const own = goGroup(size, next, index);
+        if (own.liberties.size === 0 && captured === 0) return false;
+
+        const nextKey = next.join('');
+        if (nextKey === game.ko) return false;
+
+        game.history.push({
+            board: game.board.slice(),
+            turn: game.turn,
+            ko: game.ko,
+            captured: game.captured.slice(),
+            passes: game.passes,
+        });
+        game.board = next;
+        game.turn = opponent;
+        game.captured[player - 1] += captured;
+        game.ko = captured === 1 ? previousKey : '';
+        game.passes = 0;
+        return true;
+    }
+    function goUndo(game){
+        const h = game.history.pop();
+        if (!h) return false;
+        game.board = h.board;
+        game.turn = h.turn;
+        game.ko = h.ko;
+        game.captured = h.captured;
+        game.passes = h.passes;
+        game.over = false;
+        game.aiThinking = false;
+        return true;
+    }
     function goCountScore(game){
-        const seen=new Set();let black=game.captured[0],white=game.captured[1];
-        for(let i=0;i<game.board.length;i++)if(game.board[i]===0&&!seen.has(i)){const q=[i],region=[],owners=new Set();seen.add(i);while(q.length){const p=q.pop();region.push(p);for(const n of goNeighbors(p)){if(game.board[n]===0&&!seen.has(n)){seen.add(n);q.push(n)}else if(game.board[n])owners.add(game.board[n]);}}if(owners.size===1){if(owners.has(1))black+=region.length;else white+=region.length;}}
-        return {black,white:white+6.5};
+        const size = game.size;
+        const seen = new Set();
+        let black = game.captured[0], white = game.captured[1];
+        for (let i = 0; i < game.board.length; i++){
+            if (game.board[i] !== 0 || seen.has(i)) continue;
+            const q = [i], region = [], owners = new Set();
+            seen.add(i);
+            while (q.length){
+                const p = q.pop();
+                region.push(p);
+                for (const n of goNeighbors(size, p)){
+                    if (game.board[n] === 0 && !seen.has(n)){
+                        seen.add(n);
+                        q.push(n);
+                    } else if (game.board[n]) {
+                        owners.add(game.board[n]);
+                    }
+                }
+            }
+            if (owners.size === 1){
+                if (owners.has(1)) black += region.length;
+                else white += region.length;
+            }
+        }
+        return { black, white: white + 6.5 };
     }
-    function goCandidates(game){const set=new Set();game.board.forEach((v,i)=>{if(v)goNeighbors(i).forEach(n=>{if(game.board[n]===0)set.add(n)})});if(!set.size)for(let i=0;i<game.board.length;i++)if(!game.board[i])set.add(i);return [...set]}
-    function goSimpleAI(game){const cands=goCandidates(game), me=2, opp=1;let best=cands[0],score=-Infinity;for(const i of cands){const tmp={...game,board:game.board.slice(),history:[] ,captured:game.captured.slice(),turn:me,ko:game.ko,passes:game.passes,over:false};if(!goMove(tmp,i,me))continue;let s=tmp.captured[1]*30;const g=goGroup(tmp.board,i);s+=g.liberties.size*4;const [x,y]=goXY(i);s+=(4-Math.abs(4-x))+(4-Math.abs(4-y));const block=goMove(tmp,goCandidates({...game,turn:opp,board:tmp.board.slice(),history:[],captured:tmp.captured.slice(),ko:tmp.ko,passes:0,over:false})[0]||i,opp);s+=block?0:0;if(s>score){score=s;best=i;}}return best;}
-    function newGo(mode='ai'){return {board:Array(GO_SIZE*GO_SIZE).fill(0),turn:1,captured:[0,0],history:[],ko:'',passes:0,over:false,mode,aiThinking:false}}
-    function saveGo(){try{localStorage.setItem(GO_KEY,JSON.stringify(state.go));}catch{}}
-    function loadGo(){try{const g=JSON.parse(localStorage.getItem(GO_KEY)||'null');if(g?.board?.length===81)return g;}catch{}return null}
+    function goCandidates(game){
+        const size = game.size;
+        const set = new Set();
+        game.board.forEach((v,i)=>{
+            if (v) goNeighbors(size, i).forEach(n => { if (game.board[n] === 0) set.add(n); });
+        });
+        if (!set.size){
+            const center = Math.floor((size * size) / 2);
+            if (game.board[center] === 0) set.add(center);
+            for (let i = 0; i < game.board.length; i++){
+                if (game.board[i] === 0) set.add(i);
+                if (set.size >= Math.min(32, game.board.length)) break;
+            }
+        }
+        return [...set];
+    }
+    function goSimpleAI(game){
+        const size = game.size;
+        const cands = goCandidates(game);
+        const me = 2;
+        let best = null, bestScore = -Infinity;
+        const center = (size - 1) / 2;
+
+        for (const i of cands){
+            const tmp = {
+                size,
+                board: game.board.slice(),
+                history: [],
+                captured: game.captured.slice(),
+                turn: me,
+                ko: game.ko,
+                passes: game.passes,
+                over: false,
+                aiThinking: false,
+            };
+            if (!goMove(tmp, i, me)) continue;
+
+            const own = goGroup(size, tmp.board, i);
+            const [x,y] = goXY(size, i);
+            const centerDistance = Math.abs(center - x) + Math.abs(center - y);
+            let score = 0;
+            score += (tmp.captured[1] - game.captured[1]) * 35;
+            score += own.liberties.size * 5;
+            score += Math.max(0, size - centerDistance) * 0.8;
+
+            // 压制对手周围的弱子群。
+            for (const n of goNeighbors(size, i)){
+                if (tmp.board[n] === 1){
+                    const opp = goGroup(size, tmp.board, n);
+                    if (opp.liberties.size <= 2) score += (3 - opp.liberties.size) * 7;
+                }
+            }
+
+            if (score > bestScore){
+                bestScore = score;
+                best = i;
+            }
+        }
+        return best;
+    }
+    function newGo(size = GO_DEFAULT_SIZE, mode = 'ai'){
+        return {
+            size,
+            board: Array(size * size).fill(0),
+            turn: 1,
+            captured: [0,0],
+            history: [],
+            ko: '',
+            passes: 0,
+            over: false,
+            mode,
+            aiThinking: false,
+        };
+    }
+    function saveGo(){
+        try { localStorage.setItem(GO_KEY, JSON.stringify(state.go)); } catch {}
+    }
+    function loadGo(){
+        try {
+            const g = JSON.parse(localStorage.getItem(GO_KEY) || 'null');
+            if (!g || !GO_SIZE_OPTIONS.includes(Number(g.size))) return null;
+            const size = Number(g.size);
+            if (!Array.isArray(g.board) || g.board.length !== size * size) return null;
+            g.size = size;
+            g.mode = g.mode === 'pvp' ? 'pvp' : 'ai';
+            g.aiThinking = false;
+            return g;
+        } catch { return null; }
+    }
     function renderGo(body){
-        cleanupGame();state.go=loadGo()||newGo('ai');saveGo();
-        const top=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),pass=el('button',{class:'stgc-btn',type:'button',text:'停一手'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});top.append(status,mode,undo,pass,reset);
-        const board=el('div',{class:'go-board'}),controls=el('div',{class:'go-bottom-controls'});body.append(top,board,controls,el('div',{class:'stgc-game-hint',text:'9×9 围棋 · 气、提子、禁入、劫已实现 · 默认本地 AI，无需 API'}));
-        const draw=()=>{const g=state.go;board.innerHTML='';mode.textContent=g.mode==='ai'?'人机对战':'双人对战';if(g.over){const sc=goCountScore(g);status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;}else if(g.aiThinking)status.textContent='AI 思考中…';else status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;for(let i=0;i<81;i++){const c=el('div',{class:'go-cell',role:'button',tabindex:'0'});const [x,y]=goXY(i);if(x===0)c.classList.add('left');if(y===0)c.classList.add('top');if(g.board[i]===1)c.classList.add('black');if(g.board[i]===2)c.classList.add('white');if([20,24,40,56,60].includes(i))c.classList.add('star');c.dataset.index=String(i);board.append(c);}};
-        const ai=()=>{const g=state.go;if(g.mode!=='ai'||g.over||g.turn!==2)return;g.aiThinking=true;draw();window.setTimeout(()=>{if(state.currentGame!=='go'||state.go!==g)return;const move=goSimpleAI(g);g.aiThinking=false;if(move==null){g.passes++;}else goMove(g,move,2);if(g.passes>=2)g.over=true;saveGo();draw();},180)};
-        board.addEventListener('click',e=>{const c=e.target.closest?.('.go-cell');if(!c)return;const g=state.go;if(g.over||g.aiThinking)return;if(g.mode==='ai'&&g.turn!==1)return;const ok=goMove(g,Number(c.dataset.index),g.turn);if(ok){saveGo();draw();ai();}});
-        mode.addEventListener('click',()=>{state.go=newGo(state.go.mode==='ai'?'pvp':'ai');saveGo();draw();});undo.addEventListener('click',()=>{if(state.go.mode==='ai'&&state.go.history.length>=2){goUndo(state.go);goUndo(state.go);}else goUndo(state.go);saveGo();draw();});pass.addEventListener('click',()=>{const g=state.go;if(g.over)return;g.history.push({board:g.board.slice(),turn:g.turn,ko:g.ko,captured:g.captured.slice(),passes:g.passes});g.passes++;g.turn=g.turn===1?2:1;if(g.passes>=2)g.over=true;saveGo();draw();ai();});reset.addEventListener('click',()=>{state.go=newGo(state.go.mode);saveGo();draw();});state.cleanup=()=>saveGo();draw();
+        cleanupGame();
+        state.go = loadGo() || newGo(GO_DEFAULT_SIZE, 'ai');
+        saveGo();
+
+        const sizeRow = el('div',{class:'go-size-row'});
+        const sizeLabel = el('span',{class:'go-size-label',text:'棋盘'});
+        sizeRow.append(sizeLabel);
+        const sizeButtons = new Map();
+        GO_SIZE_OPTIONS.forEach(size=>{
+            const b = el('button',{class:'stgc-btn go-size-btn',type:'button',text:`${size}×${size}`});
+            b.addEventListener('click',()=>{
+                if (state.go.size === size) return;
+                state.go = newGo(size, state.go.mode);
+                saveGo();
+                draw();
+                ai();
+            });
+            sizeButtons.set(size,b);
+            sizeRow.append(b);
+        });
+
+        const top=el('div',{class:'stgc-status-row'});
+        const status=el('div',{class:'stgc-status-text'});
+        const mode=el('button',{class:'stgc-btn',type:'button'});
+        const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'});
+        const pass=el('button',{class:'stgc-btn',type:'button',text:'停一手'});
+        const reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        top.append(status,mode,undo,pass,reset);
+
+        const board=el('div',{class:'go-board'});
+        const hint=el('div',{class:'stgc-game-hint',text:'围棋 · 9×9 / 13×13 / 19×19 · 默认本地 AI，无需 API'});
+        body.append(sizeRow,top,board,hint);
+
+        const draw=()=>{
+            const g=state.go;
+            const size=g.size;
+            board.innerHTML='';
+            board.style.setProperty('--go-size',String(size));
+            board.style.setProperty('--go-step',`calc(100% / ${size - 1})`);
+            board.dataset.size=String(size);
+            sizeButtons.forEach((btn,s)=>btn.classList.toggle('is-selected',s===size));
+            mode.textContent=g.mode==='ai'?'人机对战':'双人对战';
+            undo.disabled = g.history.length===0 || g.aiThinking;
+            pass.disabled = g.over || g.aiThinking;
+            reset.disabled = g.aiThinking;
+
+            if(g.over){
+                const sc=goCountScore(g);
+                status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;
+            }else if(g.aiThinking){
+                status.textContent='AI 思考中…';
+            }else{
+                status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;
+            }
+
+            const stars=new Set(goStarPoints(size).map(([x,y])=>goIndex(size,x,y)));
+            for(let i=0;i<size*size;i++){
+                const c=el('div',{class:'go-cell',role:'button',tabindex:'0'});
+                if(g.board[i]===1)c.classList.add('black');
+                if(g.board[i]===2)c.classList.add('white');
+                if(stars.has(i))c.classList.add('star');
+                c.dataset.index=String(i);
+                c.setAttribute('aria-label',`第 ${Math.floor(i/size)+1} 行，第 ${i%size+1} 列`);
+                board.append(c);
+            }
+        };
+
+        const ai=()=>{
+            const g=state.go;
+            if(g.mode!=='ai'||g.over||g.turn!==2||g.aiThinking)return;
+            g.aiThinking=true;
+            draw();
+            const timer=window.setTimeout(()=>{
+                if(state.currentGame!=='go'||state.go!==g)return;
+                const move=goSimpleAI(g);
+                g.aiThinking=false;
+                if(move==null){
+                    g.passes++;
+                    g.turn=1;
+                }else{
+                    goMove(g,move,2);
+                }
+                if(g.passes>=2)g.over=true;
+                saveGo();
+                draw();
+            },180);
+            state.goAiTimer=timer;
+        };
+
+        const playIndex=(index)=>{
+            const g=state.go;
+            if(g.over||g.aiThinking)return;
+            if(g.mode==='ai'&&g.turn!==1)return;
+            if(goMove(g,index,g.turn)){
+                saveGo();
+                draw();
+                ai();
+            }
+        };
+
+        board.addEventListener('click',e=>{
+            const c=e.target.closest?.('.go-cell');
+            if(!c)return;
+            playIndex(Number(c.dataset.index));
+        });
+        board.addEventListener('keydown',e=>{
+            const c=e.target.closest?.('.go-cell');
+            if(!c || (e.key!=='Enter' && e.key!==' '))return;
+            e.preventDefault();
+            playIndex(Number(c.dataset.index));
+        });
+
+        mode.addEventListener('click',()=>{
+            state.go = newGo(state.go.size,state.go.mode==='ai'?'pvp':'ai');
+            saveGo();
+            draw();
+            ai();
+        });
+        undo.addEventListener('click',()=>{
+            const g=state.go;
+            if(g.aiThinking)return;
+            if(g.mode==='ai'&&g.history.length>=2){
+                goUndo(g); goUndo(g);
+            }else{
+                goUndo(g);
+            }
+            saveGo(); draw();
+        });
+        pass.addEventListener('click',()=>{
+            const g=state.go;
+            if(g.over||g.aiThinking)return;
+            g.history.push({board:g.board.slice(),turn:g.turn,ko:g.ko,captured:g.captured.slice(),passes:g.passes});
+            g.passes++;
+            g.turn=g.turn===1?2:1;
+            if(g.passes>=2)g.over=true;
+            saveGo(); draw(); ai();
+        });
+        reset.addEventListener('click',()=>{
+            const size=state.go.size, modeNow=state.go.mode;
+            state.go=newGo(size,modeNow);
+            saveGo(); draw(); ai();
+        });
+
+        state.cleanup=()=>{
+            if(state.goAiTimer){ window.clearTimeout(state.goAiTimer); state.goAiTimer=null; }
+            saveGo();
+        };
+
+        draw();
+        if(state.go.mode==='ai'&&state.go.turn===2)ai();
     }
 
     /* ==================== Spider Solitaire ==================== */

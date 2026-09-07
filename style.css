@@ -1287,35 +1287,72 @@
 #st-mini-game-center .tetris-controls .tetris-drop { grid-column: 2; grid-row: 3; }
 
 /* ---------- 围棋 ---------- */
+#st-mini-game-center .go-size-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px auto 10px;
+}
+
+#st-mini-game-center .go-size-label {
+    color: var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, inherit));
+    opacity: .72;
+    font-size: .9em;
+}
+
+#st-mini-game-center .go-size-btn {
+    min-width: 72px;
+}
+
+#st-mini-game-center .go-size-btn.is-selected {
+    box-shadow: inset 0 0 0 1px var(--SmartThemeQuoteColor, currentColor);
+    font-weight: 700;
+}
+
 #st-mini-game-center .go-board {
-    width: min(560px, calc(100vw - 32px));
-    max-width: 100%;
+    --go-size: 13;
+    --go-step: calc(100% / 12);
+    width: min(620px, 96vw, calc(100% - 8px));
     aspect-ratio: 1 / 1;
-    margin: 10px auto 14px;
-    padding: 12px;
+    margin: 12px auto;
+    padding: clamp(12px, 2vw, 18px);
     box-sizing: border-box;
     display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-    grid-template-rows: repeat(9, minmax(0, 1fr));
-    background: var(--SmartThemeBlurTintColor, rgba(180,150,110,.16));
+    grid-template-columns: repeat(var(--go-size), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--go-size), minmax(0, 1fr));
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #c9ad93) 80%, transparent);
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
     border-radius: var(--SmartThemeBorderRadius, 6px);
     position: relative;
-    overflow: visible;
+    overflow: hidden;
     touch-action: manipulation;
     user-select: none;
+    -webkit-user-select: none;
 }
 
-/* 用伪元素画棋盘线，避免酒馆主题的 button 样式干扰棋子。 */
 #st-mini-game-center .go-board::before {
     content: '';
     position: absolute;
-    inset: 12px;
+    inset: clamp(12px, 2vw, 18px);
     pointer-events: none;
-    background:
-        repeating-linear-gradient(to right, transparent 0, transparent calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% + .5px)),
-        repeating-linear-gradient(to bottom, transparent 0, transparent calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% + .5px));
     z-index: 0;
+    background:
+        repeating-linear-gradient(
+            to right,
+            transparent 0,
+            transparent calc(var(--go-step) - .5px),
+            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) - .5px),
+            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) + .5px)
+        ),
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--go-step) - .5px),
+            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) - .5px),
+            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) + .5px)
+        );
 }
 
 #st-mini-game-center .go-cell {
@@ -1339,10 +1376,10 @@
 #st-mini-game-center .go-cell::before {
     content: '';
     position: absolute;
-    width: 72%;
-    height: 72%;
-    left: 14%;
-    top: 14%;
+    width: 76%;
+    height: 76%;
+    left: 12%;
+    top: 12%;
     border-radius: 50%;
     opacity: 0;
     box-sizing: border-box;
@@ -1351,55 +1388,67 @@
 
 #st-mini-game-center .go-cell.black::before {
     opacity: 1;
-    background: #222;
-    border: 1px solid rgba(0,0,0,.5);
-    box-shadow: inset -3px -3px 5px rgba(0,0,0,.38), 1px 2px 4px rgba(0,0,0,.25);
+    background: #202020;
+    border: 1px solid rgba(0,0,0,.45);
+    box-shadow: inset -3px -3px 5px rgba(0,0,0,.35), 1px 2px 4px rgba(0,0,0,.24);
 }
 
 #st-mini-game-center .go-cell.white::before {
     opacity: 1;
     background: #fafafa;
-    border: 1px solid rgba(0,0,0,.28);
+    border: 1px solid rgba(0,0,0,.26);
     box-shadow: inset -2px -2px 4px rgba(0,0,0,.12), 1px 2px 4px rgba(0,0,0,.18);
 }
 
 #st-mini-game-center .go-cell.star::after {
     content: '';
     position: absolute;
-    width: 6px;
-    height: 6px;
+    width: clamp(4px, 1vw, 7px);
+    height: clamp(4px, 1vw, 7px);
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: currentColor;
-    opacity: .58;
+    opacity: .65;
     pointer-events: none;
 }
 
 #st-mini-game-center .go-cell.black.star::after,
-#st-mini-game-center .go-cell.white.star::after { opacity: 0; }
+#st-mini-game-center .go-cell.white.star::after {
+    opacity: 0;
+}
 
+#st-mini-game-center .go-cell:focus-visible::before,
 #st-mini-game-center .go-cell:hover::before {
     filter: brightness(1.08);
 }
 
-#st-mini-game-center .go-bottom-controls {
-    min-height: 1px;
-}
-
 @media (max-width: 640px) {
+    #st-mini-game-center .go-size-row {
+        margin-top: 0;
+    }
+
+    #st-mini-game-center .go-size-btn {
+        min-width: 0;
+        flex: 1 1 0;
+        max-width: 100px;
+    }
+
     #st-mini-game-center .go-board {
-        width: min(94vw, 520px);
-        padding: 8px;
+        width: min(96vw, calc(100% - 2px));
+        padding: clamp(8px, 2.8vw, 14px);
+        margin-top: 10px;
     }
+
     #st-mini-game-center .go-board::before {
-        inset: 8px;
+        inset: clamp(8px, 2.8vw, 14px);
     }
+
     #st-mini-game-center .go-cell::before {
-        width: 76%;
-        height: 76%;
-        left: 12%;
-        top: 12%;
+        width: 80%;
+        height: 80%;
+        left: 10%;
+        top: 10%;
     }
 }
