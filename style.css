@@ -878,9 +878,27 @@
 
 #st-mini-game-center .mine-cell.mine {
 
-    color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
+    /* 踩雷后的雷格：沿用酒馆下划线色，但压暗并叠一层半透明黑遮罩。 */
+    color: color-mix(in srgb, var(--mine-accent) 78%, var(--SmartThemeBodyColor, #fff) 22%);
 
-    background: color-mix(in srgb, #c96f7a 24%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)));
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.34)),
+        color-mix(
+            in srgb,
+            var(--mine-accent) 76%,
+            #000 24%
+        );
+
+    border-color: color-mix(
+        in srgb,
+        var(--mine-accent) 58%,
+        #000 42%
+    );
+
+    box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.06),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.28),
+        0 1px 2px rgba(0, 0, 0, 0.18);
 
 }
 

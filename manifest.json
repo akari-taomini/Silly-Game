@@ -6,6 +6,6 @@
   "js": "index.js",
   "css": "style.css",
   "author": "ChatGPT",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "auto_update": true
 }
