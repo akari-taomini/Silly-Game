@@ -418,7 +418,7 @@
     line-height: 1.5;
 }
 
-/* ---------- 扫雷：棋盘保留清爽白色格子 ---------- */
+/* ---------- 扫雷：棋盘跟随酒馆主题，格子使用低刺激主题色 ---------- */
 #st-mini-game-center .mine-viewport {
     width: min(540px, 100%);
     height: min(58dvh, 540px);
@@ -430,8 +430,12 @@
     scrollbar-width: none;
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
     border-radius: var(--SmartThemeBorderRadius, 6px);
-    background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.08)));
-    touch-action: pan-x pan-y;
+    background: color-mix(
+        in srgb,
+        var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 88%,
+        var(--SmartThemeBodyColor, var(--stgc-browser-text)) 4%,
+        transparent
+    );
 }
 
 #st-mini-game-center .mine-viewport::-webkit-scrollbar {
@@ -443,9 +447,9 @@
     width: max-content;
     height: max-content;
     margin: 0;
-    padding: 4px;
+    padding: 6px;
     display: grid;
-    gap: 2px;
+    gap: 3px;
     align-content: start;
     justify-content: start;
     touch-action: manipulation;
@@ -461,15 +465,63 @@
     display: grid;
     place-items: center;
     color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 82%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 5%);
-    border: 1px solid var(--SmartThemeBorderColor, var(--stgc-browser-border));
-    border-radius: 4px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 8%, transparent), 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 12%, transparent);
+    /* 不再固定白色：跟随酒馆背景 + 强调色，夜间自然压暗。 */
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 18%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
+        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 9%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
+    );
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #777) 72%, var(--SmartThemeBodyColor, #777) 8%, transparent);
+    border-radius: 5px;
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 7%, transparent),
+        0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 10%, transparent);
     font-size: max(10px, calc(var(--mine-cell-size, 32px) * .48));
     font-weight: 800;
     line-height: 1;
     flex: none;
+    appearance: none;
+    -webkit-appearance: none;
+    text-shadow: none;
 }
+
+#st-mini-game-center .mine-cell:hover:not(.open) {
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 26%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface))),
+        color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #8b8b8b)) 14%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)))
+    );
+}
+
+#st-mini-game-center .mine-cell.open {
+    background: color-mix(
+        in srgb,
+        var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 94%,
+        var(--SmartThemeBodyColor, var(--stgc-browser-text)) 3%,
+        transparent
+    );
+    border-color: color-mix(in srgb, var(--SmartThemeBorderColor, #777) 78%, transparent);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 11%, transparent);
+}
+
+#st-mini-game-center .mine-cell.flagged {
+    color: var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #c47b82)));
+}
+
+#st-mini-game-center .mine-cell.mine {
+    color: var(--SmartThemeBodyColor, var(--stgc-browser-text));
+    background: color-mix(in srgb, #c96f7a 24%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)));
+}
+
+/* 数字本身也采用更柔和的主题友好色，避免夜间高饱和刺眼。 */
+#st-mini-game-center .mine-cell[data-n="1"] { color: color-mix(in srgb, #6c9ed6 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="2"] { color: color-mix(in srgb, #79a77a 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="3"] { color: color-mix(in srgb, #d08080 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="4"] { color: color-mix(in srgb, #a68bc8 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="5"] { color: color-mix(in srgb, #b68a68 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="6"] { color: color-mix(in srgb, #6eaaa9 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="7"] { color: color-mix(in srgb, #a98f9b 76%, var(--SmartThemeBodyColor, #fff) 24%); }
+#st-mini-game-center .mine-cell[data-n="8"] { color: color-mix(in srgb, #8f8f8f 76%, var(--SmartThemeBodyColor, #fff) 24%); }
 
 #st-mini-game-center .mine-view-tools {
     width: min(540px, 100%);
@@ -507,36 +559,8 @@
 
 #st-mini-game-center .mine-board[data-size="16"] .mine-cell,
 #st-mini-game-center .mine-board[data-size="20"] .mine-cell {
-    border-radius: 3px;
+    border-radius: 4px;
 }
-
-#st-mini-game-center .mine-cell:hover:not(.open) {
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 72%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 6%);
-}
-
-#st-mini-game-center .mine-cell.open {
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)) 92%, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 2%);
-    border-color: var(--SmartThemeBorderColor, var(--stgc-browser-border));
-    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--SmartThemeBodyColor, var(--stgc-browser-text)) 10%, transparent);
-}
-
-#st-mini-game-center .mine-cell.flagged {
-    color: #c92a2a;
-}
-
-#st-mini-game-center .mine-cell.mine {
-    color: #a61e1e;
-    background: color-mix(in srgb, #c96f7a 18%, var(--SmartThemeBodyBgColor, var(--stgc-browser-surface)));
-}
-
-#st-mini-game-center .mine-cell[data-n="1"] { color: #1976d2; }
-#st-mini-game-center .mine-cell[data-n="2"] { color: #2e7d32; }
-#st-mini-game-center .mine-cell[data-n="3"] { color: #d32f2f; }
-#st-mini-game-center .mine-cell[data-n="4"] { color: #512da8; }
-#st-mini-game-center .mine-cell[data-n="5"] { color: #8d3b2f; }
-#st-mini-game-center .mine-cell[data-n="6"] { color: #00838f; }
-#st-mini-game-center .mine-cell[data-n="7"] { color: #333; }
-#st-mini-game-center .mine-cell[data-n="8"] { color: #777; }
 
 /* ---------- 2048 ---------- */
 #st-mini-game-center .board-2048 {
