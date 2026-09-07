@@ -25,7 +25,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '0.13.0';
+    const CURRENT_VERSION = '0.13.3';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -37,18 +37,18 @@
     const FARM_STORAGE_KEY = 'silly-game-farm-v1';
     const GAME_WINS_STORAGE_KEY = 'silly-game-wins-v1';
     const FARM_CROPS = {
-        carrot:   { name: '胡萝卜', emoji: '🥕', seedCost: 2, sell: 6,  grow: 70, starter: true },
-        potato:   { name: '土豆',   emoji: '🥔', seedCost: 3, sell: 9,  grow: 85, starter: true },
-        radish:   { name: '萝卜',   emoji: '🌱', seedCost: 3, sell: 10, grow: 95, unlock: 'mines' },
-        tomato:   { name: '番茄',   emoji: '🍅', seedCost: 4, sell: 13, grow: 110, unlock: '2048' },
-        corn:     { name: '玉米',   emoji: '🌽', seedCost: 5, sell: 16, grow: 125, unlock: 'sokoban' },
-        strawberry:{ name: '草莓',  emoji: '🍓', seedCost: 5, sell: 18, grow: 140, unlock: 'sudoku' },
-        pumpkin:  { name: '南瓜',   emoji: '🎃', seedCost: 6, sell: 22, grow: 155, unlock: 'spider' },
-        watermelon:{ name: '西瓜',  emoji: '🍉', seedCost: 7, sell: 26, grow: 175, unlock: 'gomoku' },
-        blueberry:{ name: '蓝莓',   emoji: '🫐', seedCost: 7, sell: 28, grow: 185, unlock: 'puzzle15' },
-        grape:    { name: '葡萄',   emoji: '🍇', seedCost: 8, sell: 32, grow: 200, unlock: 'tetris' },
-        tea:      { name: '茶叶',   emoji: '🍃', seedCost: 9, sell: 36, grow: 220, unlock: 'go' },
-        lavender: { name: '薰衣草', emoji: '🪻', seedCost: 10, sell: 42, grow: 240, unlock: 'waterSort' },
+        carrot:    { name: '胡萝卜', seedCost: 2, sell: 6,  grow: 70,  starter: true },
+        potato:    { name: '土豆',   seedCost: 3, sell: 9,  grow: 85,  starter: true },
+        radish:    { name: '萝卜',   seedCost: 3, sell: 10, grow: 95,  unlock: 'mines' },
+        tomato:    { name: '番茄',   seedCost: 4, sell: 13, grow: 110, unlock: '2048' },
+        corn:      { name: '玉米',   seedCost: 5, sell: 16, grow: 125, unlock: 'sokoban' },
+        strawberry:{ name: '草莓',  seedCost: 5, sell: 18, grow: 140, unlock: 'sudoku' },
+        pumpkin:   { name: '南瓜',   seedCost: 6, sell: 22, grow: 155, unlock: 'spider' },
+        watermelon:{ name: '西瓜',  seedCost: 7, sell: 26, grow: 175, unlock: 'gomoku' },
+        blueberry: { name: '蓝莓',   seedCost: 7, sell: 28, grow: 185, unlock: 'puzzle15' },
+        grape:     { name: '葡萄',   seedCost: 8, sell: 32, grow: 200, unlock: 'tetris' },
+        tea:       { name: '茶叶',   seedCost: 9, sell: 36, grow: 220, unlock: 'go' },
+        lavender:  { name: '薰衣草', seedCost: 10, sell: 42, grow: 240, unlock: 'waterSort' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
@@ -73,7 +73,7 @@
         wins.add(gameId);
         saveGameWins(wins);
         const crop = Object.entries(FARM_CROPS).find(([, data]) => data.unlock === gameId)?.[1];
-        if (crop) notify(`你赢下了${FARM_GAME_NAMES[gameId]}，解锁新作物：${crop.emoji} ${crop.name}`, 'Silly Farm');
+        if (crop) notify(`你赢下了${FARM_GAME_NAMES[gameId]}，解锁新作物：${crop.name}`, 'Silly Farm');
     }
 
     function farmDefaultState() {
@@ -123,10 +123,10 @@
 
     function farmStage(plot) {
         const progress = farmGrowth(plot);
-        if (progress >= 1) return { key: 'ripe', text: '成熟', icon: '🌾' };
-        if (progress >= 0.66) return { key: 'growing', text: '生长中', icon: '🌿' };
-        if (progress >= 0.30) return { key: 'sprout', text: '发芽', icon: '🌱' };
-        return { key: 'soil', text: '刚种下', icon: '🪴' };
+        if (progress >= 1) return { key: 'ripe', text: '成熟' };
+        if (progress >= 0.66) return { key: 'growing', text: '生长中' };
+        if (progress >= 0.30) return { key: 'sprout', text: '发芽' };
+        return { key: 'soil', text: '刚种下' };
     }
 
     function farmFormatTimeLeft(plot) {
@@ -3330,15 +3330,32 @@
         const field = el('div', { class: 'farm-field', 'aria-label': '农场土地' });
         const actionRow = el('div', { class: 'farm-actions' });
         const selectionText = el('div', { class: 'farm-selection-text', text: '请选择一块土地' });
-        const waterBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button', text: '💧 浇水' });
-        const feedBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button', text: '✨ 施肥' });
-        const harvestBtn = el('button', { class: 'stgc-btn farm-action-btn farm-harvest-btn', type: 'button', text: '🧺 收获' });
+        const waterBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button' });
+        waterBtn.innerHTML = '<i class="fa-solid fa-droplet" aria-hidden="true"></i><span>浇水</span>';
+        const feedBtn = el('button', { class: 'stgc-btn farm-action-btn', type: 'button' });
+        feedBtn.innerHTML = '<i class="fa-solid fa-seedling" aria-hidden="true"></i><span>施肥</span>';
+        const harvestBtn = el('button', { class: 'stgc-btn farm-action-btn farm-harvest-btn', type: 'button' });
+        harvestBtn.innerHTML = '<i class="fa-solid fa-basket-shopping" aria-hidden="true"></i><span>收获</span>'; 
         actionRow.append(selectionText, waterBtn, feedBtn, harvestBtn);
 
         const cropNote = el('div', { class: 'farm-crop-note' });
         body.append(top, seedRow, seedHint, field, actionRow, cropNote);
 
         let selectedPlot = -1;
+        const farmEffects = new Map();
+
+        function showFarmEffect(index, kind) {
+            const until = Date.now() + 1450;
+            farmEffects.set(index, { kind, until });
+            drawField();
+            window.setTimeout(() => {
+                const current = farmEffects.get(index);
+                if (current && current.until <= Date.now()) {
+                    farmEffects.delete(index);
+                    drawField();
+                }
+            }, 1500);
+        }
 
         function drawSeedRow() {
             seedRow.innerHTML = '';
@@ -3346,8 +3363,8 @@
                 const unlocked = farmIsUnlocked(id);
                 const button = el('button', { class: `farm-seed-card${state.farm.selectedCrop === id ? ' selected' : ''}${unlocked ? '' : ' locked'}`, type: 'button' });
                 button.innerHTML = unlocked
-                    ? `<span class="farm-seed-emoji">${crop.emoji}</span><span class="farm-seed-name">${crop.name}</span><span class="farm-seed-price">种子 ${crop.seedCost} · 收获 +${crop.sell}</span>`
-                    : `<span class="farm-seed-emoji">🔒</span><span class="farm-seed-name">未解锁</span><span class="farm-seed-price">赢下${FARM_GAME_NAMES[crop.unlock] || '小游戏'}</span>`;
+                    ? `<span class="farm-seed-visual farm-crop-${id}" aria-hidden="true"></span><span class="farm-seed-name">${crop.name}</span><span class="farm-seed-price">种子 ${crop.seedCost} · 收获 +${crop.sell}</span>`
+                    : `<span class="farm-seed-lock" aria-hidden="true"><i class="fa-solid fa-lock"></i></span><span class="farm-seed-name">未解锁</span><span class="farm-seed-price">赢下${FARM_GAME_NAMES[crop.unlock] || '小游戏'}</span>`;
                 button.disabled = !unlocked;
                 button.addEventListener('click', () => {
                     state.farm.selectedCrop = id;
@@ -3364,7 +3381,7 @@
         function drawSelection() {
             const game = state.farm;
             if (selectedPlot < 0 || !game.plots[selectedPlot]) {
-                selectionText.textContent = `当前种子：${FARM_CROPS[game.selectedCrop].emoji} ${FARM_CROPS[game.selectedCrop].name}`;
+                selectionText.textContent = `当前种子：${FARM_CROPS[game.selectedCrop].name}`;
                 waterBtn.disabled = true;
                 feedBtn.disabled = true;
                 harvestBtn.disabled = true;
@@ -3374,7 +3391,7 @@
             const plot = game.plots[selectedPlot];
             const crop = FARM_CROPS[plot.crop];
             const stage = farmStage(plot);
-            selectionText.textContent = `第 ${selectedPlot + 1} 块 · ${crop.emoji} ${crop.name} · ${stage.text}`;
+            selectionText.textContent = `第 ${selectedPlot + 1} 块 · ${crop.name} · ${stage.text}`;
             waterBtn.disabled = !!plot.watered || stage.key === 'ripe';
             feedBtn.disabled = !!plot.fertilized || stage.key === 'ripe';
             harvestBtn.disabled = stage.key !== 'ripe';
@@ -3405,17 +3422,25 @@
         function waterSelected() {
             const plot = state.farm.plots[selectedPlot];
             if (!plot || plot.watered || farmStage(plot).key === 'ripe') return;
+            const effectIndex = selectedPlot;
             plot.watered = true;
             farmSave();
-            draw();
+            showFarmEffect(effectIndex, 'water');
+            drawSelection();
+            drawInfo();
+            drawSeedRow();
         }
 
         function fertilizeSelected() {
             const plot = state.farm.plots[selectedPlot];
             if (!plot || plot.fertilized || farmStage(plot).key === 'ripe') return;
+            const effectIndex = selectedPlot;
             plot.fertilized = true;
             farmSave();
-            draw();
+            showFarmEffect(effectIndex, 'fertilizer');
+            drawSelection();
+            drawInfo();
+            drawSeedRow();
         }
 
         function harvestSelected() {
@@ -3428,7 +3453,7 @@
             game.plots[selectedPlot] = null;
             selectedPlot = -1;
             farmSave();
-            notify(`收获了 ${crop.emoji} ${crop.name}！+${crop.sell} 金币`, 'Silly Farm');
+            notify(`收获了 ${crop.name}！+${crop.sell} 金币`, 'Silly Farm');
             draw();
         }
 
@@ -3441,12 +3466,16 @@
             state.farm.plots.forEach((plot, index) => {
                 const tile = el('button', { class: `farm-plot${selectedPlot === index ? ' selected' : ''}${plot ? '' : ' empty'}`, type: 'button' });
                 if (!plot) {
-                    tile.innerHTML = '<span class="farm-plot-icon">＋</span><span class="farm-plot-label">空地</span>';
+                    tile.innerHTML = '<span class="farm-plot-icon" aria-hidden="true"><i class="fa-solid fa-plus"></i></span><span class="farm-plot-label">空地</span>';
                 } else {
                     const crop = FARM_CROPS[plot.crop];
                     const stage = farmStage(plot);
                     const progress = Math.round(farmGrowth(plot) * 100);
-                    tile.innerHTML = `<span class="farm-plant-icon">${stage.key === 'ripe' ? crop.emoji : stage.icon}</span><span class="farm-plant-name">${crop.name}</span><span class="farm-progress"><span style="width:${progress}%"></span></span><span class="farm-plant-meta">${stage.text} · ${farmFormatTimeLeft(plot)}</span>`;
+                    const effect = farmEffects.get(index);
+                    const effectKind = effect?.kind;
+                    if (effect && effect.until <= Date.now()) farmEffects.delete(index);
+                    const activeEffect = farmEffects.get(index);
+                    tile.innerHTML = `<span class="farm-plant-icon farm-crop-${plot.crop} farm-stage-${stage.key}" aria-hidden="true"><span class="farm-plant-art"><span class="farm-plant-leaves"></span><span class="farm-plant-fruit"></span></span></span><span class="farm-plant-name">${crop.name}</span><span class="farm-progress"><span style="width:${progress}%"></span></span><span class="farm-plant-meta">${stage.text} · ${farmFormatTimeLeft(plot)}</span>${activeEffect ? `<span class="farm-action-bubble farm-action-${activeEffect.kind}" aria-hidden="true"><span class="farm-bubble-mark"></span><span>${activeEffect.kind === 'water' ? '水' : '肥'}</span></span>` : ''}`;
                     if (plot.watered) tile.classList.add('watered');
                     if (plot.fertilized) tile.classList.add('fertilized');
                     if (stage.key === 'ripe') tile.classList.add('ripe');

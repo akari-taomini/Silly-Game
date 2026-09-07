@@ -1642,251 +1642,272 @@
 }
 \n\n/* v0.12.0 update controls */\n#stgc-extension-settings .stgc-extension-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  margin-top: 8px;\n}\n\n#stgc-extension-settings .stgc-extension-update-row > span {\n  opacity: .72;\n  font-size: 12px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 6px 10px;\n  min-width: 92px;\n}\n\n#stgc-extension-settings .stgc-extension-update-btn:disabled {\n  opacity: .65;\n  cursor: wait;\n}\n\n#st-mini-game-center .stgc-home-update-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  margin-top: 16px;\n  padding: 10px 12px;\n  border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.2));\n  border-radius: var(--panel-radius, 10px);\n  background: color-mix(in srgb, var(--SmartThemeBlurTintColor, transparent) 55%, transparent);\n}\n\n#st-mini-game-center .stgc-home-update-info {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  min-width: 0;\n}\n\n#st-mini-game-center .stgc-home-update-version {\n  font-size: 11px;\n  opacity: .58;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-text {\n  font-size: 12px;\n  opacity: .78;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n#st-mini-game-center .stgc-home-update-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  flex: 0 0 auto;\n}\n\n@media (max-width: 640px) {\n  #stgc-extension-settings .stgc-extension-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #stgc-extension-settings .stgc-extension-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n\n  #st-mini-game-center .stgc-home-update-row {\n    align-items: stretch;\n    flex-direction: column;\n  }\n\n  #st-mini-game-center .stgc-home-update-btn {\n    width: 100%;\n    justify-content: center;\n  }\n}\n
 /* ---------- 小农场 ---------- */
-#st-mini-game-center .farm-top {
-    margin-bottom: 8px;
-}
-
-#st-mini-game-center .farm-info {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
+#st-mini-game-center .farm-top { margin-bottom: 8px; }
+#st-mini-game-center .farm-info { display:flex; gap:8px; flex-wrap:wrap; }
 
 #st-mini-game-center .farm-seed-row {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
-    margin: 8px 0 10px;
+    display:grid;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:8px;
+    margin:8px 0 10px;
 }
-
 #st-mini-game-center .farm-seed-card {
-    min-width: 0;
-    min-height: 82px;
-    padding: 8px 6px;
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, transparent) 58%, transparent);
-    color: var(--SmartThemeBodyColor, currentColor);
-    display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: 2px;
-    cursor: pointer;
-    font: inherit;
-    appearance: none;
-    box-shadow: none;
-    text-shadow: none;
+    min-width:0;
+    min-height:82px;
+    padding:8px 6px;
+    border:1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.25));
+    border-radius:12px;
+    background:color-mix(in srgb,var(--SmartThemeBlurTintColor,transparent) 58%,transparent);
+    color:var(--SmartThemeBodyColor,currentColor);
+    display:grid;
+    justify-items:center;
+    align-content:center;
+    gap:2px;
+    cursor:pointer;
+    font:inherit;
+    appearance:none;
+    box-shadow:none;
+    text-shadow:none;
+}
+#st-mini-game-center .farm-seed-card:hover:not(:disabled){filter:brightness(1.06)}
+#st-mini-game-center .farm-seed-card.selected{
+    outline:2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));
+    background:color-mix(in srgb,var(--SmartThemeQuoteColor,currentColor) 9%,var(--SmartThemeBlurTintColor,transparent));
+}
+#st-mini-game-center .farm-seed-card:disabled{opacity:.48;cursor:not-allowed}
+#st-mini-game-center .farm-seed-visual{
+    position:relative;
+    display:block;
+    width:42px;
+    height:34px;
+}
+#st-mini-game-center .farm-seed-lock{
+    width:30px;height:30px;display:grid;place-items:center;border-radius:9px;
+    border:1px solid var(--SmartThemeBorderColor,rgba(127,127,127,.3));opacity:.75;
+}
+#st-mini-game-center .farm-seed-name{font-size:12px;font-weight:700}
+#st-mini-game-center .farm-seed-price{max-width:100%;font-size:9px;line-height:1.25;opacity:.62;text-align:center}
+
+#st-mini-game-center .farm-field{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:9px;
+    width:min(700px,100%);
+    margin:10px auto 12px;
+}
+#st-mini-game-center .farm-plot{
+    position:relative;
+    min-width:0;
+    min-height:128px;
+    padding:11px 8px;
+    border:1px solid color-mix(in srgb,#8f6b48 30%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)));
+    border-radius:14px;
+    background:linear-gradient(160deg,color-mix(in srgb,#8f6b48 26%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#64462f 20%,var(--SmartThemeBodyBgColor,transparent)));
+    color:var(--SmartThemeBodyColor,currentColor);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    cursor:pointer;
+    font:inherit;
+    appearance:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 4px 12px var(--black10a,rgba(0,0,0,.08));
+}
+#st-mini-game-center .farm-plot:hover{filter:brightness(1.05)}
+#st-mini-game-center .farm-plot.selected{outline:2px solid var(--customThemeColor,var(--SmartThemeQuoteColor,currentColor));transform:translateY(-1px)}
+#st-mini-game-center .farm-plot.empty{opacity:.82}
+#st-mini-game-center .farm-plot.watered{box-shadow:inset 0 0 0 1px rgba(100,170,255,.32),0 4px 12px var(--black10a,rgba(0,0,0,.08))}
+#st-mini-game-center .farm-plot.fertilized{border-color:color-mix(in srgb,#d9b34e 45%,var(--SmartThemeBorderColor,rgba(127,127,127,.25)))}
+#st-mini-game-center .farm-plot.ripe{background:linear-gradient(160deg,color-mix(in srgb,#e5c875 19%,var(--SmartThemeBodyBgColor,transparent)),color-mix(in srgb,#a97b38 16%,var(--SmartThemeBodyBgColor,transparent)))}
+#st-mini-game-center .farm-plot-icon{font-size:22px;opacity:.45}
+#st-mini-game-center .farm-plot-label,#st-mini-game-center .farm-plant-name,#st-mini-game-center .farm-plant-meta{font-size:10px;line-height:1.25;text-align:center}
+
+/* CSS plants: no emoji, each crop has its own silhouette. */
+#st-mini-game-center .farm-plant-icon{
+    position:relative;
+    width:82px;
+    height:58px;
+    display:grid;
+    place-items:center;
+    flex:0 0 auto;
+}
+#st-mini-game-center .farm-plant-art{position:relative;width:100%;height:100%;display:block}
+#st-mini-game-center .farm-plant-art::before,
+#st-mini-game-center .farm-plant-art::after,
+#st-mini-game-center .farm-plant-leaves::before,
+#st-mini-game-center .farm-plant-leaves::after,
+#st-mini-game-center .farm-plant-fruit::before,
+#st-mini-game-center .farm-plant-fruit::after{
+    content:"";
+    position:absolute;
+    display:block;
 }
 
-#st-mini-game-center .farm-seed-card:hover:not(:disabled) {
-    filter: brightness(1.06);
+/* common seed / soil-stage */
+#st-mini-game-center .farm-plant-icon.farm-stage-soil .farm-plant-art::before,
+#st-mini-game-center .farm-seed-visual::before{
+    width:14px;height:8px;left:34px;bottom:13px;border-radius:50%;
+    background:#6c4a30;box-shadow:0 2px 3px rgba(0,0,0,.18);
+}
+#st-mini-game-center .farm-plant-icon.farm-stage-soil .farm-plant-art::after{
+    width:3px;height:13px;left:40px;bottom:18px;border-radius:6px;
+    background:#7a9f51;transform:rotate(-14deg);
 }
 
-#st-mini-game-center .farm-seed-card.selected {
-    outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
-    background: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 9%, var(--SmartThemeBlurTintColor, transparent));
+/* carrot */
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::before,
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after{background:#5d9d4c;border-radius:10px 10px 2px 10px}
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::before{width:11px;height:30px;left:34px;bottom:18px;transform:rotate(-28deg)}
+#st-mini-game-center .farm-crop-carrot .farm-plant-leaves::after{width:11px;height:30px;left:43px;bottom:18px;transform:rotate(28deg)}
+#st-mini-game-center .farm-crop-carrot .farm-plant-art::before{width:18px;height:30px;left:33px;bottom:1px;border-radius:55% 55% 48% 48%;background:#ef8f36;transform:rotate(4deg);box-shadow:inset -3px 0 rgba(196,92,33,.28)}
+#st-mini-game-center .farm-crop-carrot.farm-stage-sprout .farm-plant-art::before{height:6px;width:26px;bottom:7px;left:28px;background:#6f7e42;border-radius:50%}
+#st-mini-game-center .farm-crop-carrot.farm-stage-growing .farm-plant-art::before{display:none}
+
+/* potato */
+#st-mini-game-center .farm-crop-potato .farm-plant-leaves::before{width:46px;height:23px;left:18px;bottom:18px;background:radial-gradient(circle at 20% 70%,#6f9d4e 0 18%,transparent 20%),radial-gradient(circle at 50% 30%,#7cae58 0 20%,transparent 22%),radial-gradient(circle at 80% 68%,#628c45 0 20%,transparent 22%)}
+#st-mini-game-center .farm-crop-potato .farm-plant-art::before{width:45px;height:20px;left:18px;bottom:3px;border-radius:50%;background:#9a7047;box-shadow:inset 0 -4px rgba(89,57,32,.16)}
+#st-mini-game-center .farm-crop-potato.farm-stage-sprout .farm-plant-art::before{width:18px;height:10px;left:32px;bottom:10px}
+
+/* radish */
+#st-mini-game-center .farm-crop-radish .farm-plant-leaves::before{width:46px;height:12px;left:18px;bottom:22px;border-radius:100%;background:#76a950;transform:rotate(-5deg);box-shadow:0 -8px 0 -3px #639944,22px -3px 0 -1px #82b95e}
+#st-mini-game-center .farm-crop-radish .farm-plant-art::before{width:24px;height:27px;left:29px;bottom:1px;border-radius:55% 55% 45% 45%;background:#d95555}
+
+/* tomato */
+#st-mini-game-center .farm-crop-tomato .farm-plant-art::before{width:4px;height:29px;left:39px;bottom:13px;border-radius:4px;background:#5c8d4b;transform:rotate(-8deg)}
+#st-mini-game-center .farm-crop-tomato .farm-plant-leaves::before{width:18px;height:8px;left:26px;bottom:29px;border-radius:100% 0 100% 0;background:#6aa054;transform:rotate(-25deg);box-shadow:17px 5px 0 -1px #568746}
+#st-mini-game-center .farm-crop-tomato .farm-plant-fruit::before{width:25px;height:25px;left:28px;bottom:5px;border-radius:50%;background:#dc5b45;box-shadow:17px 4px 0 -4px #e06a50,9px -10px 0 -5px #73a552}
+
+/* corn */
+#st-mini-game-center .farm-crop-corn .farm-plant-art::before{width:8px;height:49px;left:37px;bottom:2px;border-radius:7px;background:linear-gradient(90deg,#4f8f47,#79ad50,#4f8f47)}
+#st-mini-game-center .farm-crop-corn .farm-plant-leaves::before{width:44px;height:13px;left:18px;bottom:24px;border-radius:100% 0 100% 0;background:#65a34e;transform:rotate(-17deg);box-shadow:6px 11px 0 -2px #5a9749,22px -6px 0 -1px #79ae55}
+#st-mini-game-center .farm-crop-corn .farm-plant-fruit::before{width:17px;height:27px;left:33px;bottom:7px;border-radius:55% 55% 45% 45%;background:repeating-linear-gradient(0deg,#e6c64d 0 4px,#f1d86a 4px 7px)}
+
+/* strawberry */
+#st-mini-game-center .farm-crop-strawberry .farm-plant-art::before{width:25px;height:27px;left:29px;bottom:3px;border-radius:48% 48% 56% 56%;background:#e45b69;box-shadow:inset 0 -6px rgba(176,49,62,.16)}
+#st-mini-game-center .farm-crop-strawberry .farm-plant-leaves::before{width:27px;height:13px;left:28px;bottom:28px;border-radius:100% 0 100% 0;background:#65a34e;transform:rotate(-7deg);box-shadow:10px -4px 0 -2px #76ae5a}
+#st-mini-game-center .farm-crop-strawberry .farm-plant-fruit::before{width:3px;height:3px;left:37px;bottom:19px;border-radius:50%;background:#f9dda0;box-shadow:7px 4px #f9dda0,2px -5px #f9dda0,10px -3px #f9dda0}
+
+/* pumpkin */
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-art::before{width:43px;height:27px;left:20px;bottom:4px;border-radius:48%;background:radial-gradient(circle at 50% 50%,#ee9a36 0 58%,#cf7725 60% 100%);box-shadow:0 0 0 2px rgba(145,79,31,.18)}
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::before{width:52px;height:11px;left:14px;bottom:24px;border-radius:100%;background:#66964a;transform:rotate(-5deg)}
+#st-mini-game-center .farm-crop-pumpkin .farm-plant-leaves::after{width:12px;height:9px;left:52px;bottom:31px;border:3px solid #6b9a4c;border-left:0;border-bottom:0;border-radius:0 12px 0 0;transform:rotate(12deg)}
+
+/* watermelon */
+#st-mini-game-center .farm-crop-watermelon .farm-plant-art::before{width:48px;height:26px;left:17px;bottom:3px;border-radius:50% 50% 45% 45%;background:repeating-linear-gradient(90deg,#3e8e54 0 7px,#6caf55 7px 11px,#3e8e54 11px 18px);transform:rotate(-6deg)}
+#st-mini-game-center .farm-crop-watermelon .farm-plant-leaves::before{width:53px;height:8px;left:12px;bottom:24px;border-radius:100%;background:#528e49;transform:rotate(7deg)}
+
+/* blueberry */
+#st-mini-game-center .farm-crop-blueberry .farm-plant-leaves::before{width:50px;height:38px;left:16px;bottom:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#6e9e52 0 11px,transparent 12px),radial-gradient(circle at 60% 48%,#5c9145 0 13px,transparent 14px),radial-gradient(circle at 76% 24%,#75a85a 0 9px,transparent 10px)}
+#st-mini-game-center .farm-crop-blueberry .farm-plant-fruit::before{width:9px;height:9px;left:32px;bottom:23px;border-radius:50%;background:#4e6fa6;box-shadow:14px -7px #5878ab,10px 9px #416294,-4px 7px #627fad}
+
+/* grape */
+#st-mini-game-center .farm-crop-grape .farm-plant-art::before{width:4px;height:45px;left:39px;bottom:3px;border-radius:4px;background:#5d8f4a;transform:rotate(6deg)}
+#st-mini-game-center .farm-crop-grape .farm-plant-leaves::before{width:34px;height:23px;left:15px;bottom:25px;border-radius:100% 0 100% 0;background:#679b4d;transform:rotate(-18deg)}
+#st-mini-game-center .farm-crop-grape .farm-plant-fruit::before{width:9px;height:9px;left:34px;bottom:12px;border-radius:50%;background:#6d4b98;box-shadow:7px 3px #7651a0,-7px 3px #63458f,3px 10px #62458f,-4px 10px #6e4b98,0 16px #574081}
+
+/* tea */
+#st-mini-game-center .farm-crop-tea .farm-plant-art::before{width:58px;height:39px;left:11px;bottom:4px;border-radius:50%;background:radial-gradient(circle at 28% 52%,#668f4b 0 12px,transparent 13px),radial-gradient(circle at 54% 35%,#739f50 0 14px,transparent 15px),radial-gradient(circle at 78% 58%,#5b8744 0 12px,transparent 13px)}
+#st-mini-game-center .farm-crop-tea .farm-plant-leaves::before{width:13px;height:24px;left:35px;bottom:22px;border-radius:100% 0 100% 0;background:#86ae60;transform:rotate(-28deg);box-shadow:8px 1px #6e9e4d}
+
+/* lavender */
+#st-mini-game-center .farm-crop-lavender .farm-plant-art::before{width:3px;height:47px;left:30px;bottom:3px;border-radius:3px;background:#70994f;box-shadow:13px 2px #739d52,26px 0 #6e954e}
+#st-mini-game-center .farm-crop-lavender .farm-plant-fruit::before{width:9px;height:23px;left:26px;bottom:24px;border-radius:9px;background:#8d76bb;box-shadow:13px 3px 0 -1px #9a80c6,26px 0 0 -1px #866db2,5px 8px 0 -2px #a08acb,19px 9px 0 -2px #947cc0}
+#st-mini-game-center .farm-crop-lavender .farm-plant-leaves::before{width:34px;height:7px;left:24px;bottom:10px;border-radius:100%;background:#628e4d}
+
+/* stages: make earlier forms visibly smaller / distinct */
+#st-mini-game-center .farm-plant-icon.farm-stage-sprout{transform:scale(.72);transform-origin:50% 80%}
+#st-mini-game-center .farm-plant-icon.farm-stage-soil{transform:scale(.58);transform-origin:50% 88%}
+#st-mini-game-center .farm-plant-icon.farm-stage-growing{transform:scale(.86);}
+
+/* seed visual reuses crop palettes but stays small */
+#st-mini-game-center .farm-seed-visual::after{
+    width:12px;height:8px;left:15px;bottom:6px;border-radius:60%;background:#6b4b31;
+    box-shadow:12px -3px 0 -2px #7a5837;
+}
+#st-mini-game-center .farm-seed-visual.farm-crop-carrot::before{content:"";width:18px;height:18px;left:12px;bottom:10px;border-radius:50%;background:#5f984e;}
+#st-mini-game-center .farm-seed-visual.farm-crop-potato::before{content:"";width:22px;height:15px;left:10px;bottom:8px;border-radius:50%;background:#9a7047;}
+#st-mini-game-center .farm-seed-visual.farm-crop-radish::before{content:"";width:18px;height:16px;left:12px;bottom:9px;border-radius:55%;background:#d95555;}
+#st-mini-game-center .farm-seed-visual.farm-crop-tomato::before{content:"";width:18px;height:18px;left:11px;bottom:8px;border-radius:50%;background:#dc5b45;}
+#st-mini-game-center .farm-seed-visual.farm-crop-corn::before{content:"";width:13px;height:24px;left:14px;bottom:5px;border-radius:50%;background:#e6c64d;}
+#st-mini-game-center .farm-seed-visual.farm-crop-strawberry::before{content:"";width:16px;height:17px;left:13px;bottom:7px;border-radius:45%;background:#e45b69;}
+#st-mini-game-center .farm-seed-visual.farm-crop-pumpkin::before{content:"";width:22px;height:18px;left:10px;bottom:7px;border-radius:50%;background:#ea9134;}
+#st-mini-game-center .farm-seed-visual.farm-crop-watermelon::before{content:"";width:24px;height:14px;left:9px;bottom:8px;border-radius:50%;background:#4b9455;}
+#st-mini-game-center .farm-seed-visual.farm-crop-blueberry::before{content:"";width:21px;height:17px;left:11px;bottom:8px;border-radius:50%;background:#6489b2;}
+#st-mini-game-center .farm-seed-visual.farm-crop-grape::before{content:"";width:15px;height:19px;left:14px;bottom:6px;border-radius:50%;background:#6d4b98;box-shadow:8px 4px #7651a0;}
+#st-mini-game-center .farm-seed-visual.farm-crop-tea::before{content:"";width:26px;height:17px;left:8px;bottom:8px;border-radius:50%;background:#6c984f;}
+#st-mini-game-center .farm-seed-visual.farm-crop-lavender::before{content:"";width:4px;height:25px;left:20px;bottom:4px;background:#749c50;box-shadow:8px 1px #7b9f52}
+
+#st-mini-game-center .farm-progress{width:84%;height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.07)}
+#st-mini-game-center .farm-progress span{display:block;height:100%;border-radius:inherit;background:var(--SmartThemeQuoteColor,currentColor);opacity:.72}
+#st-mini-game-center .farm-actions{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,auto);align-items:center;gap:8px;width:min(700px,100%);margin:0 auto}
+#st-mini-game-center .farm-selection-text{min-width:0;font-size:12px;opacity:.78}
+#st-mini-game-center .farm-action-btn:disabled{opacity:.42;cursor:not-allowed}
+#st-mini-game-center .farm-harvest-btn:not(:disabled){font-weight:700}
+#st-mini-game-center .farm-seed-hint,#st-mini-game-center .farm-crop-note{width:min(700px,100%);margin-left:auto;margin-right:auto}
+
+/* water / fertilizer feedback bubbles above the plant */
+#st-mini-game-center .farm-action-bubble{
+    position:absolute;
+    left:50%;
+    top:8px;
+    transform:translate(-50%,-4px);
+    min-width:42px;
+    height:28px;
+    padding:0 9px 0 6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    border-radius:999px;
+    border:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
+    background:color-mix(in srgb,var(--SmartThemeBodyBgColor,#fff) 82%,transparent);
+    color:var(--SmartThemeBodyColor,currentColor);
+    box-shadow:0 5px 14px rgba(0,0,0,.14);
+    font-size:11px;
+    font-weight:700;
+    pointer-events:none;
+    z-index:5;
+    animation:farmBubbleFloat 1.45s ease-out forwards;
+}
+#st-mini-game-center .farm-action-bubble::after{
+    content:"";position:absolute;left:50%;bottom:-5px;width:9px;height:9px;
+    background:inherit;border-right:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);border-bottom:1px solid color-mix(in srgb,var(--SmartThemeBorderColor,#999) 70%,transparent);
+    transform:translateX(-50%) rotate(45deg);
+}
+#st-mini-game-center .farm-bubble-mark{position:relative;display:block;width:14px;height:14px;flex:0 0 auto}
+#st-mini-game-center .farm-action-water .farm-bubble-mark::before{
+    content:"";position:absolute;width:9px;height:12px;left:3px;top:0;border-radius:70% 30% 65% 35%;background:#65a9df;transform:rotate(45deg)
+}
+#st-mini-game-center .farm-action-water .farm-bubble-mark::after{
+    content:"";position:absolute;width:4px;height:4px;left:8px;top:1px;border-radius:50%;background:#fff;opacity:.75
+}
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::before,
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after{
+    content:"";position:absolute;left:6px;top:2px;width:3px;height:11px;border-radius:3px;background:#d2ad52;box-shadow:0 0 7px rgba(210,173,82,.4)
+}
+#st-mini-game-center .farm-action-fertilizer .farm-bubble-mark::after{transform:rotate(90deg)}
+@keyframes farmBubbleFloat{
+    0%{opacity:0;transform:translate(-50%,7px) scale(.78)}
+    20%{opacity:1;transform:translate(-50%,-4px) scale(1)}
+    78%{opacity:1;transform:translate(-50%,-18px) scale(1)}
+    100%{opacity:0;transform:translate(-50%,-28px) scale(.94)}
 }
 
-#st-mini-game-center .farm-seed-card:disabled {
-    opacity: .48;
-    cursor: not-allowed;
+@media (max-width:760px){
+    #st-mini-game-center .farm-seed-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+    #st-mini-game-center .farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}
+    #st-mini-game-center .farm-actions{grid-template-columns:1fr 1fr 1fr}
+    #st-mini-game-center .farm-selection-text{grid-column:1/-1;order:-1}
 }
-
-#st-mini-game-center .farm-seed-emoji {
-    font-size: 26px;
-    line-height: 1.1;
-}
-
-#st-mini-game-center .farm-seed-name {
-    font-size: 12px;
-    font-weight: 700;
-}
-
-#st-mini-game-center .farm-seed-price {
-    max-width: 100%;
-    font-size: 9px;
-    line-height: 1.25;
-    opacity: .62;
-    text-align: center;
-}
-
-#st-mini-game-center .farm-field {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 9px;
-    width: min(700px, 100%);
-    margin: 10px auto 12px;
-}
-
-#st-mini-game-center .farm-plot {
-    position: relative;
-    min-width: 0;
-    min-height: 118px;
-    padding: 11px 8px;
-    border: 1px solid color-mix(in srgb, #8f6b48 30%, var(--SmartThemeBorderColor, rgba(127,127,127,.25)));
-    border-radius: 14px;
-    background: linear-gradient(160deg, color-mix(in srgb, #8f6b48 26%, var(--SmartThemeBodyBgColor, transparent)), color-mix(in srgb, #64462f 20%, var(--SmartThemeBodyBgColor, transparent)));
-    color: var(--SmartThemeBodyColor, currentColor);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    cursor: pointer;
-    font: inherit;
-    appearance: none;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 4px 12px var(--black10a, rgba(0,0,0,.08));
-}
-
-#st-mini-game-center .farm-plot:hover {
-    filter: brightness(1.05);
-}
-
-#st-mini-game-center .farm-plot.selected {
-    outline: 2px solid var(--customThemeColor, var(--SmartThemeQuoteColor, currentColor));
-    transform: translateY(-1px);
-}
-
-#st-mini-game-center .farm-plot.empty {
-    opacity: .82;
-}
-
-#st-mini-game-center .farm-plot.watered {
-    box-shadow: inset 0 0 0 1px rgba(100,170,255,.26), 0 4px 12px var(--black10a, rgba(0,0,0,.08));
-}
-
-#st-mini-game-center .farm-plot.fertilized {
-    border-color: color-mix(in srgb, #d9b34e 45%, var(--SmartThemeBorderColor, rgba(127,127,127,.25)));
-}
-
-#st-mini-game-center .farm-plot.ripe {
-    background: linear-gradient(160deg, color-mix(in srgb, #e5c875 19%, var(--SmartThemeBodyBgColor, transparent)), color-mix(in srgb, #a97b38 16%, var(--SmartThemeBodyBgColor, transparent)));
-}
-
-#st-mini-game-center .farm-plot-icon {
-    font-size: 25px;
-    opacity: .46;
-}
-
-#st-mini-game-center .farm-plot-label,
-#st-mini-game-center .farm-plant-name,
-#st-mini-game-center .farm-plant-meta {
-    font-size: 10px;
-    line-height: 1.25;
-    text-align: center;
-}
-
-#st-mini-game-center .farm-plant-icon {
-    font-size: 32px;
-    line-height: 1.15;
-}
-
-#st-mini-game-center .farm-plant-name {
-    font-weight: 700;
-}
-
-#st-mini-game-center .farm-plant-meta {
-    opacity: .58;
-}
-
-#st-mini-game-center .farm-progress {
-    width: 84%;
-    height: 5px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: rgba(255,255,255,.14);
-    border: 1px solid rgba(255,255,255,.07);
-}
-
-#st-mini-game-center .farm-progress span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: var(--SmartThemeQuoteColor, currentColor);
-    opacity: .72;
-}
-
-#st-mini-game-center .farm-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) repeat(3, auto);
-    align-items: center;
-    gap: 8px;
-    width: min(700px, 100%);
-    margin: 0 auto;
-}
-
-#st-mini-game-center .farm-selection-text {
-    min-width: 0;
-    font-size: 12px;
-    opacity: .78;
-}
-
-#st-mini-game-center .farm-action-btn:disabled {
-    opacity: .42;
-    cursor: not-allowed;
-}
-
-#st-mini-game-center .farm-harvest-btn:not(:disabled) {
-    font-weight: 700;
-}
-
-#st-mini-game-center .farm-seed-hint,
-#st-mini-game-center .farm-crop-note {
-    width: min(700px, 100%);
-    margin-left: auto;
-    margin-right: auto;
-}
-
-@media (max-width: 760px) {
-    #st-mini-game-center .farm-seed-row {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    #st-mini-game-center .farm-field {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    #st-mini-game-center .farm-actions {
-        grid-template-columns: 1fr 1fr 1fr;
-    }
-
-    #st-mini-game-center .farm-selection-text {
-        grid-column: 1 / -1;
-        order: -1;
-    }
-}
-
-@media (max-width: 480px) {
-    #st-mini-game-center .farm-seed-row {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    #st-mini-game-center .farm-seed-card {
-        min-height: 76px;
-    }
-
-    #st-mini-game-center .farm-field {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 7px;
-    }
-
-    #st-mini-game-center .farm-plot {
-        min-height: 104px;
-        padding: 8px 5px;
-    }
-
-    #st-mini-game-center .farm-plant-icon {
-        font-size: 28px;
-    }
-
-    #st-mini-game-center .farm-actions {
-        gap: 6px;
-    }
-
-    #st-mini-game-center .farm-action-btn {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
+@media (max-width:480px){
+    #st-mini-game-center .farm-seed-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+    #st-mini-game-center .farm-seed-card{min-height:76px}
+    #st-mini-game-center .farm-field{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    #st-mini-game-center .farm-plot{min-height:112px;padding:8px 5px}
+    #st-mini-game-center .farm-plant-icon{width:70px;height:54px}
+    #st-mini-game-center .farm-actions{gap:6px}
+    #st-mini-game-center .farm-action-btn{padding-left:8px;padding-right:8px}
 }
 
 
