@@ -20,12 +20,13 @@
         waterSort: null,
         farm: null,
         cake: null,
+        starPop: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '0.13.4';
+    const CURRENT_VERSION = '0.14.0';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -779,6 +780,7 @@
             { id: 'waterSort', icon: 'fa-droplet', name: '倒水瓶', desc: '颜色分类 · 60关 + 无尽模式 · 自动保存' },
             { id: 'farm', icon: 'fa-seedling', name: '小农场', desc: '种地 · 浇水 · 施肥 · 作物随胜利解锁' },
             { id: 'cake', icon: 'fa-cake-candles', name: '叠蛋糕', desc: '左右移动 · 点击落下 · 越叠越高' },
+            { id: 'starPop', icon: 'fa-star', name: '消灭星星', desc: '点击相连星星 · 消除 · 下落 · 得分' },
         ]; 
 
         for (const game of games) {
@@ -833,6 +835,7 @@
             waterSort: '倒水瓶',
             farm: '小农场',
             cake: '叠蛋糕',
+            starPop: '消灭星星',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -852,6 +855,195 @@
         else if (game === 'waterSort') renderWaterSort(body);
         else if (game === 'farm') renderFarm(body);
         else if (game === 'cake') renderCake(body);
+        else if (game === 'starPop') renderStarPop(body);
+    }
+
+
+    /* ==================== 消灭星星 ==================== */
+    const STARPOP_STORAGE_KEY = 'silly-game:star-pop:v1';
+    const STARPOP_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
+    const STARPOP_SIZE = 10;
+
+    function starPopNewBoard() {
+        const board = Array.from({ length: STARPOP_SIZE }, () =>
+            Array.from({ length: STARPOP_SIZE }, () => Math.floor(Math.random() * STARPOP_COLORS.length))
+        );
+        return { board, score: 0, moves: 0, best: 0, over: false, won: false };
+    }
+
+    function starPopNormalize(raw) {
+        if (!raw || typeof raw !== 'object' || !Array.isArray(raw.board)) return starPopNewBoard();
+        const rows = raw.board.slice(0, STARPOP_SIZE).map(row =>
+            Array.isArray(row)
+                ? row.slice(0, STARPOP_SIZE).map(v => Number.isInteger(v) && v >= 0 && v < STARPOP_COLORS.length ? v : -1)
+                : []
+        );
+        while (rows.length < STARPOP_SIZE) rows.push([]);
+        rows.forEach(row => { while (row.length < STARPOP_SIZE) row.push(-1); });
+        return {
+            board: rows,
+            score: Number.isFinite(raw.score) ? raw.score : 0,
+            moves: Number.isFinite(raw.moves) ? raw.moves : 0,
+            best: Number.isFinite(raw.best) ? raw.best : 0,
+            over: !!raw.over,
+            won: !!raw.won,
+        };
+    }
+
+    function starPopLoad() {
+        try {
+            return starPopNormalize(JSON.parse(localStorage.getItem(STARPOP_STORAGE_KEY) || 'null'));
+        } catch { return starPopNewBoard(); }
+    }
+
+    function starPopSave(game = state.starPop) {
+        try { if (game) localStorage.setItem(STARPOP_STORAGE_KEY, JSON.stringify(game)); } catch { /* ignore */ }
+    }
+
+    function starPopNeighbors(r, c, board) {
+        const out = [];
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [dr, dc] of dirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < STARPOP_SIZE && nc >= 0 && nc < STARPOP_SIZE && board[nr]?.[nc] >= 0) out.push([nr, nc]);
+        }
+        return out;
+    }
+
+    function starPopGroup(board, r, c) {
+        const color = board[r]?.[c];
+        if (color == null || color < 0) return [];
+        const seen = new Set([`${r},${c}`]);
+        const queue = [[r,c]];
+        const group = [];
+        while (queue.length) {
+            const [cr, cc] = queue.shift();
+            group.push([cr,cc]);
+            for (const [nr,nc] of starPopNeighbors(cr,cc,board)) {
+                if (board[nr][nc] !== color) continue;
+                const key = `${nr},${nc}`;
+                if (!seen.has(key)) { seen.add(key); queue.push([nr,nc]); }
+            }
+        }
+        return group;
+    }
+
+    function starPopCollapse(board) {
+        // Vertical gravity per column.
+        for (let c = 0; c < STARPOP_SIZE; c++) {
+            const values = [];
+            for (let r = STARPOP_SIZE - 1; r >= 0; r--) if (board[r][c] >= 0) values.push(board[r][c]);
+            for (let r = STARPOP_SIZE - 1; r >= 0; r--) board[r][c] = values[STARPOP_SIZE - 1 - r] ?? -1;
+        }
+        // Shift empty columns to the left.
+        let write = 0;
+        for (let c = 0; c < STARPOP_SIZE; c++) {
+            const empty = board.every(row => row[c] < 0);
+            if (!empty) {
+                if (write !== c) {
+                    for (let r = 0; r < STARPOP_SIZE; r++) board[r][write] = board[r][c];
+                    for (let r = 0; r < STARPOP_SIZE; r++) board[r][c] = -1;
+                }
+                write++;
+            }
+        }
+    }
+
+    function starPopHasMoves(board) {
+        for (let r = 0; r < STARPOP_SIZE; r++) {
+            for (let c = 0; c < STARPOP_SIZE; c++) {
+                if (board[r][c] < 0) continue;
+                const group = starPopGroup(board, r, c);
+                if (group.length >= 2) return true;
+            }
+        }
+        return false;
+    }
+
+    function starPopClick(r, c) {
+        const game = state.starPop;
+        if (!game || game.over || game.won) return;
+        const group = starPopGroup(game.board, r, c);
+        if (group.length < 2) return;
+        group.forEach(([gr,gc]) => { game.board[gr][gc] = -1; });
+        const n = group.length;
+        game.score += n * n * 5;
+        game.moves++;
+        starPopCollapse(game.board);
+        const remaining = game.board.flat().filter(v => v >= 0).length;
+        if (remaining === 0) {
+            game.won = true;
+            game.over = true;
+            game.best = Math.max(game.best, game.score);
+        } else if (!starPopHasMoves(game.board)) {
+            game.over = true;
+            game.best = Math.max(game.best, game.score);
+        }
+        starPopSave(game);
+    }
+
+    function renderStarPop(body) {
+        cleanupGame();
+        state.starPop = starPopLoad();
+        const toolbar = el('div', { class: 'stgc-game-toolbar' });
+        const info = el('div', { class: 'stgc-game-info' });
+        const scorePill = el('span', { class: 'stgc-pill' });
+        const remainPill = el('span', { class: 'stgc-pill' });
+        const bestPill = el('span', { class: 'stgc-pill' });
+        info.append(scorePill, remainPill, bestPill);
+        const reset = el('button', { class: 'stgc-btn', type: 'button' });
+        reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
+        toolbar.append(info, reset);
+
+        const board = el('div', { class: 'star-pop-board', role: 'grid', 'aria-label': '消灭星星棋盘' });
+        const hint = el('div', { class: 'stgc-game-hint', text: '点击两个以上相连的同色星星即可消除。消除后上方星星会下落，空列会向左收拢。' });
+        const result = el('div', { class: 'star-pop-result' });
+        body.append(toolbar, board, result, hint);
+
+        function draw() {
+            const game = state.starPop;
+            board.innerHTML = '';
+            let remaining = 0;
+            game.board.forEach(row => row.forEach(v => { if (v >= 0) remaining++; }));
+            scorePill.textContent = `分数 ${game.score}`;
+            remainPill.textContent = `剩余 ${remaining}`;
+            bestPill.textContent = `最高 ${game.best}`;
+            result.textContent = game.won
+                ? '🎉 清空棋盘！'
+                : game.over
+                    ? `本局结束 · ${game.score} 分`
+                    : '';
+
+            for (let r = 0; r < STARPOP_SIZE; r++) {
+                for (let c = 0; c < STARPOP_SIZE; c++) {
+                    const v = game.board[r][c];
+                    const cell = el('div', {
+                        class: `star-pop-cell${v < 0 ? ' empty' : ` color-${STARPOP_COLORS[v]}`}`,
+                        role: v < 0 ? 'presentation' : 'button',
+                        tabindex: v < 0 ? '-1' : '0',
+                        'aria-label': v < 0 ? '空位' : `${STARPOP_COLORS[v]}星星`,
+                    });
+                    if (v >= 0) {
+                        cell.addEventListener('click', () => { starPopClick(r, c); draw(); });
+                        cell.addEventListener('keydown', event => {
+                            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); starPopClick(r,c); draw(); }
+                        });
+                    }
+                    board.append(cell);
+                }
+            }
+        }
+
+        reset.addEventListener('click', () => {
+            const best = Math.max(state.starPop?.best || 0, starPopLoad().best || 0);
+            state.starPop = starPopNewBoard();
+            state.starPop.best = best;
+            starPopSave(state.starPop);
+            draw();
+        });
+
+        state.cleanup = () => starPopSave(state.starPop);
+        draw();
     }
 
     /* ==================== 叠蛋糕 ==================== */

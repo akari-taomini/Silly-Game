@@ -2064,3 +2064,82 @@
     #st-mini-game-center .cake-topbar { align-items: flex-start; }
     #st-mini-game-center .cake-status { flex: 1; }
 }
+
+
+/* ==================== 消灭星星 ==================== */
+#st-mini-game-center .star-pop-board {
+  width: min(640px, 100%);
+  margin: 4px auto 12px;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: clamp(4px, 0.8vw, 8px);
+  padding: clamp(6px, 1.2vw, 10px);
+  border-radius: var(--SmartThemeBorderRadius, 10px);
+  background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+  border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+  touch-action: manipulation;
+  user-select: none;
+}
+
+#st-mini-game-center .star-pop-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  position: relative;
+  border-radius: 18%;
+  cursor: pointer;
+  outline: none;
+  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+}
+
+#st-mini-game-center .star-pop-cell:not(.empty):hover {
+  transform: scale(1.07);
+  filter: brightness(1.08) saturate(1.06);
+}
+
+#st-mini-game-center .star-pop-cell:not(.empty):active {
+  transform: scale(.94);
+}
+
+#st-mini-game-center .star-pop-cell::before {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 92%, 50% 70%, 21% 92%, 32% 56%, 2% 35%, 39% 34%);
+  border-radius: 12%;
+  background: currentColor;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,.38), inset 0 -3px 4px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.12);
+}
+
+#st-mini-game-center .star-pop-cell.empty {
+  pointer-events: none;
+  opacity: .08;
+}
+
+#st-mini-game-center .star-pop-cell.color-pink { color: #ef6f96; }
+#st-mini-game-center .star-pop-cell.color-blue { color: #65a7e7; }
+#st-mini-game-center .star-pop-cell.color-yellow { color: #e8bc52; }
+#st-mini-game-center .star-pop-cell.color-green { color: #69b97a; }
+#st-mini-game-center .star-pop-cell.color-purple { color: #9d7de0; }
+
+#st-mini-game-center .star-pop-cell:focus-visible::before {
+  outline: 3px solid var(--SmartThemeQuoteColor, currentColor);
+  outline-offset: 2px;
+}
+
+#st-mini-game-center .star-pop-result {
+  min-height: 24px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--SmartThemeBodyColor, inherit);
+}
+
+@media (max-width: 640px) {
+  #st-mini-game-center .star-pop-board {
+    width: min(94vw, 520px);
+    gap: 3px;
+    padding: 5px;
+  }
+  #st-mini-game-center .star-pop-cell::before {
+    inset: 7%;
+  }
+}
