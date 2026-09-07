@@ -747,9 +747,15 @@
         // 首次使用默认“新手”9×9；已有存档则恢复上次的棋盘。
         state.mines = loadMines() || createMinesweeper('beginner');
 
-        let mineZoom = 1;
+        let mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
         let mineCellSize = 32;
 
+        function getMineCellSize(size) {
+            if (size >= 24) return 24;
+            if (size >= 20) return 26;
+            if (size >= 16) return 28;
+            return 34;
+        }
 
         function getMineMaxZoom(size) {
             if (size >= 24) return 2.4;
@@ -769,7 +775,7 @@
             btn.addEventListener('click', () => {
                 clearMinesSave();
                 state.mines = createMinesweeper(id);
-                mineZoom = 1;
+                mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
                 draw();
                 centerMineView();
                 saveMines();
@@ -789,7 +795,7 @@
         resetBtn.addEventListener('click', () => {
             clearMinesSave();
             state.mines = createMinesweeper(state.mines.difficulty);
-            mineZoom = 1;
+            mineZoom = window.innerWidth <= 640 ? 1.25 : 1;
             draw();
             centerMineView();
             saveMines();
@@ -991,17 +997,8 @@
         };
         document.addEventListener('keydown', onKey, true);
 
-        const mineResizeObserver = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(() => {
-                if (state.currentGame !== 'mines') return;
-                requestAnimationFrame(() => draw());
-            })
-            : null;
-        mineResizeObserver?.observe(mineViewport);
-
         state.cleanup = () => {
             saveMines();
-            mineResizeObserver?.disconnect();
             clearTimeout(longPressTimer);
             window.clearInterval(tick);
             board.removeEventListener('pointerdown', onPointerDown);
@@ -1037,19 +1034,11 @@
         function draw() {
             const s = state.mines;
             board.innerHTML = '';
-
-            // 1× 时让棋盘自动填满“可视区域”的宽度；
-            // 放大后再按比例放大，超出部分交给 viewport + 方向键微调。
-            const gap = 2;
-            const available = Math.max(120, mineViewport.clientWidth - 12);
-            const fitCell = Math.max(14, (available - gap * (s.size - 1)) / s.size);
-            mineCellSize = Math.max(14, Math.round(fitCell * mineZoom));
-
-            board.style.gridTemplateColumns = `repeat(${s.size}, minmax(0, 1fr))`;
+            mineCellSize = Math.max(20, Math.round(getMineCellSize(s.size) * mineZoom));
+            board.style.gridTemplateColumns = `repeat(${s.size}, ${mineCellSize}px)`;
             board.style.gridTemplateRows = `repeat(${s.size}, ${mineCellSize}px)`;
-            board.style.width = `${Math.max(available, s.size * mineCellSize + gap * (s.size - 1))}px`;
-            board.style.height = `${s.size * mineCellSize + gap * (s.size - 1)}px`;
-            board.style.setProperty('--mine-cell-size', `${mineCellSize}px`);
+            board.style.width = `${s.size * mineCellSize}px`;
+            board.style.height = `${s.size * mineCellSize}px`;
             board.dataset.size = String(s.size);
             mineViewport.dataset.size = String(s.size);
             zoomText.textContent = `${Math.round(mineZoom * 100)}%`;
@@ -2458,7 +2447,7 @@
         cleanupGame();state.go=loadGo()||newGo('ai');saveGo();
         const top=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),pass=el('button',{class:'stgc-btn',type:'button',text:'停一手'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});top.append(status,mode,undo,pass,reset);
         const board=el('div',{class:'go-board'}),controls=el('div',{class:'go-bottom-controls'});body.append(top,board,controls,el('div',{class:'stgc-game-hint',text:'9×9 围棋 · 气、提子、禁入、劫已实现 · 默认本地 AI，无需 API'}));
-        const draw=()=>{const g=state.go;board.innerHTML='';mode.textContent=g.mode==='ai'?'人机对战':'双人对战';if(g.over){const sc=goCountScore(g);status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;}else if(g.aiThinking)status.textContent='AI 思考中…';else status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;for(let i=0;i<81;i++){const c=el('button',{class:'go-cell',type:'button'});const [x,y]=goXY(i);if(x===0)c.classList.add('left');if(y===0)c.classList.add('top');if(g.board[i]===1)c.classList.add('black');if(g.board[i]===2)c.classList.add('white');if([20,24,40,56,60].includes(i))c.classList.add('star');c.dataset.index=String(i);board.append(c);}};
+        const draw=()=>{const g=state.go;board.innerHTML='';mode.textContent=g.mode==='ai'?'人机对战':'双人对战';if(g.over){const sc=goCountScore(g);status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;}else if(g.aiThinking)status.textContent='AI 思考中…';else status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;for(let i=0;i<81;i++){const c=el('div',{class:'go-cell',role:'button',tabindex:'0'});const [x,y]=goXY(i);if(x===0)c.classList.add('left');if(y===0)c.classList.add('top');if(g.board[i]===1)c.classList.add('black');if(g.board[i]===2)c.classList.add('white');if([20,24,40,56,60].includes(i))c.classList.add('star');c.dataset.index=String(i);board.append(c);}};
         const ai=()=>{const g=state.go;if(g.mode!=='ai'||g.over||g.turn!==2)return;g.aiThinking=true;draw();window.setTimeout(()=>{if(state.currentGame!=='go'||state.go!==g)return;const move=goSimpleAI(g);g.aiThinking=false;if(move==null){g.passes++;}else goMove(g,move,2);if(g.passes>=2)g.over=true;saveGo();draw();},180)};
         board.addEventListener('click',e=>{const c=e.target.closest?.('.go-cell');if(!c)return;const g=state.go;if(g.over||g.aiThinking)return;if(g.mode==='ai'&&g.turn!==1)return;const ok=goMove(g,Number(c.dataset.index),g.turn);if(ok){saveGo();draw();ai();}});
         mode.addEventListener('click',()=>{state.go=newGo(state.go.mode==='ai'?'pvp':'ai');saveGo();draw();});undo.addEventListener('click',()=>{if(state.go.mode==='ai'&&state.go.history.length>=2){goUndo(state.go);goUndo(state.go);}else goUndo(state.go);saveGo();draw();});pass.addEventListener('click',()=>{const g=state.go;if(g.over)return;g.history.push({board:g.board.slice(),turn:g.turn,ko:g.ko,captured:g.captured.slice(),passes:g.passes});g.passes++;g.turn=g.turn===1?2:1;if(g.passes>=2)g.over=true;saveGo();draw();ai();});reset.addEventListener('click',()=>{state.go=newGo(state.go.mode);saveGo();draw();});state.cleanup=()=>saveGo();draw();

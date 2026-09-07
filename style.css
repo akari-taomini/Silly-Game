@@ -399,7 +399,7 @@
 
 /* ---------- 扫雷：棋盘保留清爽白色格子 ---------- */
 #st-mini-game-center .mine-viewport {
-    width: 100%;
+    width: min(540px, 100%);
     height: min(58dvh, 540px);
     min-height: 260px;
     margin: 0 auto 8px;
@@ -411,7 +411,6 @@
     border-radius: var(--SmartThemeBorderRadius, 6px);
     background: var(--SmartThemeBlurTintColor, var(--black20a, rgba(0,0,0,.08)));
     touch-action: pan-x pan-y;
-    padding: 6px;
 }
 
 #st-mini-game-center .mine-viewport::-webkit-scrollbar {
@@ -420,24 +419,23 @@
 }
 
 #st-mini-game-center .mine-board {
-    width: 100%;
-    height: auto;
+    width: max-content;
+    height: max-content;
     margin: 0;
-    padding: 0;
+    padding: 4px;
     display: grid;
     gap: 2px;
     align-content: start;
-    justify-content: stretch;
+    justify-content: start;
     touch-action: manipulation;
     user-select: none;
 }
 
 #st-mini-game-center .mine-cell {
-    width: auto;
-    height: auto;
+    width: var(--mine-cell-size, 32px);
+    height: var(--mine-cell-size, 32px);
     min-width: 0;
     min-height: 0;
-    aspect-ratio: 1 / 1;
     padding: 0;
     display: grid;
     place-items: center;
@@ -446,7 +444,7 @@
     border: 1px solid #d9d9d9;
     border-radius: 4px;
     box-shadow: 0 1px 2px rgba(0,0,0,.08);
-    font-size: clamp(10px, calc(var(--mine-cell-size, 32px) * .48), 24px);
+    font-size: max(10px, calc(var(--mine-cell-size, 32px) * .48));
     font-weight: 800;
     line-height: 1;
     flex: none;
@@ -661,10 +659,9 @@
     }
 
     #st-mini-game-center .mine-viewport {
-        width: 100%;
+        width: min(100%, calc(100vw - 24px));
         height: min(55dvh, 460px);
         min-height: 240px;
-        padding: 4px;
     }
 
     #st-mini-game-center .mine-view-tools {
@@ -1291,19 +1288,34 @@
 
 /* ---------- 围棋 ---------- */
 #st-mini-game-center .go-board {
-    width: min(560px, 100%);
-    aspect-ratio: 1;
-    margin: 6px auto 12px;
-    padding: 8px;
+    width: min(560px, calc(100vw - 32px));
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    margin: 10px auto 14px;
+    padding: 12px;
+    box-sizing: border-box;
     display: grid;
-    background:
-        linear-gradient(to right, transparent 0%, transparent calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 12.5%, transparent 12.5%, transparent calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 25%, transparent 25%, transparent calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 37.5%, transparent 37.5%, transparent calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 50%, transparent 50%, transparent calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 62.5%, transparent 62.5%, transparent calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 75%, transparent 75%, transparent calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 87.5%, transparent 87.5%),
-        linear-gradient(to bottom, transparent 0%, transparent calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(12.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 12.5%, transparent 12.5%, transparent calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(25% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 25%, transparent 25%, transparent calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(37.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 37.5%, transparent 37.5%, transparent calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(50% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 50%, transparent 50%, transparent calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(62.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 62.5%, transparent 62.5%, transparent calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(75% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 75%, transparent 75%, transparent calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) calc(87.5% - 1px), var(--SmartThemeBorderColor, rgba(127,127,127,.5)) 87.5%, transparent 87.5%),
-        var(--SmartThemeBlurTintColor, rgba(180,150,110,.16));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-rows: repeat(9, minmax(0, 1fr));
+    background: var(--SmartThemeBlurTintColor, rgba(180,150,110,.16));
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
     border-radius: var(--SmartThemeBorderRadius, 6px);
+    position: relative;
+    overflow: visible;
     touch-action: manipulation;
     user-select: none;
+}
+
+/* 用伪元素画棋盘线，避免酒馆主题的 button 样式干扰棋子。 */
+#st-mini-game-center .go-board::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(to right, transparent 0, transparent calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% + .5px)),
+        repeating-linear-gradient(to bottom, transparent 0, transparent calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% - .5px), var(--SmartThemeBorderColor, rgba(80,80,80,.55)) calc(12.5% + .5px));
+    z-index: 0;
 }
 
 #st-mini-game-center .go-cell {
@@ -1314,79 +1326,80 @@
     min-height: 0;
     margin: 0;
     padding: 0;
-    border: 0;
+    border: 0 !important;
+    outline: none;
     background: transparent !important;
-    color: inherit;
+    box-shadow: none !important;
     appearance: none;
     -webkit-appearance: none;
     cursor: pointer;
+    z-index: 1;
 }
 
 #st-mini-game-center .go-cell::before {
     content: '';
     position: absolute;
-    inset: 17%;
+    width: 72%;
+    height: 72%;
+    left: 14%;
+    top: 14%;
     border-radius: 50%;
     opacity: 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,.2);
+    box-sizing: border-box;
+    pointer-events: none;
 }
 
 #st-mini-game-center .go-cell.black::before {
     opacity: 1;
     background: #222;
-    box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 1px 2px 4px rgba(0,0,0,.25);
+    border: 1px solid rgba(0,0,0,.5);
+    box-shadow: inset -3px -3px 5px rgba(0,0,0,.38), 1px 2px 4px rgba(0,0,0,.25);
 }
 
 #st-mini-game-center .go-cell.white::before {
     opacity: 1;
     background: #fafafa;
-    border: 1px solid rgba(0,0,0,.25);
-    box-shadow: inset -1px -1px 3px rgba(0,0,0,.14), 1px 2px 4px rgba(0,0,0,.18);
+    border: 1px solid rgba(0,0,0,.28);
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,.12), 1px 2px 4px rgba(0,0,0,.18);
 }
 
 #st-mini-game-center .go-cell.star::after {
     content: '';
     position: absolute;
-    left: 50%; top: 50%;
-    width: 5px; height: 5px;
+    width: 6px;
+    height: 6px;
+    left: 50%;
+    top: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: currentColor;
     opacity: .58;
+    pointer-events: none;
 }
 
 #st-mini-game-center .go-cell.black.star::after,
 #st-mini-game-center .go-cell.white.star::after { opacity: 0; }
+
+#st-mini-game-center .go-cell:hover::before {
+    filter: brightness(1.08);
+}
 
 #st-mini-game-center .go-bottom-controls {
     min-height: 1px;
 }
 
 @media (max-width: 640px) {
-    #st-mini-game-center .tetris-wrap {
-        gap: 8px;
-    }
-
-    #st-mini-game-center .tetris-board {
-        width: min(70vw, 300px);
-    }
-
-    #st-mini-game-center .tetris-side,
-    #st-mini-game-center .tetris-next {
-        width: 70px;
-    }
-
-    #st-mini-game-center .tetris-next {
-        height: 70px;
-        padding: 7px;
-    }
-
     #st-mini-game-center .go-board {
         width: min(94vw, 520px);
-        padding: 6px;
+        padding: 8px;
     }
-
-    #st-mini-game-center .puzzle15-board {
-        width: min(92vw, 460px);
+    #st-mini-game-center .go-board::before {
+        inset: 8px;
+    }
+    #st-mini-game-center .go-cell::before {
+        width: 76%;
+        height: 76%;
+        left: 12%;
+        top: 12%;
     }
 }
