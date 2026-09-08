@@ -6194,3 +6194,185 @@ n
 #st-mini-game-center .go-palette-select {
     min-width: 84px;
 }
+
+/* ==================== 数方 ==================== */
+#st-mini-game-center .shikaku-board {
+    --shikaku-size: 7;
+    width: min(620px, 100%);
+    aspect-ratio: 1 / 1;
+    margin: 10px auto 14px;
+    display: grid;
+    grid-template-columns: repeat(var(--shikaku-size), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--shikaku-size), minmax(0, 1fr));
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+    touch-action: none;
+    user-select: none;
+}
+
+#st-mini-game-center .shikaku-cell {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    position: relative;
+    border-right: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 88%, transparent);
+}
+
+
+#st-mini-game-center .shikaku-cell.filled {
+    background: color-mix(in srgb, var(--customThemeColor, var(--SmartThemeQuoteColor, #888)) 10%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-cell.preview-valid {
+    background: color-mix(in srgb, #78b982 20%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-cell.preview-invalid {
+    background: color-mix(in srgb, #d97878 18%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-clue {
+    position: relative;
+    z-index: 3;
+    min-width: 1.55em;
+    min-height: 1.55em;
+    display: inline-grid;
+    place-items: center;
+    padding: .12em .28em;
+    border-radius: 50%;
+    font-size: clamp(11px, 2.6vw, 17px);
+    font-weight: 800;
+    color: var(--SmartThemeBodyColor, currentColor);
+}
+
+#st-mini-game-center .shikaku-region-border {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    border: 2px solid var(--SmartThemeBodyColor, currentColor);
+    border-radius: 3px;
+    opacity: .72;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 50%, transparent);
+}
+
+#st-mini-game-center .shikaku-cell.valid-region .shikaku-clue {
+    background: color-mix(in srgb, #78b982 24%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .stgc-home-update-btn,
+#st-mini-game-center .stgc-extension-update-btn {
+    position: relative;
+}
+
+#st-mini-game-center .stgc-home-update-btn.has-update::after,
+#stgc-extension-settings .stgc-extension-update-btn.has-update::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e45f6f;
+    box-shadow: 0 0 0 2px var(--SmartThemeBlurTintColor, rgba(0,0,0,.35));
+}
+
+#stgc-extension-settings .stgc-extension-update-btn {
+    position: relative;
+}
+
+/* 新增作物：茉莉 */
+#st-mini-game-center .farm-crop-jasmine .farm-plant-art::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 11px;
+    width: 4px;
+    height: 43px;
+    transform: translateX(-50%);
+    border-radius: 5px;
+    background: #6f875f;
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before,
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 11px;
+    bottom: 25px;
+    border-radius: 100% 10px 100% 10px;
+    background: #80986d;
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before {
+    left: 22px;
+    transform: rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    right: 22px;
+    transform: scaleX(-1) rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-fruit::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 48px;
+    width: 27px;
+    height: 27px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: #f2eee7;
+    box-shadow: 0 0 0 5px rgba(255,255,255,.18), 12px 2px 0 -5px #e6e1d7, -12px 2px 0 -5px #e6e1d7;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-art::before {
+    height: 16px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-fruit::before {
+    width: 12px;
+    height: 12px;
+    bottom: 24px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-art::before {
+    height: 8px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-fruit::before {
+    opacity: 0;
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-jasmine::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    bottom: 9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #f2eee7;
+    box-shadow: 11px 4px 0 -5px #e6e1d7, -10px 4px 0 -5px #e6e1d7;
+}
+
+@media (max-width: 640px) {
+    #st-mini-game-center .shikaku-board {
+        width: min(92vw, 540px);
+        margin-top: 6px;
+    }
+
+    #st-mini-game-center .shikaku-region-border {
+        border-width: 1.5px;
+    }
+}

@@ -23,17 +23,18 @@
         cake: null,
         starPop: null,
         linkMatch: null,
+        shikaku: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.5.7';
-    const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+    const CURRENT_VERSION = '1.5.8';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
-        autoUpdate: true,
+        checkOnStartup: true,
         lastUpdateCheck: 0,
+        updateAvailable: false,
     });
     let updateCheckPromise = null;
     let refreshFarmSeedRow = null;
@@ -56,11 +57,12 @@
         cherry:    { name: '樱桃',   seedCost: 11, sell: 48, grow: 260, unlock: 'cake' },
         sunflower: { name: '向日葵', seedCost: 12, sell: 55, grow: 285, unlock: 'starPop' },
         peach:     { name: '蜜桃',   seedCost: 13, sell: 62, grow: 300, unlock: 'linkMatch' },
+        jasmine:   { name: '茉莉',   seedCost: 14, sell: 68, grow: 320, unlock: 'shikaku' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
-        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看',
+        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方',
     };
 
     function loadGameWins() {
@@ -171,8 +173,13 @@
             if (typeof settings[EXTENSION_SETTINGS_KEY].launcherEnabled !== 'boolean') {
                 settings[EXTENSION_SETTINGS_KEY].launcherEnabled = DEFAULT_EXTENSION_SETTINGS.launcherEnabled;
             }
-            if (typeof settings[EXTENSION_SETTINGS_KEY].autoUpdate !== 'boolean') {
-                settings[EXTENSION_SETTINGS_KEY].autoUpdate = DEFAULT_EXTENSION_SETTINGS.autoUpdate;
+            if (typeof settings[EXTENSION_SETTINGS_KEY].checkOnStartup !== 'boolean') {
+                settings[EXTENSION_SETTINGS_KEY].checkOnStartup = typeof settings[EXTENSION_SETTINGS_KEY].autoUpdate === 'boolean'
+                    ? settings[EXTENSION_SETTINGS_KEY].autoUpdate
+                    : DEFAULT_EXTENSION_SETTINGS.checkOnStartup;
+            }
+            if (typeof settings[EXTENSION_SETTINGS_KEY].updateAvailable !== 'boolean') {
+                settings[EXTENSION_SETTINGS_KEY].updateAvailable = false;
             }
             if (!Number.isFinite(settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck)) {
                 settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck = DEFAULT_EXTENSION_SETTINGS.lastUpdateCheck;
@@ -282,70 +289,43 @@
         return response.json();
     }
 
-    async function updateExtensionFromSillyTavern(scope) {
-        const headers = await getSTRequestHeaders();
-        const response = await fetch('/api/extensions/update', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || `${response.status} ${response.statusText}`);
-        }
-        return response.json();
-    }
-
-    async function checkForSillyGameUpdate({ auto = false } = {}) {
+    async function checkForSillyGameUpdate({ startup = false } = {}) {
         if (updateCheckPromise) return updateCheckPromise;
 
         updateCheckPromise = (async () => {
             const settings = getExtensionSettings();
-            const now = Date.now();
-            if (auto && settings && !settings.autoUpdate) return { skipped: true, updated: false, available: false };
-            if (auto && settings && Number.isFinite(settings.lastUpdateCheck) && now - settings.lastUpdateCheck < UPDATE_CHECK_INTERVAL) {
-                return { skipped: true, updated: false, available: false };
+            if (!settings) return { skipped: true, updated: false, available: false };
+            if (startup && settings.checkOnStartup === false) {
+                return { skipped: true, updated: false, available: !!settings.updateAvailable };
             }
 
-            settings.lastUpdateCheck = now;
+            settings.lastUpdateCheck = Date.now();
             saveExtensionSettings();
             updateButtonText('检查更新', true);
 
             try {
                 const scope = await discoverInstallScope();
                 if (!scope) {
-                    updateButtonText('无法自动更新');
-                    if (!auto) notify('没有在 SillyTavern 的托管第三方扩展目录中找到 Silly Game。请确认它是通过 GitHub 扩展安装方式安装的。', 'Silly Game');
+                    updateButtonText('检查更新');
                     return { skipped: false, updated: false, available: false, unmanaged: true };
                 }
 
                 const version = await getRemoteExtensionVersion(scope);
                 const available = version?.isUpToDate === false;
-                if (!available) {
-                    updateButtonText('已是最新');
-                    if (!auto) notify(`当前版本 v${CURRENT_VERSION} 已是最新。`, 'Silly Game');
-                    return { skipped: false, updated: false, available: false, version };
-                }
+                settings.updateAvailable = available;
+                saveExtensionSettings();
+                updateButtonText(available ? '有新版本' : '已是最新');
 
-                const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
-                if (!auto) notify(`发现更新（${remoteCommit}），正在更新…`, 'Silly Game');
-                const result = await updateExtensionFromSillyTavern(scope);
-                if (result?.isUpToDate) {
-                    updateButtonText('已是最新');
-                    if (!auto) notify('检查完成，当前已经是最新版本。', 'Silly Game');
-                    return { skipped: false, updated: false, available: false, version: result };
+                if (available) {
+                    const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
+                    notify(`发现 Silly Game 新版本（${remoteCommit}），请到酒馆扩展列表更新。`, 'Silly Game');
                 }
-
-                updateButtonText('更新完成');
-                if (!auto) notify('Silly Game 已更新，页面即将刷新以应用更新。', 'Silly Game');
-                else notify('Silly Game 已自动更新，正在刷新页面。', 'Silly Game');
-                setTimeout(() => location.reload(), auto ? 800 : 1200);
-                return { skipped: false, updated: true, available: true, version: result };
+                return { skipped: false, updated: false, available, version };
             } catch (error) {
                 console.error('[Silly Game] update check failed:', error);
-                updateButtonText('检查更新');
-                if (!auto) notify(`更新检查失败：${error?.message || error}`, 'Silly Game');
-                return { skipped: false, updated: false, available: false, error };
+                updateButtonText(settings.updateAvailable ? '有新版本' : '检查更新');
+                console.warn('[Silly Game] 更新检查失败：', error?.message || error);
+                return { skipped: false, updated: false, available: !!settings.updateAvailable, error };
             }
         })().finally(() => {
             updateCheckPromise = null;
@@ -605,10 +585,11 @@
         const settings = getExtensionSettings();
         const launcherCheckbox = document.getElementById('stgc_extension_launcher_enabled');
         if (launcherCheckbox) launcherCheckbox.checked = !isLauncherHidden();
-        const autoUpdateCheckbox = document.getElementById('stgc_extension_auto_update');
-        if (autoUpdateCheckbox && settings) autoUpdateCheckbox.checked = settings.autoUpdate !== false;
+        const startupCheckbox = document.getElementById('stgc_extension_check_startup');
+        if (startupCheckbox && settings) startupCheckbox.checked = settings.checkOnStartup !== false;
         const versionLabel = document.getElementById('stgc_extension_version_label');
         if (versionLabel) versionLabel.textContent = `当前版本 v${CURRENT_VERSION}`;
+        updateButtonText(settings?.updateAvailable ? '有新版本' : '检查更新');
     }
 
     function addExtensionSettingsPanel() {
@@ -632,9 +613,9 @@
                         <input id="stgc_extension_launcher_enabled" type="checkbox" class="checkbox">
                         <small>显示 Silly Game 悬浮按钮</small>
                     </label>
-                    <label class="checkbox_label" for="stgc_extension_auto_update">
-                        <input id="stgc_extension_auto_update" type="checkbox" class="checkbox">
-                        <small>自动检查并更新 Silly Game</small>
+                    <label class="checkbox_label" for="stgc_extension_check_startup">
+                        <input id="stgc_extension_check_startup" type="checkbox" class="checkbox">
+                        <small>进入酒馆时检查更新</small>
                     </label>
                     <div class="stgc-extension-update-row">
                         <span id="stgc_extension_version_label">当前版本 v${CURRENT_VERSION}</span>
@@ -644,7 +625,7 @@
                         </button>
                     </div>
                     <small class="stgc-extension-note">
-                        悬浮按钮可自由拖动。自动更新会在启动时定期检查；发现新版本后自动更新并刷新页面。
+                        每次进入酒馆都会在后台检查一次；发现新版本时提醒你，并在这里显示红点。不会擅自替你更新。
                     </small>
                 </div>
             </div>`;
@@ -656,15 +637,16 @@
             const enabled = checkbox.checked;
             setLauncherHidden(!enabled, true);
         });
-        const autoUpdateCheckbox = wrapper.querySelector('#stgc_extension_auto_update');
-        autoUpdateCheckbox.checked = settings.autoUpdate !== false;
-        autoUpdateCheckbox.addEventListener('input', () => {
-            settings.autoUpdate = autoUpdateCheckbox.checked;
+        const startupCheckbox = wrapper.querySelector('#stgc_extension_check_startup');
+        startupCheckbox.checked = settings.checkOnStartup !== false;
+        startupCheckbox.addEventListener('input', () => {
+            settings.checkOnStartup = startupCheckbox.checked;
             saveExtensionSettings();
         });
         wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', () => {
-            void checkForSillyGameUpdate({ auto: false });
+            void checkForSillyGameUpdate({ startup: false });
         });
+        updateExtensionSettingsUI();
         return true;
     }
 
@@ -796,6 +778,7 @@
             { id: 'cake', icon: 'fa-cake-candles', name: '叠蛋糕', desc: '左右移动 · 点击落下 · 越叠越高' },
             { id: 'starPop', icon: 'fa-star', name: '消灭星星', desc: '点击相连星星 · 消除 · 下落 · 得分' },
             { id: 'linkMatch', icon: 'fa-link', name: '连连看', desc: '最多两次转弯 · 星星彩块风格 · 自动保存' },
+            { id: 'shikaku', icon: 'fa-vector-square', name: '数方', desc: '矩形分区 · 5×5 / 7×7 / 10×10 · 逻辑解谜' },
         ]; 
 
         for (const game of games) {
@@ -822,8 +805,9 @@
         const updateBtn = el('button', { class: 'stgc-btn stgc-home-update-btn', type: 'button' });
         updateBtn.setAttribute('data-stgc-update-button', '1');
         updateBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i><span>检查更新</span>';
-        updateBtn.addEventListener('click', () => { void checkForSillyGameUpdate({ auto: false }); });
+        updateBtn.addEventListener('click', () => { void checkForSillyGameUpdate({ startup: false }); });
         updateRow.append(updateInfo, updateBtn);
+        updateButtonText(getExtensionSettings()?.updateAvailable ? '有新版本' : '检查更新');
 
         panel.append(header, intro, grid, updateRow);
         root.append(panel);
@@ -853,6 +837,7 @@
             cake: '叠蛋糕',
             starPop: '消灭星星',
             linkMatch: '连连看',
+            shikaku: '数方',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -874,6 +859,7 @@
         else if (game === 'cake') renderCake(body);
         else if (game === 'starPop') renderStarPop(body);
         else if (game === 'linkMatch') renderLinkMatch(body);
+        else if (game === 'shikaku') renderShikaku(body);
     }
 
 
@@ -4255,6 +4241,216 @@
         draw();
     }
 
+
+    /* ==================== 数方 Shikaku ==================== */
+    const SHIKAKU_KEY = 'silly-game:shikaku:v1';
+    const SHIKAKU_PUZZLES = {"5":[[[1,1,4,0,0],[1,0,0,0,2],[0,0,0,2,1],[0,0,0,3,0],[3,4,0,2,1]],[[4,0,0,0,4],[0,0,2,0,0],[2,0,1,2,0],[0,3,0,1,0],[0,0,0,4,2]],[[1,0,4,1,0],[0,3,0,0,3],[0,0,0,2,0],[0,0,0,0,4],[4,2,1,0,0]],[[2,1,0,0,0],[0,0,2,3,2],[0,2,3,0,3],[0,0,0,1,0],[3,2,0,1,0]],[[0,2,0,2,1],[1,1,0,0,3],[0,0,2,0,0],[0,3,0,4,0],[3,0,0,3,0]],[[3,0,0,0,0],[0,0,4,2,2],[3,0,0,3,2],[0,2,0,0,0],[0,0,3,0,1]]],"7":[[[1,1,2,0,0,0,1],[0,0,0,0,2,2,0],[4,0,2,2,1,0,0],[0,4,0,0,0,4,3],[2,0,1,1,0,0,2],[1,0,0,3,3,0,0],[3,0,0,0,2,0,2]],[[0,0,3,3,0,0,1],[0,0,3,1,0,0,3],[2,0,0,0,3,0,1],[0,4,0,1,0,0,1],[0,2,1,0,3,2,0],[3,0,0,0,0,1,2],[3,0,0,3,2,0,1]],[[0,0,4,0,4,0,0],[4,0,0,0,0,0,2],[0,0,0,0,4,4,1],[0,0,0,0,3,0,0],[2,0,3,0,0,2,0],[0,4,1,0,2,0,0],[1,0,3,0,0,1,4]],[[0,2,1,0,1,0,1],[1,0,0,3,2,2,1],[2,3,2,0,0,0,0],[0,0,2,0,0,2,0],[2,2,0,0,0,0,4],[0,0,1,4,4,2,0],[2,0,1,0,0,1,1]],[[2,0,1,3,0,0,0],[1,2,0,0,0,3,3],[1,2,0,1,0,2,0],[0,3,0,2,0,1,1],[0,2,2,0,1,0,2],[0,0,0,4,0,3,0],[0,0,4,0,1,0,2]],[[0,2,1,3,2,1,1],[0,0,0,0,0,0,1],[3,1,0,0,2,0,3],[0,0,0,1,0,3,0],[2,2,4,1,1,1,0],[0,2,0,0,0,4,1],[1,0,0,0,4,0,2]]],"10":[[[0,0,0,4,2,0,0,3,0,1],[0,0,0,0,1,2,0,0,1,3],[4,0,2,2,0,0,1,2,2,0],[0,2,1,2,2,3,0,1,0,0],[0,4,2,0,1,0,4,0,3,0],[0,0,0,1,0,1,0,0,2,1],[0,2,1,2,0,0,0,0,0,2],[0,0,3,0,3,2,1,0,4,0],[0,3,0,1,2,0,1,0,2,1],[1,1,0,3,0,1,0,0,4,0]],[[3,0,0,3,0,1,0,0,4,0],[0,0,0,0,0,0,2,0,3,0],[2,4,2,0,3,0,4,0,0,1],[0,0,1,2,3,1,1,0,3,0],[3,0,3,0,0,4,0,0,0,1],[0,0,0,1,0,3,0,0,1,1],[1,2,0,0,2,1,3,0,0,0],[3,0,0,0,4,2,0,4,0,0],[4,0,0,0,0,0,0,2,0,3],[0,0,2,1,1,1,0,3,0,1]],[[0,2,0,0,0,0,4,0,2,0],[0,2,0,4,2,2,0,0,0,3],[0,0,0,0,0,4,0,2,1,0],[3,3,1,0,2,1,1,0,0,2],[0,0,2,2,0,0,0,2,3,0],[0,2,0,0,0,4,2,1,0,1],[3,0,0,1,1,4,0,3,0,1],[4,0,0,3,3,0,0,2,1,1],[0,0,0,0,0,0,0,4,0,0],[2,0,3,0,0,0,4,0,0,0]],[[0,0,3,0,2,2,0,0,4,0],[2,0,2,0,1,0,0,0,4,0],[0,0,0,4,0,0,0,3,0,1],[0,0,4,0,0,0,0,4,0,4],[0,0,4,0,0,0,3,0,0,0],[1,1,0,4,4,4,0,2,0,0],[0,0,0,0,0,2,0,3,0,0],[2,2,0,2,0,0,0,3,0,1],[0,0,0,0,0,0,1,0,2,1],[4,0,4,0,4,2,3,0,0,1]],[[1,0,2,2,0,0,2,2,0,2],[0,3,0,1,1,0,0,4,0,0],[3,0,0,1,2,0,0,4,0,0],[1,1,2,0,2,0,0,2,0,2],[2,0,1,0,4,0,0,0,2,1],[0,0,3,0,0,1,1,0,0,3],[0,0,0,2,0,1,0,4,0,0],[0,3,0,3,4,0,0,0,4,1],[4,1,0,0,0,3,0,0,4,0],[1,1,2,0,1,0,3,0,0,0]],[[0,2,3,0,0,2,0,2,0,1],[1,2,0,2,0,3,0,0,2,0],[0,0,3,0,0,0,0,1,2,0],[0,0,0,2,0,4,0,0,0,3],[4,0,2,1,0,2,3,3,0,0],[1,2,0,1,1,2,0,1,0,2],[1,2,0,0,0,4,0,3,1,0],[2,4,0,2,0,0,0,0,2,2],[0,0,0,0,0,4,2,0,0,1],[1,3,0,0,1,1,4,0,0,0]]]};
+    const SHIKAKU_SIZES = [5, 7, 10];
+
+    function shikakuLoad() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(SHIKAKU_KEY) || 'null');
+            if (!raw || !SHIKAKU_SIZES.includes(Number(raw.size)) || !Array.isArray(raw.regions)) return null;
+            const size = Number(raw.size), list = SHIKAKU_PUZZLES[size] || [];
+            const puzzleIndex = Math.max(0, Math.min(list.length - 1, Number(raw.puzzleIndex) || 0));
+            const clues = list[puzzleIndex];
+            if (!Array.isArray(clues) || clues.length !== size) return null;
+            const regions = raw.regions.filter(r => Number.isInteger(r.r0) && Number.isInteger(r.c0) && Number.isInteger(r.r1) && Number.isInteger(r.c1));
+            return { size, puzzleIndex, clues: clues.clues, regions, seconds: Math.max(0, Number(raw.seconds) || 0), solved: !!raw.solved };
+        } catch { return null; }
+    }
+
+    function shikakuSave(game) {
+        if (!game) return;
+        try { localStorage.setItem(SHIKAKU_KEY, JSON.stringify({
+            size: game.size, puzzleIndex: game.puzzleIndex, regions: game.regions,
+            seconds: game.seconds, solved: game.solved,
+        })); } catch { /* ignore */ }
+    }
+
+    function shikakuNew(size, puzzleIndex = null) {
+        const list = SHIKAKU_PUZZLES[size] || SHIKAKU_PUZZLES[7];
+        const index = puzzleIndex == null ? Math.floor(Math.random() * list.length) : ((puzzleIndex % list.length) + list.length) % list.length;
+        return { size, puzzleIndex: index, clues: list[index], regions: [], seconds: 0, solved: false };
+    }
+
+    function shikakuCells(region) {
+        const cells = [];
+        for (let r = region.r0; r <= region.r1; r++) for (let c = region.c0; c <= region.c1; c++) cells.push([r,c]);
+        return cells;
+    }
+
+    function shikakuRegionKey(r) { return `${r.r0},${r.c0},${r.r1},${r.c1}`; }
+
+    function shikakuClueCount(game, region) {
+        let count = 0, clueValue = 0;
+        for (const [r,c] of shikakuCells(region)) {
+            const v = game.clues[r]?.[c] || 0;
+            if (v) { count++; clueValue = v; }
+        }
+        return { count, clueValue };
+    }
+
+    function shikakuRegionValid(game, region) {
+        if (region.r0 > region.r1 || region.c0 > region.c1) return false;
+        const { count, clueValue } = shikakuClueCount(game, region);
+        const area = (region.r1 - region.r0 + 1) * (region.c1 - region.c0 + 1);
+        return count === 1 && clueValue === area;
+    }
+
+    function shikakuOverlaps(a,b) {
+        return !(a.r1 < b.r0 || b.r1 < a.r0 || a.c1 < b.c0 || b.c1 < a.c0);
+    }
+
+    function shikakuAllCovered(game) {
+        const covered = new Set();
+        for (const region of game.regions) for (const [r,c] of shikakuCells(region)) covered.add(`${r},${c}`);
+        return covered.size === game.size * game.size;
+    }
+
+    function renderShikaku(body) {
+        cleanupGame();
+        state.shikaku = shikakuLoad() || shikakuNew(7);
+        let game = state.shikaku;
+        shikakuSave(game);
+
+        const toolbar = el('div', { class: 'stgc-game-toolbar' });
+        const info = el('div', { class: 'stgc-game-info' });
+        const statusPill = el('span', { class: 'stgc-pill' });
+        const sizeSelect = el('select', { class: 'text_pole stgc-level-select', 'aria-label': '数方尺寸' });
+        [[5,'5×5'],[7,'7×7'],[10,'10×10']].forEach(([value,label]) => sizeSelect.append(el('option', { value, text: label })));
+        sizeSelect.value = String(game.size);
+        const newBtn = el('button', { class: 'stgc-btn', type: 'button' });
+        newBtn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>新题</span>';
+        const undoBtn = el('button', { class: 'stgc-btn', type: 'button' });
+        undoBtn.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>撤销</span>';
+        const clearBtn = el('button', { class: 'stgc-btn', type: 'button' });
+        clearBtn.innerHTML = '<i class="fa-solid fa-eraser" aria-hidden="true"></i><span>清空</span>';
+        info.append(statusPill);
+        toolbar.append(info, sizeSelect, undoBtn, clearBtn, newBtn);
+
+        const board = el('div', { class: 'shikaku-board', role: 'grid', 'aria-label': '数方棋盘' });
+        const result = el('div', { class: 'star-pop-result' });
+        const hint = el('div', { class: 'stgc-game-hint', text: '按住一个格子拖到对角格，划出矩形。每个区域必须恰好包含一个数字，数字就是该区域的面积。' });
+        body.append(toolbar, board, result, hint);
+
+        let drag = null;
+        let preview = null;
+        let timer = null;
+
+        function cellFromPoint(event) {
+            const rect = board.getBoundingClientRect();
+            const x = Math.min(game.size - 1, Math.max(0, Math.floor((event.clientX - rect.left) / (rect.width / game.size))));
+            const y = Math.min(game.size - 1, Math.max(0, Math.floor((event.clientY - rect.top) / (rect.height / game.size))));
+            return { r: y, c: x };
+        }
+
+        function coveredCell(r,c) {
+            return game.regions.find(region => r >= region.r0 && r <= region.r1 && c >= region.c0 && c <= region.c1);
+        }
+
+        function draw() {
+            board.innerHTML = '';
+            board.style.setProperty('--shikaku-size', String(game.size));
+            const covered = new Set();
+            game.regions.forEach((region,index) => shikakuCells(region).forEach(([r,c]) => covered.add(`${r},${c}`)));
+            statusPill.textContent = `区域 ${game.regions.length} · ${Math.floor(game.seconds/60).toString().padStart(2,'0')}:${(game.seconds%60).toString().padStart(2,'0')}`;
+            undoBtn.disabled = game.regions.length === 0;
+            clearBtn.disabled = game.regions.length === 0;
+            result.textContent = game.solved ? '🎉 数方完成！' : (preview ? (shikakuRegionValid(game, preview) ? '这个区域合法' : '需要恰好一个数字，且数字等于面积') : '');
+
+            for (let r=0;r<game.size;r++) for (let c=0;c<game.size;c++) {
+                const cell = el('div', { class: 'shikaku-cell', role: 'gridcell' });
+                const region = coveredCell(r,c);
+                if (region) cell.classList.add('filled');
+                if (game.clues[r][c]) {
+                    const clue = el('span', { class: 'shikaku-clue', text: String(game.clues[r][c]) });
+                    cell.append(clue);
+                    if (region && shikakuRegionValid(game, region)) cell.classList.add('valid-region');
+                }
+                if (preview && r >= preview.r0 && r <= preview.r1 && c >= preview.c0 && c <= preview.c1) cell.classList.add(shikakuRegionValid(game, preview) ? 'preview-valid' : 'preview-invalid');
+                board.append(cell);
+            }
+            drawRegionBorders();
+        }
+
+        function drawRegionBorders() {
+            board.querySelectorAll('.shikaku-region-border').forEach(n => n.remove());
+            game.regions.forEach(region => {
+                const marker = el('div', { class: 'shikaku-region-border' });
+                marker.style.left = `${region.c0 * (100/game.size)}%`;
+                marker.style.top = `${region.r0 * (100/game.size)}%`;
+                marker.style.width = `${(region.c1-region.c0+1) * (100/game.size)}%`;
+                marker.style.height = `${(region.r1-region.r0+1) * (100/game.size)}%`;
+                board.append(marker);
+            });
+        }
+
+        function finishCandidate(candidate) {
+            preview = null;
+            if (!shikakuRegionValid(game, candidate)) { draw(); return; }
+            if (game.regions.some(region => shikakuOverlaps(region, candidate))) { result.textContent = '这里已经有区域了'; draw(); return; }
+            game.regions.push(candidate);
+            if (shikakuAllCovered(game) && game.regions.every(region => shikakuRegionValid(game, region))) {
+                game.solved = true;
+                recordGameWin('shikaku');
+            }
+            shikakuSave(game);
+            draw();
+        }
+
+        const onPointerDown = event => {
+            if (game.solved) return;
+            const start = cellFromPoint(event);
+            if (coveredCell(start.r,start.c)) return;
+            drag = start;
+            preview = { r0:start.r,c0:start.c,r1:start.r,c1:start.c };
+            board.setPointerCapture?.(event.pointerId);
+            event.preventDefault();
+            draw();
+        };
+        const onPointerMove = event => {
+            if (!drag) return;
+            const end = cellFromPoint(event);
+            preview = { r0:Math.min(drag.r,end.r), c0:Math.min(drag.c,end.c), r1:Math.max(drag.r,end.r), c1:Math.max(drag.c,end.c) };
+            draw();
+            event.preventDefault();
+        };
+        const onPointerUp = event => {
+            if (!drag) return;
+            const end = cellFromPoint(event);
+            const candidate = { r0:Math.min(drag.r,end.r), c0:Math.min(drag.c,end.c), r1:Math.max(drag.r,end.r), c1:Math.max(drag.c,end.c) };
+            drag = null;
+            finishCandidate(candidate);
+            event.preventDefault();
+        };
+        board.addEventListener('pointerdown', onPointerDown);
+        board.addEventListener('pointermove', onPointerMove);
+        board.addEventListener('pointerup', onPointerUp);
+        board.addEventListener('pointercancel', () => { drag = null; preview = null; draw(); });
+
+        undoBtn.addEventListener('click', () => { if (game.regions.length) { game.regions.pop(); game.solved=false; shikakuSave(game); draw(); } });
+        clearBtn.addEventListener('click', () => { game.regions=[]; game.solved=false; shikakuSave(game); draw(); });
+        newBtn.addEventListener('click', () => { state.shikaku=shikakuNew(game.size); shikakuSave(state.shikaku); game=state.shikaku; draw(); });
+        sizeSelect.addEventListener('change', () => { state.shikaku=shikakuNew(Number(sizeSelect.value)); shikakuSave(state.shikaku); game=state.shikaku; draw(); });
+
+        timer = window.setInterval(() => {
+            if (state.currentGame !== 'shikaku' || state.shikaku !== game || game.solved) return;
+            game.seconds++;
+            shikakuSave(game);
+            statusPill.textContent = `区域 ${game.regions.length} · ${Math.floor(game.seconds/60).toString().padStart(2,'0')}:${(game.seconds%60).toString().padStart(2,'0')}`;
+        }, 1000);
+
+        state.cleanup = () => {
+            window.clearInterval(timer);
+            board.removeEventListener('pointerdown', onPointerDown);
+            board.removeEventListener('pointermove', onPointerMove);
+            board.removeEventListener('pointerup', onPointerUp);
+            shikakuSave(game);
+        };
+        draw();
+    }
+
     /* ==================== Go ==================== */
     const GO_DEFAULT_SIZE = 13;
     const GO_SIZE_OPTIONS = [9, 13, 19];
@@ -5038,7 +5234,7 @@
         tryAddSettings();
 
         window.setTimeout(() => {
-            void checkForSillyGameUpdate({ auto: true });
+            void checkForSillyGameUpdate({ startup: true });
         }, 2500);
     }
 
