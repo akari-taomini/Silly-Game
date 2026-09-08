@@ -7,6 +7,7 @@
 
     const state = {
         currentGame: null,
+        lastGame: null,
         cleanup: null,
         mines: null,
         game2048: null,
@@ -27,7 +28,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.5.1';
+    const CURRENT_VERSION = '1.5.7';
     const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
@@ -584,10 +585,13 @@
         document.getElementById(`${APP_ID}-launcher`)?.classList.add('in-use');
         root.classList.add('show');
         root.setAttribute('aria-hidden', 'false');
-        renderHome();
+        if (state.lastGame) openGame(state.lastGame);
+        else renderHome();
     }
 
     function closeCenter() {
+        if (state.currentGame) state.lastGame = state.currentGame;
+        else state.lastGame = null;
         cleanupGame();
         const root = document.getElementById(APP_ID);
         if (!root) return;
@@ -674,7 +678,10 @@
                 title: '返回 Silly Game',
             });
             backBtn.innerHTML = '<i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>Silly Game</span>';
-            backBtn.addEventListener('click', () => openCenter());
+            backBtn.addEventListener('click', () => {
+                state.lastGame = null;
+                openCenter();
+            });
             header.append(backBtn);
         } else {
             header.append(el('div', { class: 'stgc-title', text: title }));
@@ -756,6 +763,8 @@
     }
 
     function renderHome() {
+        state.lastGame = null;
+        state.currentGame = null;
         cleanupGame();
         const root = ensureRoot();
         root.innerHTML = '';
@@ -823,6 +832,7 @@
     function openGame(game) {
         cleanupGame();
         state.currentGame = game;
+        state.lastGame = game;
 
         const root = ensureRoot();
         root.innerHTML = '';
@@ -1257,7 +1267,8 @@
 
     function renderCake(body) {
         const savedBest = cakeLoad();
-        const game = {
+        const previous = state.cake;
+        const game = previous || {
             layers: [],
             current: null,
             direction: 1,
@@ -1271,6 +1282,12 @@
             cameraY: 0,
         };
         state.cake = game;
+
+        // 弹窗重新打开时 DOM 会重建，保留游戏数据并重新挂载蛋糕层。
+        const layerData = Array.isArray(game.layers) ? game.layers.map(layer => ({ width: layer.width, left: layer.left, bottom: layer.bottom })) : [];
+        const currentData = game.current ? { width: game.current.width, left: game.current.left, bottom: game.current.bottom } : null;
+        game.layers = [];
+        game.current = null;
 
         const wrap = el('div', { class: 'cake-game-wrap' });
         const top = el('div', { class: 'cake-topbar' });
@@ -1315,6 +1332,17 @@
             node.innerHTML = '<span class="cake-frosting"></span><span class="cake-cream"></span><span class="cake-sprinkle s1"></span><span class="cake-sprinkle s2"></span><span class="cake-sprinkle s3"></span>';
             stack.append(node);
             return node;
+        }
+
+        if (layerData.length) {
+            layerData.forEach((data, index) => {
+                const node = layerNode(data.width, data.left, data.bottom, false, index);
+                game.layers.push({ ...data, node });
+            });
+        }
+        if (currentData && !game.over) {
+            const node = layerNode(currentData.width, currentData.left, currentData.bottom, true, game.layers.length);
+            game.current = { ...currentData, node };
         }
 
         function highestWorldTop() {
@@ -1488,8 +1516,19 @@
         document.addEventListener('keydown', onKey, true);
         window.addEventListener('resize', onResize);
 
-        resetRound();
-        game.raf = requestAnimationFrame(step);
+        if (!previous) {
+            resetRound();
+        } else {
+            game.running = !game.over;
+            game.lastTime = performance.now();
+            updateStatus();
+            updateCamera();
+            if (game.over) {
+                overlayText.innerHTML = `<strong>蛋糕倒塌了</strong><span>你叠了 ${Math.max(0, game.layers.length - 1)} 层 · ${game.score} 分</span>`;
+                overlay.hidden = false;
+            }
+        }
+        if (!game.over) game.raf = requestAnimationFrame(step);
         state.cleanup = () => {
             game.running = false;
             cancelAnimationFrame(game.raf);
@@ -2294,6 +2333,61 @@
         medium: { label: '中等', blanks: 48 },
         hard: { label: '困难', blanks: 55 },
     };
+    const SUDOKU_STORAGE_KEY = 'silly-game:sudoku:v2';
+
+    function sudokuSave(game = state.sudoku) {
+        if (!game) return;
+        try {
+            const elapsed = game.complete
+                ? Number(game.time) || 0
+                : Math.max(0, Math.floor((Date.now() - Number(game.startedAt || Date.now())) / 1000));
+            game.time = elapsed;
+            localStorage.setItem(SUDOKU_STORAGE_KEY, JSON.stringify({
+                puzzle: game.puzzle,
+                solution: game.solution,
+                fixed: game.fixed,
+                selected: game.selected,
+                mistakes: game.mistakes,
+                errors: game.errors,
+                complete: game.complete,
+                level: game.level,
+                time: game.time,
+            }));
+        } catch { /* localStorage unavailable */ }
+    }
+
+    function sudokuLoad() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(SUDOKU_STORAGE_KEY) || 'null');
+            if (!raw || !Array.isArray(raw.puzzle) || raw.puzzle.length !== 81 || !Array.isArray(raw.solution) || raw.solution.length !== 81) {
+                return null;
+            }
+            const puzzle = raw.puzzle.map(Number);
+            const solution = raw.solution.map(Number);
+            if (puzzle.some(v => !Number.isInteger(v) || v < 0 || v > 9) || solution.some(v => !Number.isInteger(v) || v < 1 || v > 9)) return null;
+            const fixed = Array.isArray(raw.fixed) && raw.fixed.length === 81
+                ? raw.fixed.map(Boolean)
+                : puzzle.map(v => v !== 0);
+            return {
+                puzzle,
+                solution,
+                fixed,
+                selected: Number.isInteger(raw.selected) ? Math.max(-1, Math.min(80, raw.selected)) : -1,
+                mistakes: Math.max(0, Number(raw.mistakes) || 0),
+                errors: Array.isArray(raw.errors) && raw.errors.length === 81 ? raw.errors.map(Boolean) : Array(81).fill(false),
+                complete: !!raw.complete,
+                level: SUDOKU_LEVELS[raw.level] ? raw.level : 'medium',
+                time: Math.max(0, Number(raw.time) || 0),
+                startedAt: Date.now() - Math.max(0, Number(raw.time) || 0) * 1000,
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    function sudokuClearSave() {
+        try { localStorage.removeItem(SUDOKU_STORAGE_KEY); } catch { /* ignore */ }
+    }
 
     function shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -2447,6 +2541,7 @@
 
         if (value === 0) {
             game.puzzle[index] = 0;
+            sudokuSave(game);
             return true;
         }
 
@@ -2467,11 +2562,14 @@
             game.time = Math.floor((Date.now() - game.startedAt) / 1000);
             recordGameWin('sudoku');
         }
+        sudokuSave(game);
         return true;
     }
 
     function renderSudoku(body) {
-        state.sudoku = generateSudoku('medium');
+        cleanupGame();
+        state.sudoku = state.sudoku || sudokuLoad() || generateSudoku('medium');
+        sudokuSave(state.sudoku);
 
         const toolbar = el('div', { class: 'stgc-game-toolbar' });
         const info = el('div', { class: 'stgc-game-info' });
@@ -2483,7 +2581,9 @@
             difficulty.append(option);
         });
         difficulty.addEventListener('change', () => {
+            sudokuClearSave();
             state.sudoku = generateSudoku(difficulty.value);
+            sudokuSave(state.sudoku);
             draw();
         });
 
@@ -2491,7 +2591,9 @@
         reset.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新开始</span>';
         reset.addEventListener('click', () => {
             // 原地重置：只换游戏数据，不重建 UI。
+            sudokuClearSave();
             state.sudoku = generateSudoku(difficulty.value);
+            sudokuSave(state.sudoku);
             draw();
         });
 
@@ -2536,6 +2638,7 @@
             const game = state.sudoku;
             if (!game || game.complete) return;
             game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+            sudokuSave(game);
             updateToolbar();
         }, 1000);
 
@@ -2571,6 +2674,9 @@
         };
         document.addEventListener('keydown', onKey);
         state.cleanup = () => {
+            const game = state.sudoku;
+            if (game && !game.complete) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
+            sudokuSave(game);
             window.clearInterval(tick);
             document.removeEventListener('keydown', onKey);
         };
@@ -2848,7 +2954,7 @@
     }
 
     function renderSokoban(body) {
-        state.sokoban = newSokoban(0);
+        state.sokoban = state.sokoban || newSokoban(0);
 
         const levelBar = el('div', { class: 'stgc-difficulty-bar stgc-level-bar' });
         const levelLabel = el('span', { class: 'stgc-difficulty-label', text: '关卡' });
@@ -3145,7 +3251,7 @@
     }
 
     function renderGomoku(body) {
-        state.gomoku = newGomoku('ai', localStorage.getItem('silly-game:gomoku:palette') || 'qingstone');
+        state.gomoku = state.gomoku || newGomoku('ai', localStorage.getItem('silly-game:gomoku:palette') || 'qingstone');
 
         const top = el('div', { class: 'stgc-game-toolbar' });
         const info = el('div', { class: 'stgc-game-info' });
@@ -4767,7 +4873,7 @@
     }
 
     function renderSpider(body) {
-        state.spider = newSpiderGame('one');
+        state.spider = state.spider || newSpiderGame('one');
         const game = state.spider;
 
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar spider-level-bar' });
