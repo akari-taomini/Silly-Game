@@ -29,7 +29,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.5.9';
+    const CURRENT_VERSION = '1.6.0';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -217,12 +217,80 @@
     }
 
     function updateButtonText(text, spinning = false) {
+        const settings = getExtensionSettings();
         document.querySelectorAll('[data-stgc-update-button]').forEach(button => {
             button.disabled = spinning;
+            button.classList.toggle('has-update', !spinning && settings?.updateAvailable === true);
+            button.title = !spinning && settings?.updateAvailable === true
+                ? '发现新版本，点击更新 Silly Game'
+                : '检查 Silly Game 更新';
             button.innerHTML = spinning
                 ? '<i class=\"fa-solid fa-spinner fa-spin\" aria-hidden=\"true\"></i><span>检查中…</span>'
-                : `<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>${text}</span>`;
+                : settings?.updateAvailable === true
+                    ? '<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>更新 Silly Game</span>'
+                    : `<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>${text}</span>`;
         });
+    }
+
+    async function updateSillyGame() {
+        if (updateCheckPromise) return updateCheckPromise;
+
+        updateCheckPromise = (async () => {
+            const settings = getExtensionSettings();
+            if (!settings) return { updated: false, available: false };
+
+            try {
+                const scope = await discoverInstallScope();
+                if (!scope) {
+                    notify('当前安装方式没有可用的 Git 更新源，请通过 Git 仓库安装 Silly Game。', 'Silly Game');
+                    return { updated: false, available: false, unmanaged: true };
+                }
+
+                updateButtonText('更新中…', true);
+                const headers = await getSTRequestHeaders();
+                const response = await fetch('/api/extensions/update', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json().catch(() => ({}));
+                settings.updateAvailable = false;
+                saveExtensionSettings();
+                updateButtonText('检查更新');
+                notify('Silly Game 已更新完成，正在重新加载酒馆。', 'Silly Game');
+
+                window.setTimeout(() => window.location.reload(), 700);
+                return { updated: true, available: false, result };
+            } catch (error) {
+                console.error('[Silly Game] update failed:', error);
+                settings.updateAvailable = true;
+                saveExtensionSettings();
+                updateButtonText('有新版本');
+                notify(`更新失败：${error?.message || error}`, 'Silly Game');
+                return { updated: false, available: true, error };
+            } finally {
+                updateCheckPromise = null;
+            }
+        })();
+
+        return updateCheckPromise;
+    }
+
+    function handleUpdateButtonClick() {
+        const settings = getExtensionSettings();
+        if (settings?.updateAvailable) {
+            const confirmed = window.confirm('检测到 Silly Game 新版本。现在更新并重新加载酒馆吗？');
+            if (!confirmed) return;
+            void updateSillyGame();
+            return;
+        }
+        void checkForSillyGameUpdate({ startup: false });
     }
 
     function getLoadedExtensionFolder() {
@@ -625,7 +693,7 @@
                         </button>
                     </div>
                     <small class="stgc-extension-note">
-                        每次进入酒馆都会在后台检查一次；发现新版本时提醒你，并在这里显示红点。不会擅自替你更新。
+                        每次进入酒馆后台检查一次；发现新版本会提醒你并显示红点。更新需要你手动确认。
                     </small>
                 </div>
             </div>`;
@@ -643,9 +711,7 @@
             settings.checkOnStartup = startupCheckbox.checked;
             saveExtensionSettings();
         });
-        wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', () => {
-            void checkForSillyGameUpdate({ startup: false });
-        });
+        wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', handleUpdateButtonClick);
         updateExtensionSettingsUI();
         return true;
     }
@@ -805,7 +871,7 @@
         const updateBtn = el('button', { class: 'stgc-btn stgc-home-update-btn', type: 'button' });
         updateBtn.setAttribute('data-stgc-update-button', '1');
         updateBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i><span>检查更新</span>';
-        updateBtn.addEventListener('click', () => { void checkForSillyGameUpdate({ startup: false }); });
+        updateBtn.addEventListener('click', handleUpdateButtonClick);
         updateRow.append(updateInfo, updateBtn);
         updateButtonText(getExtensionSettings()?.updateAvailable ? '有新版本' : '检查更新');
 

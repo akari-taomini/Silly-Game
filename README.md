@@ -1,6 +1,6 @@
 # Silly Game
 
-SillyTavern 里的纯前端小游戏集合。当前版本：v1.5.9
+SillyTavern 里的纯前端小游戏集合。当前版本：v1.6.0
 
 ## 游戏
 - 扫雷
