@@ -29,7 +29,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.5.8';
+    const CURRENT_VERSION = '1.5.9';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -4331,7 +4331,7 @@
 
         const board = el('div', { class: 'shikaku-board', role: 'grid', 'aria-label': '数方棋盘' });
         const result = el('div', { class: 'star-pop-result' });
-        const hint = el('div', { class: 'stgc-game-hint', text: '按住一个格子拖到对角格，划出矩形。每个区域必须恰好包含一个数字，数字就是该区域的面积。' });
+        const hint = el('div', { class: 'stgc-game-hint', text: '按住一个格子拖到对角格，划出矩形。每个区域必须恰好包含一个数字，数字就是该区域的面积。已经画好的区域再次点击即可取消。' });
         body.append(toolbar, board, result, hint);
 
         let drag = null;
@@ -4402,7 +4402,20 @@
         const onPointerDown = event => {
             if (game.solved) return;
             const start = cellFromPoint(event);
-            if (coveredCell(start.r,start.c)) return;
+            const existingRegion = coveredCell(start.r, start.c);
+
+            // 已经存在的区域再次点击 = 取消该区域，不需要专门点撤销。
+            if (existingRegion) {
+                const regionIndex = game.regions.indexOf(existingRegion);
+                if (regionIndex >= 0) {
+                    game.regions.splice(regionIndex, 1);
+                    game.solved = false;
+                    shikakuSave(game);
+                    draw();
+                }
+                event.preventDefault();
+                return;
+            }
             drag = start;
             preview = { r0:start.r,c0:start.c,r1:start.r,c1:start.c };
             board.setPointerCapture?.(event.pointerId);
