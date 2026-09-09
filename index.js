@@ -23,20 +23,21 @@
         cake: null,
         starPop: null,
         linkMatch: null,
-        shikaku: null,
         chess: null,
         xiangqi: null,
+        chessAiTimer: null,
+        xiangqiAiTimer: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.6.2';
+    const CURRENT_VERSION = '1.5.8';
+    const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
-        checkOnStartup: true,
+        autoUpdate: true,
         lastUpdateCheck: 0,
-        updateAvailable: false,
     });
     let updateCheckPromise = null;
     let refreshFarmSeedRow = null;
@@ -59,14 +60,11 @@
         cherry:    { name: '樱桃',   seedCost: 11, sell: 48, grow: 260, unlock: 'cake' },
         sunflower: { name: '向日葵', seedCost: 12, sell: 55, grow: 285, unlock: 'starPop' },
         peach:     { name: '蜜桃',   seedCost: 13, sell: 62, grow: 300, unlock: 'linkMatch' },
-        jasmine:   { name: '茉莉',   seedCost: 14, sell: 68, grow: 320, unlock: 'shikaku' },
-        apple:     { name: '苹果',   seedCost: 15, sell: 74, grow: 335, unlock: 'chess' },
-        pear:      { name: '梨子',   seedCost: 16, sell: 80, grow: 350, unlock: 'xiangqi' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
-        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方', chess: '国际象棋', xiangqi: '中国象棋',
+        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', chess: '国际象棋', xiangqi: '中国象棋',
     };
 
     function loadGameWins() {
@@ -177,13 +175,8 @@
             if (typeof settings[EXTENSION_SETTINGS_KEY].launcherEnabled !== 'boolean') {
                 settings[EXTENSION_SETTINGS_KEY].launcherEnabled = DEFAULT_EXTENSION_SETTINGS.launcherEnabled;
             }
-            if (typeof settings[EXTENSION_SETTINGS_KEY].checkOnStartup !== 'boolean') {
-                settings[EXTENSION_SETTINGS_KEY].checkOnStartup = typeof settings[EXTENSION_SETTINGS_KEY].autoUpdate === 'boolean'
-                    ? settings[EXTENSION_SETTINGS_KEY].autoUpdate
-                    : DEFAULT_EXTENSION_SETTINGS.checkOnStartup;
-            }
-            if (typeof settings[EXTENSION_SETTINGS_KEY].updateAvailable !== 'boolean') {
-                settings[EXTENSION_SETTINGS_KEY].updateAvailable = false;
+            if (typeof settings[EXTENSION_SETTINGS_KEY].autoUpdate !== 'boolean') {
+                settings[EXTENSION_SETTINGS_KEY].autoUpdate = DEFAULT_EXTENSION_SETTINGS.autoUpdate;
             }
             if (!Number.isFinite(settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck)) {
                 settings[EXTENSION_SETTINGS_KEY].lastUpdateCheck = DEFAULT_EXTENSION_SETTINGS.lastUpdateCheck;
@@ -221,80 +214,12 @@
     }
 
     function updateButtonText(text, spinning = false) {
-        const settings = getExtensionSettings();
         document.querySelectorAll('[data-stgc-update-button]').forEach(button => {
             button.disabled = spinning;
-            button.classList.toggle('has-update', !spinning && settings?.updateAvailable === true);
-            button.title = !spinning && settings?.updateAvailable === true
-                ? '发现新版本，点击更新 Silly Game'
-                : '检查 Silly Game 更新';
             button.innerHTML = spinning
                 ? '<i class=\"fa-solid fa-spinner fa-spin\" aria-hidden=\"true\"></i><span>检查中…</span>'
-                : settings?.updateAvailable === true
-                    ? '<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>更新 Silly Game</span>'
-                    : `<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>${text}</span>`;
+                : `<i class=\"fa-solid fa-cloud-arrow-down\" aria-hidden=\"true\"></i><span>${text}</span>`;
         });
-    }
-
-    async function updateSillyGame() {
-        if (updateCheckPromise) return updateCheckPromise;
-
-        updateCheckPromise = (async () => {
-            const settings = getExtensionSettings();
-            if (!settings) return { updated: false, available: false };
-
-            try {
-                const scope = await discoverInstallScope();
-                if (!scope) {
-                    notify('当前安装方式没有可用的 Git 更新源，请通过 Git 仓库安装 Silly Game。', 'Silly Game');
-                    return { updated: false, available: false, unmanaged: true };
-                }
-
-                updateButtonText('更新中…', true);
-                const headers = await getSTRequestHeaders();
-                const response = await fetch('/api/extensions/update', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
-                });
-
-                if (!response.ok) {
-                    const text = await response.text();
-                    throw new Error(text || `${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json().catch(() => ({}));
-                settings.updateAvailable = false;
-                saveExtensionSettings();
-                updateButtonText('检查更新');
-                notify('Silly Game 已更新完成，正在重新加载酒馆。', 'Silly Game');
-
-                window.setTimeout(() => window.location.reload(), 700);
-                return { updated: true, available: false, result };
-            } catch (error) {
-                console.error('[Silly Game] update failed:', error);
-                settings.updateAvailable = true;
-                saveExtensionSettings();
-                updateButtonText('有新版本');
-                notify(`更新失败：${error?.message || error}`, 'Silly Game');
-                return { updated: false, available: true, error };
-            } finally {
-                updateCheckPromise = null;
-            }
-        })();
-
-        return updateCheckPromise;
-    }
-
-    function handleUpdateButtonClick() {
-        const settings = getExtensionSettings();
-        if (settings?.updateAvailable) {
-            const confirmed = window.confirm('检测到 Silly Game 新版本。现在更新并重新加载酒馆吗？');
-            if (!confirmed) return;
-            void updateSillyGame();
-            return;
-        }
-        void checkForSillyGameUpdate({ startup: false });
     }
 
     function getLoadedExtensionFolder() {
@@ -361,43 +286,70 @@
         return response.json();
     }
 
-    async function checkForSillyGameUpdate({ startup = false } = {}) {
+    async function updateExtensionFromSillyTavern(scope) {
+        const headers = await getSTRequestHeaders();
+        const response = await fetch('/api/extensions/update', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async function checkForSillyGameUpdate({ auto = false } = {}) {
         if (updateCheckPromise) return updateCheckPromise;
 
         updateCheckPromise = (async () => {
             const settings = getExtensionSettings();
-            if (!settings) return { skipped: true, updated: false, available: false };
-            if (startup && settings.checkOnStartup === false) {
-                return { skipped: true, updated: false, available: !!settings.updateAvailable };
+            const now = Date.now();
+            if (auto && settings && !settings.autoUpdate) return { skipped: true, updated: false, available: false };
+            if (auto && settings && Number.isFinite(settings.lastUpdateCheck) && now - settings.lastUpdateCheck < UPDATE_CHECK_INTERVAL) {
+                return { skipped: true, updated: false, available: false };
             }
 
-            settings.lastUpdateCheck = Date.now();
+            settings.lastUpdateCheck = now;
             saveExtensionSettings();
             updateButtonText('检查更新', true);
 
             try {
                 const scope = await discoverInstallScope();
                 if (!scope) {
-                    updateButtonText('检查更新');
+                    updateButtonText('无法自动更新');
+                    if (!auto) notify('没有在 SillyTavern 的托管第三方扩展目录中找到 Silly Game。请确认它是通过 GitHub 扩展安装方式安装的。', 'Silly Game');
                     return { skipped: false, updated: false, available: false, unmanaged: true };
                 }
 
                 const version = await getRemoteExtensionVersion(scope);
                 const available = version?.isUpToDate === false;
-                settings.updateAvailable = available;
-                saveExtensionSettings();
-                updateButtonText(available ? '有新版本' : '已是最新');
-
-                if (available) {
-                    const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
-                    notify(`发现 Silly Game 新版本（${remoteCommit}），请到酒馆扩展列表更新。`, 'Silly Game');
+                if (!available) {
+                    updateButtonText('已是最新');
+                    if (!auto) notify(`当前版本 v${CURRENT_VERSION} 已是最新。`, 'Silly Game');
+                    return { skipped: false, updated: false, available: false, version };
                 }
-                return { skipped: false, updated: false, available, version };
+
+                const remoteCommit = version?.currentCommitHash ? String(version.currentCommitHash).slice(0, 7) : '新版本';
+                if (!auto) notify(`发现更新（${remoteCommit}），正在更新…`, 'Silly Game');
+                const result = await updateExtensionFromSillyTavern(scope);
+                if (result?.isUpToDate) {
+                    updateButtonText('已是最新');
+                    if (!auto) notify('检查完成，当前已经是最新版本。', 'Silly Game');
+                    return { skipped: false, updated: false, available: false, version: result };
+                }
+
+                updateButtonText('更新完成');
+                if (!auto) notify('Silly Game 已更新，页面即将刷新以应用更新。', 'Silly Game');
+                else notify('Silly Game 已自动更新，正在刷新页面。', 'Silly Game');
+                setTimeout(() => location.reload(), auto ? 800 : 1200);
+                return { skipped: false, updated: true, available: true, version: result };
             } catch (error) {
                 console.error('[Silly Game] update check failed:', error);
-                updateButtonText(settings.updateAvailable ? '有新版本' : '检查更新');
-                console.warn('[Silly Game] 更新检查失败：', error?.message || error);
-                return { skipped: false, updated: false, available: !!settings.updateAvailable, error };
+                updateButtonText('检查更新');
+                if (!auto) notify(`更新检查失败：${error?.message || error}`, 'Silly Game');
+                return { skipped: false, updated: false, available: false, error };
             }
         })().finally(() => {
             updateCheckPromise = null;
@@ -657,11 +609,10 @@
         const settings = getExtensionSettings();
         const launcherCheckbox = document.getElementById('stgc_extension_launcher_enabled');
         if (launcherCheckbox) launcherCheckbox.checked = !isLauncherHidden();
-        const startupCheckbox = document.getElementById('stgc_extension_check_startup');
-        if (startupCheckbox && settings) startupCheckbox.checked = settings.checkOnStartup !== false;
+        const autoUpdateCheckbox = document.getElementById('stgc_extension_auto_update');
+        if (autoUpdateCheckbox && settings) autoUpdateCheckbox.checked = settings.autoUpdate !== false;
         const versionLabel = document.getElementById('stgc_extension_version_label');
         if (versionLabel) versionLabel.textContent = `当前版本 v${CURRENT_VERSION}`;
-        updateButtonText(settings?.updateAvailable ? '有新版本' : '检查更新');
     }
 
     function addExtensionSettingsPanel() {
@@ -685,9 +636,9 @@
                         <input id="stgc_extension_launcher_enabled" type="checkbox" class="checkbox">
                         <small>显示 Silly Game 悬浮按钮</small>
                     </label>
-                    <label class="checkbox_label" for="stgc_extension_check_startup">
-                        <input id="stgc_extension_check_startup" type="checkbox" class="checkbox">
-                        <small>进入酒馆时检查更新</small>
+                    <label class="checkbox_label" for="stgc_extension_auto_update">
+                        <input id="stgc_extension_auto_update" type="checkbox" class="checkbox">
+                        <small>自动检查并更新 Silly Game</small>
                     </label>
                     <div class="stgc-extension-update-row">
                         <span id="stgc_extension_version_label">当前版本 v${CURRENT_VERSION}</span>
@@ -697,7 +648,7 @@
                         </button>
                     </div>
                     <small class="stgc-extension-note">
-                        每次进入酒馆后台检查一次；发现新版本会提醒你并显示红点。更新需要你手动确认。
+                        悬浮按钮可自由拖动。自动更新会在启动时定期检查；发现新版本后自动更新并刷新页面。
                     </small>
                 </div>
             </div>`;
@@ -709,14 +660,15 @@
             const enabled = checkbox.checked;
             setLauncherHidden(!enabled, true);
         });
-        const startupCheckbox = wrapper.querySelector('#stgc_extension_check_startup');
-        startupCheckbox.checked = settings.checkOnStartup !== false;
-        startupCheckbox.addEventListener('input', () => {
-            settings.checkOnStartup = startupCheckbox.checked;
+        const autoUpdateCheckbox = wrapper.querySelector('#stgc_extension_auto_update');
+        autoUpdateCheckbox.checked = settings.autoUpdate !== false;
+        autoUpdateCheckbox.addEventListener('input', () => {
+            settings.autoUpdate = autoUpdateCheckbox.checked;
             saveExtensionSettings();
         });
-        wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', handleUpdateButtonClick);
-        updateExtensionSettingsUI();
+        wrapper.querySelector('[data-stgc-update-button]').addEventListener('click', () => {
+            void checkForSillyGameUpdate({ auto: false });
+        });
         return true;
     }
 
@@ -848,9 +800,8 @@
             { id: 'cake', icon: 'fa-cake-candles', name: '叠蛋糕', desc: '左右移动 · 点击落下 · 越叠越高' },
             { id: 'starPop', icon: 'fa-star', name: '消灭星星', desc: '点击相连星星 · 消除 · 下落 · 得分' },
             { id: 'linkMatch', icon: 'fa-link', name: '连连看', desc: '最多两次转弯 · 星星彩块风格 · 自动保存' },
-            { id: 'shikaku', icon: 'fa-vector-square', name: '数方', desc: '矩形分区 · 5×5 / 7×7 / 10×10 · 逻辑解谜' },
-            { id: 'chess', icon: 'fa-chess', name: '国际象棋', desc: '8×8 · 人机 / 双人 · 悔棋' },
-            { id: 'xiangqi', icon: 'fa-chess-knight', name: '中国象棋', desc: '9×10 · 人机 / 双人 · 悔棋' },
+            { id: 'chess', icon: 'fa-chess-knight', name: '国际象棋', desc: '标准 8×8 · 人机 / 双人 · 无需 API' },
+            { id: 'xiangqi', icon: 'fa-chess', name: '中国象棋', desc: '标准 9×10 · 人机 / 双人 · 无需 API' },
         ]; 
 
         for (const game of games) {
@@ -877,9 +828,8 @@
         const updateBtn = el('button', { class: 'stgc-btn stgc-home-update-btn', type: 'button' });
         updateBtn.setAttribute('data-stgc-update-button', '1');
         updateBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i><span>检查更新</span>';
-        updateBtn.addEventListener('click', handleUpdateButtonClick);
+        updateBtn.addEventListener('click', () => { void checkForSillyGameUpdate({ auto: false }); });
         updateRow.append(updateInfo, updateBtn);
-        updateButtonText(getExtensionSettings()?.updateAvailable ? '有新版本' : '检查更新');
 
         panel.append(header, intro, grid, updateRow);
         root.append(panel);
@@ -909,7 +859,6 @@
             cake: '叠蛋糕',
             starPop: '消灭星星',
             linkMatch: '连连看',
-            shikaku: '数方',
             chess: '国际象棋',
             xiangqi: '中国象棋',
         };
@@ -933,7 +882,6 @@
         else if (game === 'cake') renderCake(body);
         else if (game === 'starPop') renderStarPop(body);
         else if (game === 'linkMatch') renderLinkMatch(body);
-        else if (game === 'shikaku') renderShikaku(body);
         else if (game === 'chess') renderChess(body);
         else if (game === 'xiangqi') renderXiangqi(body);
     }
@@ -1144,31 +1092,14 @@
                         'aria-label': v < 0 ? '空位' : `${STARPOP_COLORS[v]}星星`,
                     });
                     if (v >= 0) {
-                        // 用自己的双击判定，不依赖浏览器 dblclick；移动端 touch/click 也可靠。
-                        let lastTapAt = 0;
-                        let lastTapCell = '';
-                        const activate = event => {
+                        cell.addEventListener('dblclick', event => {
                             event.preventDefault();
                             event.stopPropagation();
-                            const now = Date.now();
-                            const key = `${r},${c}`;
-                            if (lastTapCell === key && now - lastTapAt <= 420) {
-                                lastTapAt = 0;
-                                lastTapCell = '';
-                                starPopClick(r, c);
-                                draw();
-                            } else {
-                                lastTapAt = now;
-                                lastTapCell = key;
-                            }
-                        };
-                        cell.addEventListener('click', activate);
+                            starPopClick(r, c);
+                            draw();
+                        });
                         cell.addEventListener('keydown', event => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                starPopClick(r,c);
-                                draw();
-                            }
+                            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); starPopClick(r,c); draw(); }
                         });
                     }
                     board.append(cell);
@@ -4334,229 +4265,6 @@
         draw();
     }
 
-
-    /* ==================== 数方 Shikaku ==================== */
-    const SHIKAKU_KEY = 'silly-game:shikaku:v1';
-    const SHIKAKU_PUZZLES = {"5":[[[1,1,4,0,0],[1,0,0,0,2],[0,0,0,2,1],[0,0,0,3,0],[3,4,0,2,1]],[[4,0,0,0,4],[0,0,2,0,0],[2,0,1,2,0],[0,3,0,1,0],[0,0,0,4,2]],[[1,0,4,1,0],[0,3,0,0,3],[0,0,0,2,0],[0,0,0,0,4],[4,2,1,0,0]],[[2,1,0,0,0],[0,0,2,3,2],[0,2,3,0,3],[0,0,0,1,0],[3,2,0,1,0]],[[0,2,0,2,1],[1,1,0,0,3],[0,0,2,0,0],[0,3,0,4,0],[3,0,0,3,0]],[[3,0,0,0,0],[0,0,4,2,2],[3,0,0,3,2],[0,2,0,0,0],[0,0,3,0,1]]],"7":[[[1,1,2,0,0,0,1],[0,0,0,0,2,2,0],[4,0,2,2,1,0,0],[0,4,0,0,0,4,3],[2,0,1,1,0,0,2],[1,0,0,3,3,0,0],[3,0,0,0,2,0,2]],[[0,0,3,3,0,0,1],[0,0,3,1,0,0,3],[2,0,0,0,3,0,1],[0,4,0,1,0,0,1],[0,2,1,0,3,2,0],[3,0,0,0,0,1,2],[3,0,0,3,2,0,1]],[[0,0,4,0,4,0,0],[4,0,0,0,0,0,2],[0,0,0,0,4,4,1],[0,0,0,0,3,0,0],[2,0,3,0,0,2,0],[0,4,1,0,2,0,0],[1,0,3,0,0,1,4]],[[0,2,1,0,1,0,1],[1,0,0,3,2,2,1],[2,3,2,0,0,0,0],[0,0,2,0,0,2,0],[2,2,0,0,0,0,4],[0,0,1,4,4,2,0],[2,0,1,0,0,1,1]],[[2,0,1,3,0,0,0],[1,2,0,0,0,3,3],[1,2,0,1,0,2,0],[0,3,0,2,0,1,1],[0,2,2,0,1,0,2],[0,0,0,4,0,3,0],[0,0,4,0,1,0,2]],[[0,2,1,3,2,1,1],[0,0,0,0,0,0,1],[3,1,0,0,2,0,3],[0,0,0,1,0,3,0],[2,2,4,1,1,1,0],[0,2,0,0,0,4,1],[1,0,0,0,4,0,2]]],"10":[[[0,0,0,4,2,0,0,3,0,1],[0,0,0,0,1,2,0,0,1,3],[4,0,2,2,0,0,1,2,2,0],[0,2,1,2,2,3,0,1,0,0],[0,4,2,0,1,0,4,0,3,0],[0,0,0,1,0,1,0,0,2,1],[0,2,1,2,0,0,0,0,0,2],[0,0,3,0,3,2,1,0,4,0],[0,3,0,1,2,0,1,0,2,1],[1,1,0,3,0,1,0,0,4,0]],[[3,0,0,3,0,1,0,0,4,0],[0,0,0,0,0,0,2,0,3,0],[2,4,2,0,3,0,4,0,0,1],[0,0,1,2,3,1,1,0,3,0],[3,0,3,0,0,4,0,0,0,1],[0,0,0,1,0,3,0,0,1,1],[1,2,0,0,2,1,3,0,0,0],[3,0,0,0,4,2,0,4,0,0],[4,0,0,0,0,0,0,2,0,3],[0,0,2,1,1,1,0,3,0,1]],[[0,2,0,0,0,0,4,0,2,0],[0,2,0,4,2,2,0,0,0,3],[0,0,0,0,0,4,0,2,1,0],[3,3,1,0,2,1,1,0,0,2],[0,0,2,2,0,0,0,2,3,0],[0,2,0,0,0,4,2,1,0,1],[3,0,0,1,1,4,0,3,0,1],[4,0,0,3,3,0,0,2,1,1],[0,0,0,0,0,0,0,4,0,0],[2,0,3,0,0,0,4,0,0,0]],[[0,0,3,0,2,2,0,0,4,0],[2,0,2,0,1,0,0,0,4,0],[0,0,0,4,0,0,0,3,0,1],[0,0,4,0,0,0,0,4,0,4],[0,0,4,0,0,0,3,0,0,0],[1,1,0,4,4,4,0,2,0,0],[0,0,0,0,0,2,0,3,0,0],[2,2,0,2,0,0,0,3,0,1],[0,0,0,0,0,0,1,0,2,1],[4,0,4,0,4,2,3,0,0,1]],[[1,0,2,2,0,0,2,2,0,2],[0,3,0,1,1,0,0,4,0,0],[3,0,0,1,2,0,0,4,0,0],[1,1,2,0,2,0,0,2,0,2],[2,0,1,0,4,0,0,0,2,1],[0,0,3,0,0,1,1,0,0,3],[0,0,0,2,0,1,0,4,0,0],[0,3,0,3,4,0,0,0,4,1],[4,1,0,0,0,3,0,0,4,0],[1,1,2,0,1,0,3,0,0,0]],[[0,2,3,0,0,2,0,2,0,1],[1,2,0,2,0,3,0,0,2,0],[0,0,3,0,0,0,0,1,2,0],[0,0,0,2,0,4,0,0,0,3],[4,0,2,1,0,2,3,3,0,0],[1,2,0,1,1,2,0,1,0,2],[1,2,0,0,0,4,0,3,1,0],[2,4,0,2,0,0,0,0,2,2],[0,0,0,0,0,4,2,0,0,1],[1,3,0,0,1,1,4,0,0,0]]]};
-    const SHIKAKU_SIZES = [5, 7, 10];
-
-    function shikakuLoad() {
-        try {
-            const raw = JSON.parse(localStorage.getItem(SHIKAKU_KEY) || 'null');
-            if (!raw || !SHIKAKU_SIZES.includes(Number(raw.size)) || !Array.isArray(raw.regions)) return null;
-            const size = Number(raw.size), list = SHIKAKU_PUZZLES[size] || [];
-            const puzzleIndex = Math.max(0, Math.min(list.length - 1, Number(raw.puzzleIndex) || 0));
-            const clues = list[puzzleIndex];
-            if (!Array.isArray(clues) || clues.length !== size) return null;
-            const regions = raw.regions.filter(r => Number.isInteger(r.r0) && Number.isInteger(r.c0) && Number.isInteger(r.r1) && Number.isInteger(r.c1));
-            return { size, puzzleIndex, clues: clues.clues, regions, seconds: Math.max(0, Number(raw.seconds) || 0), solved: !!raw.solved };
-        } catch { return null; }
-    }
-
-    function shikakuSave(game) {
-        if (!game) return;
-        try { localStorage.setItem(SHIKAKU_KEY, JSON.stringify({
-            size: game.size, puzzleIndex: game.puzzleIndex, regions: game.regions,
-            seconds: game.seconds, solved: game.solved,
-        })); } catch { /* ignore */ }
-    }
-
-    function shikakuNew(size, puzzleIndex = null) {
-        const list = SHIKAKU_PUZZLES[size] || SHIKAKU_PUZZLES[7];
-        const index = puzzleIndex == null ? Math.floor(Math.random() * list.length) : ((puzzleIndex % list.length) + list.length) % list.length;
-        return { size, puzzleIndex: index, clues: list[index], regions: [], seconds: 0, solved: false };
-    }
-
-    function shikakuCells(region) {
-        const cells = [];
-        for (let r = region.r0; r <= region.r1; r++) for (let c = region.c0; c <= region.c1; c++) cells.push([r,c]);
-        return cells;
-    }
-
-    function shikakuRegionKey(r) { return `${r.r0},${r.c0},${r.r1},${r.c1}`; }
-
-    function shikakuClueCount(game, region) {
-        let count = 0, clueValue = 0;
-        for (const [r,c] of shikakuCells(region)) {
-            const v = game.clues[r]?.[c] || 0;
-            if (v) { count++; clueValue = v; }
-        }
-        return { count, clueValue };
-    }
-
-    function shikakuRegionValid(game, region) {
-        if (region.r0 > region.r1 || region.c0 > region.c1) return false;
-        const { count, clueValue } = shikakuClueCount(game, region);
-        const area = (region.r1 - region.r0 + 1) * (region.c1 - region.c0 + 1);
-        return count === 1 && clueValue === area;
-    }
-
-    function shikakuOverlaps(a,b) {
-        return !(a.r1 < b.r0 || b.r1 < a.r0 || a.c1 < b.c0 || b.c1 < a.c0);
-    }
-
-    function shikakuAllCovered(game) {
-        const covered = new Set();
-        for (const region of game.regions) for (const [r,c] of shikakuCells(region)) covered.add(`${r},${c}`);
-        return covered.size === game.size * game.size;
-    }
-
-    function renderShikaku(body) {
-        cleanupGame();
-        state.shikaku = shikakuLoad() || shikakuNew(7);
-        let game = state.shikaku;
-        shikakuSave(game);
-
-        const toolbar = el('div', { class: 'stgc-game-toolbar' });
-        const info = el('div', { class: 'stgc-game-info' });
-        const statusPill = el('span', { class: 'stgc-pill' });
-        const sizeSelect = el('select', { class: 'text_pole stgc-level-select', 'aria-label': '数方尺寸' });
-        [[5,'5×5'],[7,'7×7'],[10,'10×10']].forEach(([value,label]) => sizeSelect.append(el('option', { value, text: label })));
-        sizeSelect.value = String(game.size);
-        const newBtn = el('button', { class: 'stgc-btn', type: 'button' });
-        newBtn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>新题</span>';
-        const undoBtn = el('button', { class: 'stgc-btn', type: 'button' });
-        undoBtn.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>撤销</span>';
-        const clearBtn = el('button', { class: 'stgc-btn', type: 'button' });
-        clearBtn.innerHTML = '<i class="fa-solid fa-eraser" aria-hidden="true"></i><span>清空</span>';
-        info.append(statusPill);
-        toolbar.append(info, sizeSelect, undoBtn, clearBtn, newBtn);
-
-        const board = el('div', { class: 'shikaku-board', role: 'grid', 'aria-label': '数方棋盘' });
-        const result = el('div', { class: 'star-pop-result' });
-        const hint = el('div', { class: 'stgc-game-hint', text: '按住一个格子拖到对角格，划出矩形。每个区域必须恰好包含一个数字，数字就是该区域的面积。已经画好的区域再次点击即可取消。' });
-        body.append(toolbar, board, result, hint);
-
-        let drag = null;
-        let preview = null;
-        let timer = null;
-
-        function cellFromPoint(event) {
-            const rect = board.getBoundingClientRect();
-            const x = Math.min(game.size - 1, Math.max(0, Math.floor((event.clientX - rect.left) / (rect.width / game.size))));
-            const y = Math.min(game.size - 1, Math.max(0, Math.floor((event.clientY - rect.top) / (rect.height / game.size))));
-            return { r: y, c: x };
-        }
-
-        function coveredCell(r,c) {
-            return game.regions.find(region => r >= region.r0 && r <= region.r1 && c >= region.c0 && c <= region.c1);
-        }
-
-        function draw() {
-            board.innerHTML = '';
-            board.style.setProperty('--shikaku-size', String(game.size));
-            const covered = new Set();
-            game.regions.forEach((region,index) => shikakuCells(region).forEach(([r,c]) => covered.add(`${r},${c}`)));
-            statusPill.textContent = `区域 ${game.regions.length} · ${Math.floor(game.seconds/60).toString().padStart(2,'0')}:${(game.seconds%60).toString().padStart(2,'0')}`;
-            undoBtn.disabled = game.regions.length === 0;
-            clearBtn.disabled = game.regions.length === 0;
-            result.textContent = game.solved ? '🎉 数方完成！' : (preview ? (shikakuRegionValid(game, preview) ? '这个区域合法' : '需要恰好一个数字，且数字等于面积') : '');
-
-            for (let r=0;r<game.size;r++) for (let c=0;c<game.size;c++) {
-                const cell = el('div', { class: 'shikaku-cell', role: 'gridcell' });
-                const region = coveredCell(r,c);
-                if (region) cell.classList.add('filled');
-                if (game.clues[r][c]) {
-                    const clue = el('span', { class: 'shikaku-clue', text: String(game.clues[r][c]) });
-                    cell.append(clue);
-                    if (region && shikakuRegionValid(game, region)) cell.classList.add('valid-region');
-                }
-                if (preview && r >= preview.r0 && r <= preview.r1 && c >= preview.c0 && c <= preview.c1) cell.classList.add(shikakuRegionValid(game, preview) ? 'preview-valid' : 'preview-invalid');
-                board.append(cell);
-            }
-            drawRegionBorders();
-        }
-
-        function drawRegionBorders() {
-            board.querySelectorAll('.shikaku-region-border').forEach(n => n.remove());
-            game.regions.forEach(region => {
-                const marker = el('div', { class: 'shikaku-region-border' });
-                marker.style.left = `${region.c0 * (100/game.size)}%`;
-                marker.style.top = `${region.r0 * (100/game.size)}%`;
-                marker.style.width = `${(region.c1-region.c0+1) * (100/game.size)}%`;
-                marker.style.height = `${(region.r1-region.r0+1) * (100/game.size)}%`;
-                board.append(marker);
-            });
-        }
-
-        function finishCandidate(candidate) {
-            preview = null;
-            if (!shikakuRegionValid(game, candidate)) { draw(); return; }
-            if (game.regions.some(region => shikakuOverlaps(region, candidate))) { result.textContent = '这里已经有区域了'; draw(); return; }
-            game.regions.push(candidate);
-            if (shikakuAllCovered(game) && game.regions.every(region => shikakuRegionValid(game, region))) {
-                game.solved = true;
-                recordGameWin('shikaku');
-            }
-            shikakuSave(game);
-            draw();
-        }
-
-        const onPointerDown = event => {
-            if (game.solved) return;
-            const start = cellFromPoint(event);
-            const existingRegion = coveredCell(start.r, start.c);
-
-            // 已经存在的区域再次点击 = 取消该区域，不需要专门点撤销。
-            if (existingRegion) {
-                const regionIndex = game.regions.indexOf(existingRegion);
-                if (regionIndex >= 0) {
-                    game.regions.splice(regionIndex, 1);
-                    game.solved = false;
-                    shikakuSave(game);
-                    draw();
-                }
-                event.preventDefault();
-                return;
-            }
-            drag = start;
-            preview = { r0:start.r,c0:start.c,r1:start.r,c1:start.c };
-            board.setPointerCapture?.(event.pointerId);
-            event.preventDefault();
-            draw();
-        };
-        const onPointerMove = event => {
-            if (!drag) return;
-            const end = cellFromPoint(event);
-            preview = { r0:Math.min(drag.r,end.r), c0:Math.min(drag.c,end.c), r1:Math.max(drag.r,end.r), c1:Math.max(drag.c,end.c) };
-            draw();
-            event.preventDefault();
-        };
-        const onPointerUp = event => {
-            if (!drag) return;
-            const end = cellFromPoint(event);
-            const candidate = { r0:Math.min(drag.r,end.r), c0:Math.min(drag.c,end.c), r1:Math.max(drag.r,end.r), c1:Math.max(drag.c,end.c) };
-            drag = null;
-            finishCandidate(candidate);
-            event.preventDefault();
-        };
-        board.addEventListener('pointerdown', onPointerDown);
-        board.addEventListener('pointermove', onPointerMove);
-        board.addEventListener('pointerup', onPointerUp);
-        board.addEventListener('pointercancel', () => { drag = null; preview = null; draw(); });
-
-        undoBtn.addEventListener('click', () => { if (game.regions.length) { game.regions.pop(); game.solved=false; shikakuSave(game); draw(); } });
-        clearBtn.addEventListener('click', () => { game.regions=[]; game.solved=false; shikakuSave(game); draw(); });
-        newBtn.addEventListener('click', () => { state.shikaku=shikakuNew(game.size); shikakuSave(state.shikaku); game=state.shikaku; draw(); });
-        sizeSelect.addEventListener('change', () => { state.shikaku=shikakuNew(Number(sizeSelect.value)); shikakuSave(state.shikaku); game=state.shikaku; draw(); });
-
-        timer = window.setInterval(() => {
-            if (state.currentGame !== 'shikaku' || state.shikaku !== game || game.solved) return;
-            game.seconds++;
-            shikakuSave(game);
-            statusPill.textContent = `区域 ${game.regions.length} · ${Math.floor(game.seconds/60).toString().padStart(2,'0')}:${(game.seconds%60).toString().padStart(2,'0')}`;
-        }, 1000);
-
-        state.cleanup = () => {
-            window.clearInterval(timer);
-            board.removeEventListener('pointerdown', onPointerDown);
-            board.removeEventListener('pointermove', onPointerMove);
-            board.removeEventListener('pointerup', onPointerUp);
-            shikakuSave(game);
-        };
-        draw();
-    }
-
     /* ==================== Go ==================== */
     const GO_DEFAULT_SIZE = 13;
     const GO_SIZE_OPTIONS = [9, 13, 19];
@@ -5322,350 +5030,172 @@
     }
 
 
-    /* ==================== 国际象棋 ==================== */
-    const CHESS_START = [
-        'rnbqkbnr', 'pppppppp', '........', '........', '........', '........', 'PPPPPPPP', 'RNBQKBNR'
-    ].join('');
-    const CHESS_GLYPHS = {
-        K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
-        k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
-    };
 
-    function chessClone(g) {
-        return {
-            board: [...g.board], current: g.current, selected: g.selected, over: g.over, winner: g.winner,
-            mode: g.mode, history: [...g.history], castling: { ...g.castling }, enPassant: g.enPassant,
-            message: g.message, aiThinking: false, lastMove: g.lastMove ? { ...g.lastMove } : null,
-        };
+    /* ==================== Chess ==================== */
+    const CHESS_KEY = 'silly-game:chess:v1';
+    const CHESS_INIT = [
+        ['r','n','b','q','k','b','n','r'],
+        ['p','p','p','p','p','p','p','p'],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','N','R'],
+    ];
+    const CHESS_ICON = { K:'king',Q:'queen',R:'rook',B:'bishop',N:'knight',P:'pawn', k:'king',q:'queen',r:'rook',b:'bishop',n:'knight',p:'pawn' };
+    const CHESS_DIFF = { easy:'简单', normal:'普通', hard:'困难' };
+    const chessColor = p => p && p === p.toUpperCase() ? 1 : 2;
+    const chessType = p => p ? p.toLowerCase() : '';
+    function chessCloneBoard(b){ return b.map(row=>row.slice()); }
+    function chessInside(x,y){ return x>=0&&x<8&&y>=0&&y<8; }
+    function chessFindKing(board,color){
+        const k=color===1?'K':'k';
+        for(let y=0;y<8;y++) for(let x=0;x<8;x++) if(board[y][x]===k)return [x,y];
+        return null;
     }
-    function newChess(mode = 'ai') {
-        return {
-            board: [...CHESS_START], current: 'w', selected: null, over: false, winner: null,
-            mode, history: [], castling: { K: true, Q: true, k: true, q: true }, enPassant: -1,
-            message: '', aiThinking: false, lastMove: null,
-        };
+    function chessPseudoMoves(board,x,y,attackOnly=false){
+        const p=board[y][x], color=chessColor(p), type=chessType(p), out=[];
+        if(!p)return out;
+        const push=(nx,ny,flags={})=>{if(!chessInside(nx,ny))return; const q=board[ny][nx]; if(attackOnly){if(!q||chessColor(q)!==color)out.push({x:nx,y:ny,attack:true,...flags});return;} if(!q){out.push({x:nx,y:ny,...flags});return;} if(chessColor(q)!==color && chessType(q)!=='k') out.push({x:nx,y:ny,capture:true,...flags});};
+        if(type==='p'){
+            const d=color===1?-1:1, start=color===1?6:1;
+            if(attackOnly){ for(const dx of [-1,1]) if(chessInside(x+dx,y+d)) out.push({x:x+dx,y:y+d,attack:true}); return out; }
+            if(chessInside(x,y+d)&&!board[y+d][x]){ out.push({x,y:y+d}); if(y===start&&!board[y+2*d][x]) out.push({x,y:y+2*d, double:true}); }
+            for(const dx of [-1,1]){ const nx=x+dx,ny=y+d; if(!chessInside(nx,ny))continue; const q=board[ny][nx]; if(q&&chessColor(q)!==color) out.push({x:nx,y:ny,capture:true}); }
+            return out;
+        }
+        const leaps={n:[[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]], k:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]], b:[[1,1],[1,-1],[-1,1],[-1,-1]], r:[[1,0],[-1,0],[0,1],[0,-1]], q:[[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]]};
+        if(type==='n'||type==='k'){ for(const [dx,dy] of leaps[type]) push(x+dx,y+dy); return out; }
+        for(const [dx,dy] of leaps[type]){ let nx=x+dx,ny=y+dy; while(chessInside(nx,ny)){ const q=board[ny][nx]; if(!q){out.push({x:nx,y:ny});}else{if(chessColor(q)!==color && (attackOnly || chessType(q)!=='k'))out.push({x:nx,y:ny,capture:true,...(attackOnly?{attack:true}:{})});break;} nx+=dx;ny+=dy; } }
+        return out;
     }
-    const chessRC = i => ({ r: Math.floor(i / 8), c: i % 8 });
-    const chessIdx = (r,c) => r >= 0 && r < 8 && c >= 0 && c < 8 ? r * 8 + c : -1;
-    const chessColor = p => !p ? null : (p === p.toUpperCase() ? 'w' : 'b');
-    const chessEnemy = c => c === 'w' ? 'b' : 'w';
-
-    function chessSquareAttacked(g, sq, by) {
-        const { r, c } = chessRC(sq);
-        const pawn = by === 'w' ? 'P' : 'p';
-        const pawnRow = by === 'w' ? r + 1 : r - 1;
-        for (const dc of [-1,1]) {
-            const i = chessIdx(pawnRow, c + dc);
-            if (i >= 0 && g.board[i] === pawn) return true;
-        }
-        const knight = by === 'w' ? 'N' : 'n';
-        for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
-            const i = chessIdx(r+dr,c+dc);
-            if (i >= 0 && g.board[i] === knight) return true;
-        }
-        const king = by === 'w' ? 'K' : 'k';
-        for (const [dr,dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
-            const i = chessIdx(r+dr,c+dc);
-            if (i >= 0 && g.board[i] === king) return true;
-        }
-        const sliders = [
-            [[-1,0],[1,0],[0,-1],[0,1]], ['R','Q'],
-            [[-1,-1],[-1,1],[1,-1],[1,1]], ['B','Q'],
-        ];
-        for (let s = 0; s < sliders.length; s += 2) {
-            for (const [dr,dc] of sliders[s]) {
-                let nr=r+dr,nc=c+dc;
-                while (true) {
-                    const i = chessIdx(nr,nc); if (i < 0) break;
-                    const p = g.board[i];
-                    if (p !== '.') {
-                        if (chessColor(p) === by && sliders[s+1].includes(p.toUpperCase())) return true;
-                        break;
-                    }
-                    nr += dr; nc += dc;
-                }
-            }
-        }
+    function chessAttacked(board,x,y,byColor){
+        for(let yy=0;yy<8;yy++)for(let xx=0;xx<8;xx++){ const p=board[yy][xx]; if(!p||chessColor(p)!==byColor)continue; if(chessPseudoMoves(board,xx,yy,true).some(m=>m.x===x&&m.y===y))return true; }
         return false;
     }
-
-    function chessInCheck(g, color) {
-        const king = color === 'w' ? 'K' : 'k';
-        const sq = g.board.indexOf(king);
-        return sq < 0 || chessSquareAttacked(g, sq, chessEnemy(color));
+    function chessApply(board,m){ const next=chessCloneBoard(board),p=next[m.fromY][m.fromX]; next[m.toY][m.toX]=p; next[m.fromY][m.fromX]=''; if(m.castle==='k'){ next[m.fromY][5]=next[m.fromY][7]; next[m.fromY][7]=''; } if(m.castle==='q'){ next[m.fromY][3]=next[m.fromY][0]; next[m.fromY][0]=''; } if(m.enPassant){ next[m.fromY][m.toX]=''; } if(m.promotion) next[m.toY][m.toX]=m.promotion; return next; }
+    function chessInCheck(board,color){ const k=chessFindKing(board,color); return !k || chessAttacked(board,k[0],k[1],color===1?2:1); }
+    function chessLegalMoves(game,x,y){
+        const board=game.board,p=board[y]?.[x]; if(!p||chessColor(p)!==game.turn)return [];
+        let list=chessPseudoMoves(board,x,y,false);
+        const type=chessType(p), color=game.turn;
+        if(type==='p'&&game.enPassant && game.enPassant.y===y+ (color===1?-1:1) && Math.abs(game.enPassant.x-x)===1) list.push({x:game.enPassant.x,y:game.enPassant.y,enPassant:true});
+        if(type==='k'&&!chessInCheck(board,color)){
+            const row=color===1?7:0;
+            if(game.castling?.[color===1?'K':'k'] && board[row][5]===''&&board[row][6]===''&&!chessAttacked(board,5,row,color===1?2:1)&&!chessAttacked(board,6,row,color===1?2:1)) list.push({x:6,y:row,castle:'k'});
+            if(game.castling?.[color===1?'Q':'q'] && board[row][1]===''&&board[row][2]===''&&board[row][3]===''&&!chessAttacked(board,3,row,color===1?2:1)&&!chessAttacked(board,2,row,color===1?2:1)) list.push({x:2,y:row,castle:'q'});
+        }
+        return list.filter(m=>{ const mm={...m,fromX:x,fromY:y,toX:m.x,toY:m.y}; if(type==='p'&&m.y===0||type==='p'&&m.y===7) mm.promotion=color===1?'Q':'q'; return !chessInCheck(chessApply(board,mm),color); });
     }
-
-    function chessPseudoMoves(g, from) {
-        const p = g.board[from]; if (p === '.') return [];
-        const color = chessColor(p), {r,c} = chessRC(from), out=[];
-        const add = (rr,cc, extra={}) => { const i=chessIdx(rr,cc); if(i<0)return false; const t=g.board[i]; if(t==='.' || chessColor(t)!==color){ out.push({from,to:i,...extra}); return t==='.'; } return false; };
-        const type=p.toUpperCase();
-        if(type==='P') {
-            const d=color==='w'?-1:1, start=color==='w'?6:1;
-            const one=chessIdx(r+d,c); if(one>=0 && g.board[one]==='.') { out.push({from,to:one}); const two=chessIdx(r+2*d,c); if(r===start && two>=0 && g.board[two]==='.') out.push({from,to:two,double:true}); }
-            for(const dc of [-1,1]) { const i=chessIdx(r+d,c+dc); if(i<0)continue; const t=g.board[i]; if(t!=='.' && chessColor(t)!==color) out.push({from,to:i}); if(i===g.enPassant) out.push({from,to:i,enPassant:true}); }
-        } else if(type==='N') {
-            for(const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) add(r+dr,c+dc);
-        } else if(type==='B' || type==='R' || type==='Q') {
-            const dirs = type==='B' ? [[-1,-1],[-1,1],[1,-1],[1,1]] : type==='R' ? [[-1,0],[1,0],[0,-1],[0,1]] : [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
-            for(const [dr,dc] of dirs){ let nr=r+dr,nc=c+dc; while(add(nr,nc)){ nr+=dr; nc+=dc; } }
-        } else if(type==='K') {
-            for(const [dr,dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) add(r+dr,c+dc);
-            const rights = color==='w' ? [['K',7,6,5],['Q',0,2,3]] : [['k',63,62,61],['q',56,58,59]];
-            for(const [right,rook,to,through] of rights){
-                if(!g.castling[right] || g.board[rook].toUpperCase()!=='R' || g.board[rook]==='.') continue;
-                const dir = to>from?1:-1;
-                const between = through===5 ? [5,6] : through===3 ? [1,2,3] : through===61 ? [61,62] : [57,58,59];
-                if(between.some(i=>g.board[i]!=='.')) continue;
-                const transit = [from, from+dir, to];
-                if(transit.some(i=>chessSquareAttacked(g,i,chessEnemy(color)))) continue;
-                out.push({from,to,castle:right});
+    function chessAllMoves(game,color){ const old=game.turn; game.turn=color; const out=[]; for(let y=0;y<8;y++)for(let x=0;x<8;x++){ if(chessColor(game.board[y][x])!==color)continue; for(const m of chessLegalMoves(game,x,y))out.push({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}); } game.turn=old; return out; }
+    function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',difficulty:'normal',castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
+    function chessSave(){ try{localStorage.setItem(CHESS_KEY,JSON.stringify(state.chess));}catch{} }
+    function chessLoad(){ try{const g=JSON.parse(localStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=g.mode==='pvp'?'pvp':'ai'; g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
+    function chessApplyMove(game,m){
+        const p=game.board[m.fromY][m.fromX], color=game.turn, cap=game.board[m.toY][m.toX];
+        game.history.push({board:chessCloneBoard(game.board),turn:game.turn,castling:{...game.castling},enPassant:game.enPassant?{...game.enPassant}:null,over:game.over,winner:game.winner});
+        game.board=chessApply(game.board,m);
+        if(chessType(p)==='k'){ if(color===1){game.castling.K=false;game.castling.Q=false;}else{game.castling.k=false;game.castling.q=false;} }
+        if(chessType(p)==='r'){ if(m.fromX===0&&m.fromY===7)game.castling.Q=false; if(m.fromX===7&&m.fromY===7)game.castling.K=false; if(m.fromX===0&&m.fromY===0)game.castling.q=false; if(m.fromX===7&&m.fromY===0)game.castling.k=false; }
+        if(cap&&chessType(cap)==='r'){if(m.toX===0&&m.toY===7)game.castling.Q=false;if(m.toX===7&&m.toY===7)game.castling.K=false;if(m.toX===0&&m.toY===0)game.castling.q=false;if(m.toX===7&&m.toY===0)game.castling.k=false;}
+        game.enPassant=chessType(p)==='p'&&Math.abs(m.toY-m.fromY)===2?{x:m.fromX,y:(m.fromY+m.toY)/2}:null;
+        game.turn=color===1?2:1;
+        const nextMoves=chessAllMoves(game,game.turn); if(!nextMoves.length){game.over=true;game.winner=chessInCheck(game.board,game.turn)?color:3;if(game.winner===color)recordGameWin('chess');}
+    }
+    function chessUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.castling=h.castling;game.enPassant=h.enPassant;game.over=h.over;game.winner=h.winner;return true;}
+    function chessStaticEval(board){
+        const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let score=0;
+        for(let y=0;y<8;y++)for(let x=0;x<8;x++){const p=board[y][x];if(!p)continue;const v=val[chessType(p)]||0;score += chessColor(p)===2?v:-v;}
+        return score;
+    }
+    function chessPickAI(game){
+        const moves=chessAllMoves(game,2); if(!moves.length)return null;
+        const diff=game.difficulty||'normal';
+        if(diff==='easy') return moves[Math.floor(Math.random()*moves.length)];
+        let best=-Infinity,bm=moves[0];
+        for(const m of moves){
+            const nb=chessApply(game.board,m);
+            let score=chessStaticEval(nb);
+            if(chessInCheck(nb,1))score+=120;
+            if(diff==='hard'){
+                const replyGame={board:nb,turn:1,mode:'pvp',castling:game.castling,enPassant:game.enPassant};
+                const replies=chessAllMoves(replyGame,1);
+                if(!replies.length){ score += chessInCheck(nb,1) ? 50000 : 0; }
+                else { let worst=Infinity; for(const r of replies){ const rb=chessApply(nb,r); worst=Math.min(worst,chessStaticEval(rb)); } score=worst + (chessInCheck(nb,1)?120:0); }
             }
+            score += Math.random()*6;
+            if(score>best){best=score;bm=m;}
         }
-        return out;
+        return bm;
     }
-
-    function chessApplyMove(g, move) {
-        const p=g.board[move.from], captured=g.board[move.to];
-        g.board[move.to]=p; g.board[move.from]='.';
-        if(move.enPassant){ const {r,c}=chessRC(move.to); const cap=chessIdx(r+(chessColor(p)==='w'?1:-1),c); g.board[cap]='.'; }
-        if(move.castle){
-            if(move.castle==='K'){g.board[61]='R';g.board[63]='.';}
-            if(move.castle==='Q'){g.board[59]='R';g.board[56]='.';}
-            if(move.castle==='k'){g.board[61]='.';g.board[63]='r';}
-            if(move.castle==='q'){g.board[59]='.';g.board[56]='r';}
-        }
-        if(p==='K'){g.castling.K=false;g.castling.Q=false;}
-        if(p==='k'){g.castling.k=false;g.castling.q=false;}
-        if(move.from===56||move.to===56) g.castling.q=false;
-        if(move.from===63||move.to===63) g.castling.K=false;
-        if(move.from===0||move.to===0) g.castling.q=false;
-        if(move.from===7||move.to===7) g.castling.K=false;
-        g.enPassant = move.double ? (move.to+move.from)/2 : -1;
-        const {r}=chessRC(move.to);
-        if(p.toUpperCase()==='P' && (r===0||r===7)) g.board[move.to] = chessColor(p)==='w'?'Q':'q';
-        return captured;
-    }
-
-    function chessLegalMoves(g, from) {
-        const p=g.board[from]; if(p==='.'||chessColor(p)!==g.current)return [];
-        const moves=chessPseudoMoves(g,from); const out=[];
-        for(const m of moves){ const test=chessClone(g); chessApplyMove(test,m); if(!chessInCheck(test,g.current)) out.push(m); }
-        return out;
-    }
-    function chessAllLegal(g,color=g.current){
-        const out=[]; for(let i=0;i<64;i++) if(g.board[i]!=='.'&&chessColor(g.board[i])===color) out.push(...chessLegalMoves(g,i)); return out;
-    }
-    function chessSnapshot(g){ return {board:[...g.board],current:g.current,over:g.over,winner:g.winner,castling:{...g.castling},enPassant:g.enPassant,lastMove:g.lastMove}; }
-    function chessRestore(g,s){ Object.assign(g,{...s,board:[...s.board],castling:{...s.castling}}); g.selected=null; g.aiThinking=false; }
-    function chessCommit(g,m){
-        g.history.push(chessSnapshot(g)); const captured=chessApplyMove(g,m); g.lastMove={from:m.from,to:m.to};
-        g.current=chessEnemy(g.current);
-        const legal=chessAllLegal(g); if(!legal.length){ g.over=true; g.winner=chessInCheck(g,g.current)?chessEnemy(g.current):'draw'; if(g.winner!=='draw') recordGameWin('chess'); }
-        return captured;
-    }
-    function chessBestAI(g){
-        const legal=chessAllLegal(g); if(!legal.length)return null;
-        const scored=legal.map(m=>{ const p=g.board[m.to]; let score=p==='.'?0:{P:10,N:30,B:30,R:50,Q:90,K:900}[p.toUpperCase()]||0; const t=chessClone(g); chessApplyMove(t,m); if(chessInCheck(t,t.current))score+=15; return {m,score:score+Math.random()*12}; });
-        scored.sort((a,b)=>b.score-a.score); return scored[0].m;
-    }
-
     function renderChess(body){
-        cleanupGame(); state.chess=state.chess||newChess('ai'); const g=state.chess;
-        const tools=el('div',{class:'stgc-toolbar'}), info=el('div',{class:'stgc-game-status',text:''});
-        const mode=el('select',{class:'text_pole stgc-select'}); mode.innerHTML='<option value="ai">人机</option><option value="2p">双人</option>'; mode.value=g.mode;
-        const undo=el('button',{class:'stgc-btn',type:'button'}); undo.innerHTML='<i class="fa-solid fa-rotate-left"></i><span>悔棋</span>';
-        const reset=el('button',{class:'stgc-btn',type:'button'}); reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';
-        const board=el('div',{class:'sg-chess-board','aria-label':'国际象棋棋盘'});
-        tools.append(info,mode,undo,reset); body.append(tools,board);
-        mode.addEventListener('change',()=>{g.mode=mode.value; g.board=[...CHESS_START];g.current='w';g.over=false;g.winner=null;g.history=[];g.castling={K:true,Q:true,k:true,q:true};g.enPassant=-1;g.lastMove=null;g.selected=null;draw();});
-        undo.addEventListener('click',()=>{ if(!g.history.length||g.aiThinking)return; const steps=g.mode==='ai'&&g.history.length>=2?2:1; for(let i=0;i<steps;i++){const snap=g.history.pop(); chessRestore(g,snap);} draw(); });
-        reset.addEventListener('click',()=>{Object.assign(g,newChess(g.mode));draw();});
-        function draw(){
-            board.innerHTML=''; info.textContent=g.over ? (g.winner==='draw' ? '和棋' : `${g.winner==='w'?'白方':'黑方'}获胜`) : `${g.current==='w'?'白方':'黑方'}回合${g.aiThinking?' · AI 思考中…':''}`;
-            for(let i=0;i<64;i++){
-                const cell=el('button',{class:`sg-chess-cell ${(Math.floor(i/8)+i)%2?'dark':'light'}`,type:'button'});
-                if(g.lastMove&&(i===g.lastMove.from||i===g.lastMove.to))cell.classList.add('last');
-                if(g.selected===i)cell.classList.add('selected');
-                const p=g.board[i]; if(p!=='.'){const span=el('span',{class:`sg-chess-piece ${chessColor(p)==='w'?'white':'black'}`,text:CHESS_GLYPHS[p]});cell.append(span);}
-                if(g.selected!==null && chessLegalMoves(g,g.selected).some(m=>m.to===i)) cell.classList.add(g.board[i]!=='.'?'capture':'legal');
-                cell.addEventListener('click',()=>{
-                    if(g.over||g.aiThinking||(g.mode==='ai'&&g.current==='b'))return;
-                    const p=g.board[i];
-                    if(g.selected===null){if(p!=='.'&&chessColor(p)===g.current){g.selected=i;draw();}return;}
-                    const move=chessLegalMoves(g,g.selected).find(m=>m.to===i);
-                    if(move){chessCommit(g,move);g.selected=null;draw(); if(g.mode==='ai'&&!g.over&&g.current==='b'){g.aiThinking=true;draw();window.setTimeout(()=>{const ai=chessBestAI(g);if(ai)chessCommit(g,ai);g.aiThinking=false;draw();},180);}}
-                    else if(p!=='.'&&chessColor(p)===g.current){g.selected=i;draw();} else {g.selected=null;draw();}
-                });
-                board.append(cell);
-            }
-        }
-        draw();
-        state.cleanup=()=>{};
+        state.chess=chessLoad()||chessNew(); chessSave();
+        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
+        const mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        const difficulty=el('select',{class:'text_pole stgc-select chess-difficulty','aria-label':'国际象棋难度'});
+        for(const [value,label] of Object.entries(CHESS_DIFF)){const o=el('option',{value,text:label});difficulty.append(o);}
+        toolbar.append(status,difficulty,mode,undo,reset);
+        const board=el('div',{class:'chess-board',role:'grid','aria-label':'国际象棋棋盘'}); body.append(toolbar,board);
+        const draw=()=>{const g=state.chess;board.dataset.turn=String(g.turn);board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执白，AI执黑；':'双人对战 · ')+(g.turn===1?'白方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';difficulty.disabled=g.mode!=='ai'||!!g.aiThinking;undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<8;y++)for(let x=0;x<8;x++){const c=el('div',{class:'chess-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);if((x+y)%2)c.classList.add('dark');const p=g.board[y][x];if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected'); if(p){const sp=el('i',{class:`chess-piece ${chessColor(p)===1?'light':'dark-piece'} fa-solid fa-chess-${CHESS_ICON[p]}`,'aria-hidden':'true'});c.append(sp);} if(g.selected&&chessLegalMoves(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y)){c.classList.add('legal');} board.append(c);} };
+        board.addEventListener('click',e=>{const c=e.target.closest('.chess-cell');if(!c)return;const g=state.chess;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&chessColor(p)===g.turn)g.selected={x,y};}else{const m=chessLegalMoves(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){chessApplyMove(g,{...m,fromX:g.selected.x,fromY:g.selected.y,toX:x,toY:y});g.selected=null;chessSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.chessAiTimer=setTimeout(()=>{if(state.currentGame!=='chess'||state.chess!==g)return;const aiMove=chessPickAI(g);g.aiThinking=false;if(aiMove)chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});chessSave();draw();},180);return;}}else if(p&&chessColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
+        difficulty.addEventListener('change',()=>{state.chess.difficulty=difficulty.value;chessSave();draw();});
+        mode.addEventListener('click',()=>{if(state.chessAiTimer)clearTimeout(state.chessAiTimer);const mode0=state.chess.mode==='ai'?'pvp':'ai';state.chess=chessNew();state.chess.mode=mode0;state.chess.difficulty=difficulty.value||'normal';chessSave();draw();});
+        undo.addEventListener('click',()=>{const g=state.chess;if(g.aiThinking)return;if(g.mode==='ai'){chessUndo(g);chessUndo(g);}else chessUndo(g);chessSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.chess.mode;state.chess=chessNew();state.chess.mode=mode0;chessSave();draw();});
+        state.cleanup=()=>{if(state.chessAiTimer){clearTimeout(state.chessAiTimer);state.chessAiTimer=null;}chessSave();}; draw();
     }
 
-    /* ==================== 中国象棋 ==================== */
-    const XIANGQI_START = [
-        ['車','馬','象','士','将','士','象','馬','車'],
-        ['','','','','','','','',''],
-        ['砲','','','','','','砲','',''],
-        ['卒','','卒','','卒','','卒','','卒'],
-        ['','','','','','','','',''],
-        ['','','','','','','','',''],
-        ['兵','','兵','','兵','','兵','','兵'],
-        ['炮','','','','','','炮','',''],
-        ['','','','','','','','',''],
-        ['俥','傌','相','仕','帥','仕','相','傌','俥'],
-    ].flat();
-    const X_RED=new Set(['帥','仕','相','傌','俥','炮','兵']);
-    const X_BLACK=new Set(['将','士','象','馬','車','砲','卒']);
-    const xColor=p=>X_RED.has(p)?'r':X_BLACK.has(p)?'b':null;
-    const xEnemy=c=>c==='r'?'b':'r';
-    const xRC=i=>({r:Math.floor(i/9),c:i%9}); const xI=(r,c)=>r>=0&&r<10&&c>=0&&c<9?r*9+c:-1;
-    function xClone(g){return {board:[...g.board],current:g.current,selected:g.selected,over:g.over,winner:g.winner,mode:g.mode,history:[...g.history],aiThinking:false,lastMove:g.lastMove?{...g.lastMove}:null};}
-    function newXiangqi(mode='ai'){return {board:[...XIANGQI_START],current:'r',selected:null,over:false,winner:null,mode,history:[],aiThinking:false,lastMove:null};}
-    function xInPalace(color,r,c){return c>=3&&c<=5&&(color==='r'?r>=7&&r<=9:r>=0&&r<=2);}
-    function xRiver(color,r){return color==='r'?r>=5:r<=4;}
-    function xBetween(g,a,b){let {r:r1,c:c1}=xRC(a),{r:r2,c:c2}=xRC(b),n=0;if(r1===r2){for(let c=Math.min(c1,c2)+1;c<Math.max(c1,c2);c++)if(g.board[xI(r1,c)]!=='')n++;}else{for(let r=Math.min(r1,r2)+1;r<Math.max(r1,r2);r++)if(g.board[xI(r,c1)]!=='')n++;}return n;}
-    function xPseudo(g,from,attackOnly=false){
-        const p=g.board[from], color=xColor(p); if(!color)return[]; const {r,c}=xRC(from),out=[];
-        const add=(rr,cc)=>{const i=xI(rr,cc);if(i<0)return false;const t=g.board[i];if(t===''){out.push({from,to:i});return true;}if(xColor(t)!==color)out.push({from,to:i,capture:true});return false;};
-        const type=p==='帅'||p==='将'?'G':p==='仕'||p==='士'?'A':p==='相'||p==='象'?'E':(p==='馬'||p==='傌')?'H':(p==='车'||p==='車')?'R':(p==='炮'||p==='砲')?'C':'P';
-        if(type==='G'){
-            for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){const rr=r+dr,cc=c+dc;if(xInPalace(color,rr,cc))add(rr,cc);}
-            // flying general
-            for(let rr=r+(color==='r'?-1:1);rr>=0&&rr<10;rr+=color==='r'?-1:1){const i=xI(rr,c);if(g.board[i]!==''){if(xColor(g.board[i])===xEnemy(color)&&(g.board[i]===(color==='r'?'将':'帅')))out.push({from,to:i,capture:true});break;}}
-        } else if(type==='A'){
-            for(const [dr,dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]){const rr=r+dr,cc=c+dc;if(xInPalace(color,rr,cc))add(rr,cc);}
-        } else if(type==='E'){
-            for(const [dr,dc] of [[-2,-2],[-2,2],[2,-2],[2,2]]){const rr=r+dr,cc=c+dc,mid=xI(r+dr/2,c+dc/2);if(xRiver(color,rr)&&mid>=0&&g.board[mid]==='')add(rr,cc);}
-        } else if(type==='H'){
-            for(const [dr,dc,lr,lc] of [[-2,-1,-1,0],[-2,1,-1,0],[2,-1,1,0],[2,1,1,0],[-1,-2,0,-1],[1,-2,0,-1],[-1,2,0,1],[1,2,0,1]]){const leg=xI(r+lr,c+lc);if(leg>=0&&g.board[leg]==='')add(r+dr,c+dc);}
-        } else if(type==='R'){
-            for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){let rr=r+dr,cc=c+dc;while(add(rr,cc)){rr+=dr;cc+=dc;}}
-        } else if(type==='C'){
-            for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){let rr=r+dr,cc=c+dc,screen=false;while(rr>=0&&rr<10&&cc>=0&&cc<9){const i=xI(rr,cc);const t=g.board[i];if(!screen){if(t===''){out.push({from,to:i});}else screen=true;}else{if(t!==''){if(xColor(t)!==color)out.push({from,to:i,capture:true});break;}}rr+=dr;cc+=dc;}}
-        } else {
-            const dr=color==='r'?-1:1; add(r+dr,c); if(xRiver(color,r)) {add(r,c-1);add(r,c+1);}
-        }
+    /* ==================== Xiangqi ==================== */
+    const XIANGQI_KEY='silly-game:xiangqi:v1';
+    const XQ_INIT=[
+        ['r','n','b','a','k','a','b','n','r'],['','','','','','','','',''],['','c','','','','','','c',''],['p','','p','','p','','p','','p'],['','','','','','','','',''],
+        ['','','','','','','','',''],['P','','P','','P','','P','','P'],['','C','','','','','','C',''],['','','','','','','','',''],['R','N','B','A','K','A','B','N','R']
+    ];
+    const XQ_GLYPH={r:'車',n:'馬',b:'象',a:'士',k:'將',c:'炮',p:'卒',R:'車',N:'馬',B:'相',A:'仕',K:'帥',C:'炮',P:'兵'};
+    const xqColor=p=>p&&p===p.toUpperCase()?1:2;
+    const xqType=p=>p?p.toLowerCase():'';
+    function xqInside(x,y){return x>=0&&x<9&&y>=0&&y<10;}
+    function xqClone(b){return b.map(r=>r.slice());}
+    function xqCountBetween(b,x1,y1,x2,y2){let n=0;if(x1===x2){const a=Math.min(y1,y2)+1,z=Math.max(y1,y2);for(let y=a;y<z;y++)if(b[y][x1])n++;}else{const a=Math.min(x1,x2)+1,z=Math.max(x1,x2);for(let x=a;x<z;x++)if(b[y1][x])n++;}return n;}
+    function xqGeneralInCheck(b,color){let g=color===1?'K':'k',gx=-1,gy=-1;for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(b[y][x]===g){gx=x;gy=y;}if(gx<0)return true;
+        for(let y=0;y<10;y++)for(let x=0;x<9;x++){const p=b[y][x];if(!p||xqColor(p)===color)continue;const t=xqType(p);if(t==='r'||t==='c'){if((x===gx||y===gy)){const n=xqCountBetween(b,x,y,gx,gy);if(t==='r'&&n===0)return true;if(t==='c'&&n===1)return true;}} if(t==='p'){const dir=xqColor(p)===1?-1:1;if(y+dir===gy&&x===gx)return true; if(y+(xqColor(p)===1?-1:1)===gy&&Math.abs(x-gx)===1&&((xqColor(p)===1?y<=4:y>=5)))return true;} if(t==='n'){for(const [dx,dy,lx,ly] of [[1,2,0,1],[2,1,1,0],[2,-1,1,0],[1,-2,0,-1],[-1,-2,0,-1],[-2,-1,-1,0],[-2,1,-1,0],[-1,2,0,1]])if(x+dx===gx&&y+dy===gy&&!b[y+ly]?.[x+lx])return true;} if(t==='b'){for(const [dx,dy,ex,ey] of [[2,2,1,1],[2,-2,1,-1],[-2,2,-1,1],[-2,-2,-1,-1]])if(x+dx===gx&&y+dy===gy&&!b[y+ey]?.[x+ex])return true;} if(t==='a'){if(Math.abs(x-gx)===1&&Math.abs(y-gy)===1)return true;} if(t==='k'){if(x===gx&&xqCountBetween(b,x,y,gx,gy)===0)return true;}} return false;}
+    function xqPseudo(b,x,y){const p=b[y][x],color=xqColor(p),t=xqType(p),out=[];if(!p)return out;const add=(nx,ny,info={})=>{if(!xqInside(nx,ny))return;const q=b[ny][nx];if(!q)out.push({x:nx,y:ny,...info});else if(xqColor(q)!==color)out.push({x:nx,y:ny,capture:true,...info});};
+        if(t==='r'){for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){let nx=x+dx,ny=y+dy;while(xqInside(nx,ny)){if(!b[ny][nx])out.push({x:nx,y:ny});else{if(xqColor(b[ny][nx])!==color)out.push({x:nx,y:ny,capture:true});break;}nx+=dx;ny+=dy;}}}
+        else if(t==='c'){for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){let nx=x+dx,ny=y+dy,screen=false;while(xqInside(nx,ny)){if(!b[ny][nx]){if(!screen)out.push({x:nx,y:ny});}else if(!screen)screen=true;else{if(xqColor(b[ny][nx])!==color)out.push({x:nx,y:ny,capture:true});break;}nx+=dx;ny+=dy;}}}
+        else if(t==='n'){const arr=[[1,2,0,1],[2,1,1,0],[2,-1,1,0],[1,-2,0,-1],[-1,-2,0,-1],[-2,-1,-1,0],[-2,1,-1,0],[-1,2,0,1]];for(const [dx,dy,lx,ly] of arr)if(xqInside(x+dx,y+dy)&&!b[y+ly]?.[x+lx])add(x+dx,y+dy);}
+        else if(t==='b'){const arr=[[2,2,1,1],[2,-2,1,-1],[-2,2,-1,1],[-2,-2,-1,-1]];for(const [dx,dy,ex,ey] of arr)if(xqInside(x+dx,y+dy)&&!b[y+ey]?.[x+ex]&&((color===1&&(y+dy)>=5)||(color===2&&(y+dy)<=4)))add(x+dx,y+dy);}
+        else if(t==='a'){for(const [dx,dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const nx=x+dx,ny=y+dy;if(xqInside(nx,ny)&&nx>=3&&nx<=5&&((color===1&&ny>=7)||(color===2&&ny<=2)))add(nx,ny);}}
+        else if(t==='k'){for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(xqInside(nx,ny)&&nx>=3&&nx<=5&&((color===1&&ny>=7)||(color===2&&ny<=2)))add(nx,ny);} }
+        else if(t==='p'){const d=color===1?-1:1;add(x,y+d);if((color===1&&y<=4)||(color===2&&y>=5)){add(x-1,y);add(x+1,y);}}
         return out;
     }
-    function xCheck(g,color){const target=color==='r'?'帅':'将',i=g.board.indexOf(target);if(i<0)return true;for(let j=0;j<90;j++){if(xColor(g.board[j])===xEnemy(color)&&xPseudo(g,j,true).some(m=>m.to===i))return true;}return false;}
-    function xLegal(g,from){if(xColor(g.board[from])!==g.current)return[];const out=[];for(const m of xPseudo(g,from)){const t=xClone(g);t.board[m.to]=t.board[m.from];t.board[m.from]='';t.current=g.current;if(!xCheck(t,g.current))out.push(m);}return out;}
-    function xAll(g,color=g.current){const o=[];for(let i=0;i<90;i++)if(xColor(g.board[i])===color)o.push(...xLegal(g,i));return o;}
-    function xSnap(g){return {board:[...g.board],current:g.current,over:g.over,winner:g.winner,lastMove:g.lastMove};}
-    function xRestore(g,s){Object.assign(g,{...s,board:[...s.board],selected:null,aiThinking:false});}
-    function xCommit(g,m){g.history.push(xSnap(g));const captured=g.board[m.to];g.board[m.to]=g.board[m.from];g.board[m.from]='';g.lastMove={from:m.from,to:m.to};g.current=xEnemy(g.current);const target=g.current==='r'?'帅':'将';if(captured===target){g.over=true;g.winner=xEnemy(g.current);recordGameWin('xiangqi');return;}if(!xAll(g).length){g.over=true;g.winner=xCheck(g,g.current)?xEnemy(g.current):'draw';if(g.winner!=='draw')recordGameWin('xiangqi');}return captured;}
-    function xAI(g){const legal=xAll(g);if(!legal.length)return null;let best=legal[0],bestScore=-1;for(const m of legal){const p=g.board[m.to];let sc=p?({'兵':10,'卒':10,'炮':30,'砲':30,'车':50,'車':50,'馬':30,'傌':30,'相':20,'象':20,'仕':20,'士':20,'帅':1000,'将':1000}[p]||0):0;sc+=Math.random()*10;if(sc>bestScore){bestScore=sc;best=m;}}return best;}
+    function xqApply(b,m){const nb=xqClone(b);nb[m.toY][m.toX]=nb[m.fromY][m.fromX];nb[m.fromY][m.fromX]='';return nb;}
+    function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
+    function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
+    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal'};}
+    function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
+    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
+    function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
+    function xqStaticEval(board){const v={p:100,n:320,b:330,a:260,r:500,c:450,k:10000};let score=0;for(let y=0;y<10;y++)for(let x=0;x<9;x++){const p=board[y][x];if(!p)continue;score+=xqColor(p)===2?v[xqType(p)]:-v[xqType(p)];}return score;}
+    function xqAI(g){const moves=xqAll(g,2);if(!moves.length)return null;const diff=g.difficulty||'normal';if(diff==='easy')return moves[Math.floor(Math.random()*moves.length)];let bm=moves[0],bs=-1e9;for(const m of moves){const nb=xqApply(g.board,m);let s=xqStaticEval(nb);if(xqGeneralInCheck(nb,1))s+=140;if(diff==='hard'){const replyGame={board:nb,turn:1};const replies=xqAll(replyGame,1);if(!replies.length)s+=xqGeneralInCheck(nb,1)?50000:0;else{let worst=Infinity;for(const r of replies)worst=Math.min(worst,xqStaticEval(xqApply(nb,r)));s=worst+(xqGeneralInCheck(nb,1)?140:0);}}s+=Math.random()*6;if(s>bs){bs=s;bm=m;}}return bm;}
     function renderXiangqi(body){
-        cleanupGame();
-        state.xiangqi = state.xiangqi || newXiangqi('ai');
-        const g = state.xiangqi;
-
-        const tools = el('div',{class:'stgc-toolbar'});
-        const info = el('div',{class:'stgc-game-status'});
-        const mode = el('select',{class:'text_pole stgc-select', 'aria-label':'中国象棋模式'});
-        mode.innerHTML='<option value="ai">人机</option><option value="2p">双人</option>';
-        mode.value=g.mode;
-
-        const undo=el('button',{class:'stgc-btn',type:'button'});
-        undo.innerHTML='<i class="fa-solid fa-rotate-left"></i><span>悔棋</span>';
-        const reset=el('button',{class:'stgc-btn',type:'button'});
-        reset.innerHTML='<i class="fa-solid fa-rotate-right"></i><span>重新开始</span>';
-
-        const board=el('div',{class:'sg-xiangqi-board','aria-label':'中国象棋棋盘'});
-        tools.append(info,mode,undo,reset);
-        body.append(tools,board);
-
-        mode.addEventListener('change',()=>{
-            g.mode=mode.value;
-            Object.assign(g,newXiangqi(g.mode));
-            draw();
-        });
-
-        undo.addEventListener('click',()=>{
-            if(!g.history.length || g.aiThinking) return;
-            const steps=g.mode==='ai'&&g.history.length>=2?2:1;
-            for(let i=0;i<steps && g.history.length;i++) xRestore(g,g.history.pop());
-            draw();
-        });
-
-        reset.addEventListener('click',()=>{
-            Object.assign(g,newXiangqi(g.mode));
-            draw();
-        });
-
-        function addBoardDecorations(){
-            const river = el('div',{class:'sg-xiangqi-river','aria-hidden':'true'});
-            river.append(
-                el('span',{class:'river-left',text:'楚 河'}),
-                el('span',{class:'river-right',text:'漢 界'})
-            );
-            board.append(river);
-
-            const palaceTop = el('div',{class:'sg-xiangqi-palace top','aria-hidden':'true'});
-            const palaceBottom = el('div',{class:'sg-xiangqi-palace bottom','aria-hidden':'true'});
-            board.append(palaceTop,palaceBottom);
-        }
-
-        function draw(){
-            board.innerHTML='';
-            info.textContent=g.over
-                ? (g.winner==='draw' ? '和棋' : `${g.winner==='r'?'红方':'黑方'}获胜`)
-                : `${g.current==='r'?'红方':'黑方'}走棋${g.aiThinking?' · AI 思考中…':''}`;
-
-            const selectedMoves = g.selected===null ? [] : xLegal(g,g.selected);
-            const legalTargets = new Set(selectedMoves.map(m=>m.to));
-
-            for(let i=0;i<90;i++){
-                const cell=el('button',{class:'sg-xiangqi-cell',type:'button','aria-label':`第${Math.floor(i/9)+1}行第${i%9+1}列`});
-                const r=Math.floor(i/9), c=i%9;
-                cell.style.setProperty('--x',c);
-                cell.style.setProperty('--y',r);
-                if(g.lastMove&&(i===g.lastMove.from||i===g.lastMove.to))cell.classList.add('last');
-                if(g.selected===i)cell.classList.add('selected');
-                if(legalTargets.has(i))cell.classList.add(g.board[i]?'capture':'legal');
-                const p=g.board[i];
-                if(p){
-                    cell.innerHTML=`<span class="sg-xiangqi-piece ${xColor(p)==='r'?'red':'black'}">${p}</span>`;
-                }
-                cell.addEventListener('click',()=>{
-                    if(g.over||g.aiThinking||(g.mode==='ai'&&g.current==='b')) return;
-                    const p=g.board[i];
-                    if(g.selected===null){
-                        if(p&&xColor(p)===g.current){g.selected=i;draw();}
-                        return;
-                    }
-                    const mv=xLegal(g,g.selected).find(m=>m.to===i);
-                    if(mv){
-                        xCommit(g,mv);
-                        g.selected=null;
-                        draw();
-                        if(g.mode==='ai'&&!g.over&&g.current==='b'){
-                            g.aiThinking=true;
-                            draw();
-                            window.setTimeout(()=>{
-                                const ai=xAI(g);
-                                if(ai)xCommit(g,ai);
-                                g.aiThinking=false;
-                                draw();
-                            },180);
-                        }
-                    } else if(p&&xColor(p)===g.current){
-                        g.selected=i;
-                        draw();
-                    } else {
-                        g.selected=null;
-                        draw();
-                    }
-                });
-                board.append(cell);
-            }
-            addBoardDecorations();
-        }
-
-        draw();
-        state.cleanup=()=>{};
+        state.xiangqi=xqLoad()||xqNew();xqSave();
+        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'text_pole stgc-select xiangqi-difficulty','aria-label':'中国象棋难度'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        for(const [value,label] of Object.entries(CHESS_DIFF)){const o=el('option',{value,text:label});difficulty.append(o);}
+        toolbar.append(status,difficulty,mode,undo,reset);
+        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
+        const draw=()=>{const g=state.xiangqi;board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';difficulty.disabled=g.mode!=='ai'||!!g.aiThinking;undo.disabled=g.history.length===0||!!g.aiThinking;
+            const cells=[];
+            for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);c.style.left=`calc(4% + ${(x/8)*92}%)`;c.style.top=`calc(4% + ${(y/9)*92}%)`;const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(g.selected&&xqLegal(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y))c.classList.add('legal');board.append(c);}
+        };
+        board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;const am=xqAI(g);g.aiThinking=false;if(am)xqApplyMove(g,am);xqSave();draw();},180);return;}}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
+        difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();draw();});
+        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=difficulty.value||'normal';xqSave();draw();});
+        undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='ai'){xqUndo(g);xqUndo(g);}else xqUndo(g);xqSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode;const diff0=state.xiangqi.difficulty||'normal';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff0;xqSave();draw();});
+        state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}xqSave();};draw();
     }
 
     function formatTime(seconds) {
@@ -5687,7 +5217,7 @@
         tryAddSettings();
 
         window.setTimeout(() => {
-            void checkForSillyGameUpdate({ startup: true });
+            void checkForSillyGameUpdate({ auto: true });
         }, 2500);
     }
 
