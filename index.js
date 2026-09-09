@@ -5043,7 +5043,7 @@
         ['P','P','P','P','P','P','P','P'],
         ['R','N','B','Q','K','B','N','R'],
     ];
-    const CHESS_GLYPH = { K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙', k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟' };
+    const CHESS_GLYPH = { K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟', k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟' };
     const chessColor = p => p && p === p.toUpperCase() ? 1 : 2;
     const chessType = p => p ? p.toLowerCase() : '';
     function chessCloneBoard(b){ return b.map(row=>row.slice()); }
@@ -5088,9 +5088,9 @@
         return list.filter(m=>{ const mm={...m,fromX:x,fromY:y,toX:m.x,toY:m.y}; if(type==='p'&&m.y===0||type==='p'&&m.y===7) mm.promotion=color===1?'Q':'q'; return !chessInCheck(chessApply(board,mm),color); });
     }
     function chessAllMoves(game,color){ const old=game.turn; game.turn=color; const out=[]; for(let y=0;y<8;y++)for(let x=0;x<8;x++){ if(chessColor(game.board[y][x])!==color)continue; for(const m of chessLegalMoves(game,x,y))out.push({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}); } game.turn=old; return out; }
-    function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
+    function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',difficulty:'normal',castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
     function chessSave(){ try{localStorage.setItem(CHESS_KEY,JSON.stringify(state.chess));}catch{} }
-    function chessLoad(){ try{const g=JSON.parse(localStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=g.mode==='pvp'?'pvp':'ai'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
+    function chessLoad(){ try{const g=JSON.parse(localStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=g.mode==='pvp'?'pvp':'ai'; g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
     function chessApplyMove(game,m){
         const p=game.board[m.fromY][m.fromX], color=game.turn, cap=game.board[m.toY][m.toX];
         game.history.push({board:chessCloneBoard(game.board),turn:game.turn,castling:{...game.castling},enPassant:game.enPassant?{...game.enPassant}:null,over:game.over,winner:game.winner});
@@ -5103,18 +5103,50 @@
         const nextMoves=chessAllMoves(game,game.turn); if(!nextMoves.length){game.over=true;game.winner=chessInCheck(game.board,game.turn)?color:3;if(game.winner===color)recordGameWin('chess');}
     }
     function chessUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.castling=h.castling;game.enPassant=h.enPassant;game.over=h.over;game.winner=h.winner;return true;}
-    function chessPickAI(game){ const moves=chessAllMoves(game,2); if(!moves.length)return null; const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let best=-Infinity,bm=null; for(const m of moves){const p=game.board[m.fromY][m.fromX],c=game.board[m.toY][m.toX];let score=Math.random()*15+(c?val[chessType(c)]:0);const nb=chessApply(game.board,m); if(chessInCheck(nb,1))score+=80; if(score>best){best=score;bm=m;}} return bm; }
+    function chessEval(board){
+        const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let score=0;
+        for(let y=0;y<8;y++)for(let x=0;x<8;x++){const p=board[y][x];if(!p)continue; const v=val[chessType(p)]||0; score+=(chessColor(p)===2?v:-v);}
+        return score;
+    }
+    function chessPickAI(game){
+        const moves=chessAllMoves(game,2); if(!moves.length)return null;
+        if(game.difficulty==='easy') return moves[Math.floor(Math.random()*moves.length)];
+        const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let best=-Infinity,bm=null;
+        for(const m of moves){
+            const p=game.board[m.fromY][m.fromX],c=game.board[m.toY][m.toX];
+            let score=(c?val[chessType(c)]:0)+Math.random()*8;
+            const nb=chessApply(game.board,m);
+            if(chessInCheck(nb,1))score+=80;
+            if(game.difficulty==='hard'){
+                const replyGame={board:nb,turn:1,castling:{K:false,Q:false,k:false,q:false},enPassant:null};
+                const replies=chessAllMoves(replyGame,1);
+                if(!replies.length){ score+=chessInCheck(nb,1)?18000:0; }
+                else{
+                    let worst=Infinity;
+                    for(const r of replies.slice(0,36)){
+                        const rb=chessApply(nb,r); worst=Math.min(worst,chessEval(rb));
+                    }
+                    score += worst * 0.55;
+                }
+            }
+            if(score>best){best=score;bm=m;}
+        }
+        return bm;
+    }
     function renderChess(body){
         state.chess=chessLoad()||chessNew(); chessSave();
         const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
-        const mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
-        toolbar.append(status,mode,undo,reset);
+        const mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select', 'aria-label':'国际象棋难度'});
+        difficulty.append(el('option',{value:'easy',text:'简单'}),el('option',{value:'normal',text:'普通'}),el('option',{value:'hard',text:'困难'}));
+        const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        toolbar.append(status,mode,difficulty,undo,reset);
         const board=el('div',{class:'chess-board',role:'grid','aria-label':'国际象棋棋盘'}); body.append(toolbar,board);
-        const draw=()=>{const g=state.chess;board.dataset.turn=String(g.turn);board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执白，AI执黑；':'双人对战 · ')+(g.turn===1?'白方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<8;y++)for(let x=0;x<8;x++){const c=el('div',{class:'chess-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);if((x+y)%2)c.classList.add('dark');const p=g.board[y][x];if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected'); if(p){const sp=el('span',{class:`chess-piece ${chessColor(p)===1?'light':'dark-piece'}`,text:CHESS_GLYPH[p]});c.append(sp);} if(g.selected&&chessLegalMoves(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y)){c.classList.add('legal');} board.append(c);} };
+        const draw=()=>{const g=state.chess;board.dataset.turn=String(g.turn);board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执白，AI执黑；':'双人对战 · ')+(g.turn===1?'白方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';difficulty.disabled=g.mode!=='ai';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<8;y++)for(let x=0;x<8;x++){const c=el('div',{class:'chess-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);if((x+y)%2)c.classList.add('dark');const p=g.board[y][x];if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected'); if(p){const sp=el('span',{class:`chess-piece ${chessColor(p)===1?'light':'dark-piece'}`,text:CHESS_GLYPH[p]});c.append(sp);} if(g.selected&&chessLegalMoves(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y))c.classList.add('legal'); board.append(c);} };
         board.addEventListener('click',e=>{const c=e.target.closest('.chess-cell');if(!c)return;const g=state.chess;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&chessColor(p)===g.turn)g.selected={x,y};}else{const m=chessLegalMoves(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){chessApplyMove(g,{...m,fromX:g.selected.x,fromY:g.selected.y,toX:x,toY:y});g.selected=null;chessSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.chessAiTimer=setTimeout(()=>{if(state.currentGame!=='chess'||state.chess!==g)return;const aiMove=chessPickAI(g);g.aiThinking=false;if(aiMove)chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});chessSave();draw();},180);return;}}else if(p&&chessColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
-        mode.addEventListener('click',()=>{if(state.chessAiTimer)clearTimeout(state.chessAiTimer);state.chess=chessNew();state.chess.mode=state.chess.mode==='ai'?'pvp':'ai';chessSave();draw();});
+        mode.addEventListener('click',()=>{if(state.chessAiTimer)clearTimeout(state.chessAiTimer);const mode0=state.chess.mode==='ai'?'pvp':'ai';const diff=state.chess.difficulty||'normal';state.chess=chessNew();state.chess.mode=mode0;state.chess.difficulty=diff;chessSave();draw();});
+        difficulty.addEventListener('change',()=>{state.chess.difficulty=difficulty.value;chessSave();});
         undo.addEventListener('click',()=>{const g=state.chess;if(g.aiThinking)return;if(g.mode==='ai'){chessUndo(g);chessUndo(g);}else chessUndo(g);chessSave();draw();});
-        reset.addEventListener('click',()=>{const mode0=state.chess.mode;state.chess=chessNew();state.chess.mode=mode0;chessSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.chess.mode,diff=state.chess.difficulty||'normal';if(state.chessAiTimer)clearTimeout(state.chessAiTimer);state.chess=chessNew();state.chess.mode=mode0;state.chess.difficulty=diff;chessSave();draw();});
         state.cleanup=()=>{if(state.chessAiTimer){clearTimeout(state.chessAiTimer);state.chessAiTimer=null;}chessSave();}; draw();
     }
 
@@ -5145,17 +5177,45 @@
     function xqApply(b,m){const nb=xqClone(b);nb[m.toY][m.toX]=nb[m.fromY][m.fromX];nb[m.fromY][m.fromX]='';return nb;}
     function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
     function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
-    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai'};}
+    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',palette:'qingstone'};}
     function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
-    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'qingstone';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
     function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
     function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
-    function xqAI(g){const moves=xqAll(g,2);if(!moves.length)return null;const v={p:100,n:320,b:330,a:250,r:500,c:450,k:10000};let bm=moves[0],bs=-1e9;for(const m of moves){const c=g.board[m.toY][m.toX];let s=(c?v[xqType(c)]:0)+Math.random()*12;const nb=xqApply(g.board,m);if(xqGeneralInCheck(nb,1))s+=70;if(s>bs){bs=s;bm=m;}}return bm;}
+    function xqEvalBoard(board){
+        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000}; let s=0;
+        for(let y=0;y<10;y++)for(let x=0;x<9;x++){const p=board[y][x];if(!p)continue;const value=v[xqType(p)]||0;s+=(xqColor(p)===2?value:-value);}
+        return s;
+    }
+    function xqAI(g){
+        const moves=xqAll(g,2);if(!moves.length)return null;
+        if(g.difficulty==='easy')return moves[Math.floor(Math.random()*moves.length)];
+        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000};let bm=moves[0],bs=-1e9;
+        for(const m of moves){const c=g.board[m.toY][m.toX];let s=(c?v[xqType(c)]:0)+Math.random()*8;const nb=xqApply(g.board,m);if(xqGeneralInCheck(nb,1))s+=70;
+            if(g.difficulty==='hard'){
+                const temp={board:nb,turn:1};const replies=xqAll(temp,1);if(!replies.length){s+=xqGeneralInCheck(nb,1)?18000:0;}else{let worst=Infinity;for(const r of replies.slice(0,32)){worst=Math.min(worst,xqEvalBoard(xqApply(nb,r)));}s+=worst*.55;}
+            }
+            if(s>bs){bs=s;bm=m;}
+        }return bm;
+    }
     function renderXiangqi(body){
-        state.xiangqi=xqLoad()||xqNew();xqSave();const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});toolbar.append(status,mode,undo,reset);const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
-        const draw=()=>{const g=state.xiangqi;board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);if((x+y)%2)c.classList.add('alt');const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(g.selected&&xqLegal(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y))c.classList.add('legal');board.append(c);}};
+        state.xiangqi=xqLoad()||xqNew();xqSave();
+        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
+        const mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
+        difficulty.append(el('option',{value:'easy',text:'简单'}),el('option',{value:'normal',text:'普通'}),el('option',{value:'hard',text:'困难'}));
+        const palette=el('select',{class:'stgc-select','aria-label':'中国象棋棋盘配色'});
+        [['qingstone','青石'],['daigreen','黛绿'],['warmwood','暖木'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
+        const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        toolbar.append(status,mode,difficulty,palette,undo,reset);
+        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
+        const draw=()=>{const g=state.xiangqi;board.dataset.palette=g.palette||'qingstone';board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';palette.value=g.palette||'qingstone';difficulty.disabled=g.mode!=='ai';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(g.selected&&xqLegal(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y)){c.classList.add('legal');c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));}board.append(c);}};
         board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;const am=xqAI(g);g.aiThinking=false;if(am)xqApplyMove(g,am);xqSave();draw();},180);return;}}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
-        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai';state.xiangqi=xqNew();state.xiangqi.mode=mode0;xqSave();draw();});undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='ai'){xqUndo(g);xqUndo(g);}else xqUndo(g);xqSave();draw();});reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode;state.xiangqi=xqNew();state.xiangqi.mode=mode0;xqSave();draw();});state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}xqSave();};draw();
+        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();});
+        palette.addEventListener('change',()=>{state.xiangqi.palette=palette.value;xqSave();draw();});
+        undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='ai'){xqUndo(g);xqUndo(g);}else xqUndo(g);xqSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}xqSave();};draw();
     }
 
     function formatTime(seconds) {
