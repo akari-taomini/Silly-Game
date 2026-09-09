@@ -5974,8 +5974,11 @@ n
 
 #st-mini-game-center .mine-cell,
 #st-mini-game-center .tile-2048,
-#st-mini-game-center .soko-tile {
+#st-mini-game-center .soko-tile,
+
+
     isolation: isolate;
+
 }
 
 #st-mini-game-center .stgc-btn,
@@ -6109,9 +6112,13 @@ n
 #st-mini-game-center .soko-tile,
 #st-mini-game-center .spider-card,
 #st-mini-game-center .gomoku-cell,
-#st-mini-game-center .water-tube {
+#st-mini-game-center .water-tube,
+
+
     filter: none !important;
+
     transform: none;
+
 }
 
 
@@ -6188,191 +6195,344 @@ n
     min-width: 84px;
 }
 
-
-/* ==================== Chess ==================== */
-#st-mini-game-center .chess-board {
-    width: min(560px, 100%);
-    aspect-ratio: 1;
-    margin: 0 auto;
-    padding: 6px;
+/* ==================== 数方 ==================== */
+#st-mini-game-center .shikaku-board {
+    --shikaku-size: 7;
+    width: min(620px, 100%);
+    aspect-ratio: 1 / 1;
+    margin: 10px auto 14px;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
-    border-radius: 12px;
-    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
-    box-shadow: 0 10px 28px rgba(0,0,0,.12);
-    overflow: hidden;
-    user-select: none;
-    touch-action: manipulation;
-}
-#st-mini-game-center .chess-cell {
+    grid-template-columns: repeat(var(--shikaku-size), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--shikaku-size), minmax(0, 1fr));
     position: relative;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+    touch-action: none;
+    user-select: none;
+}
+
+#st-mini-game-center .shikaku-cell {
     min-width: 0;
     min-height: 0;
     display: grid;
     place-items: center;
-    cursor: pointer;
-    font-size: clamp(24px, 7vw, 54px);
-    line-height: 1;
-    transition: filter .08s ease, box-shadow .08s ease;
-}
-#st-mini-game-center .chess-cell:not(.dark) {
-    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
-}
-#st-mini-game-center .chess-cell.dark {
-    background: color-mix(in srgb, var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, #777)) 18%, transparent);
-}
-#st-mini-game-center .chess-cell.selected {
-    box-shadow: inset 0 0 0 3px var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
-}
-#st-mini-game-center .chess-cell.legal::after {
-    content: '';
-    width: 18%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: var(--SmartThemeUnderlineColor, currentColor);
-    opacity: .62;
-    position: absolute;
-}
-#st-mini-game-center .chess-piece {
     position: relative;
-    z-index: 2;
-    font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "DejaVu Sans", serif;
-    font-weight: 700;
-    line-height: 1;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
-}
-#st-mini-game-center .chess-piece.light {
-    color: #f3efe5;
-    text-shadow: 0 1px 2px rgba(0,0,0,.62);
-}
-#st-mini-game-center .chess-piece.dark-piece {
-    color: #242522;
-    text-shadow: 0 1px 1px rgba(255,255,255,.16);
+    border-right: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 88%, transparent);
 }
 
-/* ==================== Xiangqi ==================== */
-#st-mini-game-center .xiangqi-board {
-    width: min(600px, 100%);
-    aspect-ratio: 8 / 9;
-    margin: 0 auto;
-    padding: 5%;
-    display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-    grid-template-rows: repeat(10, minmax(0, 1fr));
-    border: 1px solid var(--board-edge, #6d8785);
-    border-radius: 12px;
-    background-color: var(--board-surface, #7f9c9a);
-    box-shadow: 0 10px 28px rgba(0,0,0,.14);
-    position: relative;
-    overflow: hidden;
-    user-select: none;
-    touch-action: manipulation;
+
+#st-mini-game-center .shikaku-cell.filled {
+    background: color-mix(in srgb, var(--customThemeColor, var(--SmartThemeQuoteColor, #888)) 10%, var(--SmartThemeBlurTintColor, #888));
 }
-#st-mini-game-center .xiangqi-board::before {
+
+#st-mini-game-center .shikaku-cell.preview-valid {
+    background: color-mix(in srgb, #78b982 20%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-cell.preview-invalid {
+    background: color-mix(in srgb, #d97878 18%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-clue {
+    position: relative;
+    z-index: 3;
+    min-width: 1.55em;
+    min-height: 1.55em;
+    display: inline-grid;
+    place-items: center;
+    padding: .12em .28em;
+    border-radius: 50%;
+    font-size: clamp(11px, 2.6vw, 17px);
+    font-weight: 800;
+    color: var(--SmartThemeBodyColor, currentColor);
+}
+
+#st-mini-game-center .shikaku-region-border {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    border: 2px solid var(--SmartThemeBodyColor, currentColor);
+    border-radius: 3px;
+    opacity: .72;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 50%, transparent);
+}
+
+#st-mini-game-center .shikaku-cell.valid-region .shikaku-clue {
+    background: color-mix(in srgb, #78b982 24%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .stgc-home-update-btn,
+#st-mini-game-center .stgc-extension-update-btn {
+    position: relative;
+}
+
+#st-mini-game-center .stgc-home-update-btn.has-update::after,
+#stgc-extension-settings .stgc-extension-update-btn.has-update::after {
     content: '';
     position: absolute;
-    inset: 5%;
-    pointer-events: none;
-    background:
-        repeating-linear-gradient(to right,
-            transparent 0,
-            transparent calc(12.5% - .5px),
-            var(--board-line, #324a49) calc(12.5% - .5px),
-            var(--board-line, #324a49) calc(12.5% + .5px)),
-        repeating-linear-gradient(to bottom,
-            transparent 0,
-            transparent calc(11.111% - .5px),
-            var(--board-line, #324a49) calc(11.111% - .5px),
-            var(--board-line, #324a49) calc(11.111% + .5px));
-    z-index: 0;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e45f6f;
+    box-shadow: 0 0 0 2px var(--SmartThemeBlurTintColor, rgba(0,0,0,.35));
 }
-#st-mini-game-center .xiangqi-board::after {
-    content: '楚 河　　　漢 界';
+
+#stgc-extension-settings .stgc-extension-update-btn {
+    position: relative;
+}
+
+/* 新增作物：茉莉 */
+#st-mini-game-center .farm-crop-jasmine .farm-plant-art::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 11px;
+    width: 4px;
+    height: 43px;
+    transform: translateX(-50%);
+    border-radius: 5px;
+    background: #6f875f;
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before,
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 11px;
+    bottom: 25px;
+    border-radius: 100% 10px 100% 10px;
+    background: #80986d;
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before {
+    left: 22px;
+    transform: rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    right: 22px;
+    transform: scaleX(-1) rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-fruit::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 48px;
+    width: 27px;
+    height: 27px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: #f2eee7;
+    box-shadow: 0 0 0 5px rgba(255,255,255,.18), 12px 2px 0 -5px #e6e1d7, -12px 2px 0 -5px #e6e1d7;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-art::before {
+    height: 16px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-fruit::before {
+    width: 12px;
+    height: 12px;
+    bottom: 24px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-art::before {
+    height: 8px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-fruit::before {
+    opacity: 0;
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-jasmine::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    bottom: 9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #f2eee7;
+    box-shadow: 11px 4px 0 -5px #e6e1d7, -10px 4px 0 -5px #e6e1d7;
+}
+
+@media (max-width: 640px) {
+    #st-mini-game-center .shikaku-board {
+        width: min(92vw, 540px);
+        margin-top: 6px;
+    }
+
+    #st-mini-game-center .shikaku-region-border {
+        border-width: 1.5px;
+    }
+}
+
+
+/* ==================== Chess / Xiangqi ==================== */
+#st-mini-game-center .sg-chess-board {
+    width: min(520px, 94vw);
+    aspect-ratio: 1;
+    margin: 10px auto 0;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: var(--SmartThemeBorderRadius, 7px);
+    overflow: hidden;
+    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,.06));
+    touch-action: manipulation;
+    user-select: none;
+}
+#st-mini-game-center .sg-chess-cell {
+    appearance: none;
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    position: relative;
+    font: inherit;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor, currentColor);
+}
+#st-mini-game-center .sg-chess-cell.light { background: #e8d9bf; }
+#st-mini-game-center .sg-chess-cell.dark { background: #9f7653; }
+#st-mini-game-center .sg-chess-cell.last::after,
+#st-mini-game-center .sg-chess-cell.selected::after { content:''; position:absolute; inset:10%; border-radius:6px; background: rgba(255,235,140,.26); pointer-events:none; }
+#st-mini-game-center .sg-chess-cell.legal::before { content:''; width:18%; aspect-ratio:1; border-radius:50%; background:rgba(30,35,30,.28); position:absolute; }
+#st-mini-game-center .sg-chess-cell.capture::before { content:''; position:absolute; inset:7%; border:3px solid rgba(80,50,40,.30); border-radius:50%; }
+#st-mini-game-center .sg-chess-piece { position:relative; z-index:2; line-height:1; font-family:"DejaVu Sans", "Noto Sans Symbols 2", serif; font-size:clamp(25px, 7vw, 52px); }
+#st-mini-game-center .sg-chess-piece.white { color:#f7f3ea; text-shadow:0 1px 2px rgba(0,0,0,.55), 0 0 0.5px rgba(0,0,0,.85); }
+#st-mini-game-center .sg-chess-piece.black { color:#242323; text-shadow:0 1px 0 rgba(255,255,255,.2); }
+
+#st-mini-game-center .sg-xiangqi-board {
+    width: min(540px, 96vw);
+    aspect-ratio: 8 / 9;
+    margin: 12px auto 0;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(76,59,43,.72);
+    border-radius: 6px;
+    background-color: #c8b289;
+    background-image:
+        repeating-linear-gradient(to right, rgba(76,59,43,.66) 0 1px, transparent 1px 12.5%),
+        repeating-linear-gradient(to bottom, rgba(76,59,43,.66) 0 1px, transparent 1px 11.111111%);
+    touch-action: manipulation;
+    user-select: none;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 4px 14px rgba(0,0,0,.16);
+}
+#st-mini-game-center .sg-xiangqi-cell {
+    appearance: none;
+    position: absolute;
+    left: calc(var(--x) * 12.5%);
+    top: calc(var(--y) * 11.111111%);
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    transform: translate(-50%, -50%);
+    display: block;
+    cursor: pointer;
+    color: #34302c;
+    z-index: 2;
+}
+#st-mini-game-center .sg-xiangqi-cell::before,
+#st-mini-game-center .sg-xiangqi-cell::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    pointer-events: none;
+}
+#st-mini-game-center .sg-xiangqi-cell.selected::before {
+    border: 2px solid rgba(118,76,47,.85);
+}
+#st-mini-game-center .sg-xiangqi-cell.legal::before {
+    inset: -5px;
+    width: 10px;
+    height: 10px;
+    margin: 0;
+    left: -5px;
+    top: -5px;
+    background: rgba(78,58,42,.46);
+}
+#st-mini-game-center .sg-xiangqi-cell.capture::before {
+    border: 2px solid rgba(146,62,47,.58);
+}
+#st-mini-game-center .sg-xiangqi-cell.last::after {
+    border: 2px solid rgba(70,100,81,.42);
+}
+#st-mini-game-center .sg-xiangqi-piece {
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    padding: 0 .8em;
-    color: var(--board-line, #324a49);
-    background: var(--board-surface, #7f9c9a);
-    font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(12px, 2.5vw, 20px);
-    letter-spacing: .15em;
-    line-height: 1.15;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 1;
-}
-#st-mini-game-center .xiangqi-cell {
-    position: relative;
+    z-index: 3;
+    width: clamp(34px, 7.6vw, 49px);
+    height: clamp(34px, 7.6vw, 49px);
     display: grid;
     place-items: center;
-    min-width: 0;
-    min-height: 0;
-    cursor: pointer;
-    z-index: 2;
-}
-#st-mini-game-center .xiangqi-cell::before {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 1px;
-    background: var(--board-line, rgba(72,52,34,.7));
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-    pointer-events: none;
-}
-#st-mini-game-center .xiangqi-cell:not(:nth-child(9n+1))::after {
-    content: '';
-    position: absolute;
-    width: 1px;
-    height: 100%;
-    background: var(--board-line, rgba(72,52,34,.7));
-    left: 50%;
-    top: 0;
-    transform: translateX(-50%);
-    pointer-events: none;
-}
-#st-mini-game-center .xiangqi-cell.selected {
-    box-shadow: inset 0 0 0 3px var(--customThemeColor, var(--SmartThemeQuoteColor, rgba(80,120,110,.72)));
-    border-radius: 6px;
-}
-#st-mini-game-center .xiangqi-legal-dot {
-    width: 16%;
-    aspect-ratio: 1;
     border-radius: 50%;
-    background: var(--board-line, rgba(63,78,70,.7));
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%,-50%);
-    z-index: 4;
-    pointer-events: none;
-}
-#st-mini-game-center .xiangqi-piece {
-    width: 78%;
-    aspect-ratio: 1;
-    display: grid;
-    place-items: center;
-    position: relative;
-    z-index: 5;
-    border-radius: 50%;
-    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.22), transparent 32%), #d7be99;
-    border: 1px solid rgba(68,48,31,.55);
-    box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 0 0 2px rgba(255,255,255,.12);
-    font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(18px, 4.8vw, 35px);
+    border: 1px solid rgba(82,62,44,.68);
+    background: #e0cca7;
+    box-shadow: 0 2px 4px rgba(45,30,20,.26), inset 0 1px 0 rgba(255,255,255,.48);
+    font-family: 'Noto Serif CJK SC', 'Songti SC', 'STSong', serif;
+    font-size: clamp(18px, 4.6vw, 30px);
+    font-weight: 700;
     line-height: 1;
 }
-#st-mini-game-center .xiangqi-piece.red { color: #9a403c; }
-#st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
-
-@media (max-width: 640px) {
-    #st-mini-game-center .chess-board { padding: 4px; border-radius: 10px; }
-    #st-mini-game-center .xiangqi-board { padding: 6%; border-radius: 10px; }
-    #st-mini-game-center .xiangqi-piece { width: 84%; font-size: clamp(16px, 5.4vw, 30px); }
-    #st-mini-game-center .xiangqi-board::after { font-size: clamp(11px, 3.2vw, 18px); }
+#st-mini-game-center .sg-xiangqi-piece.red { color:#a4473f; }
+#st-mini-game-center .sg-xiangqi-piece.black { color:#35322f; }
+#st-mini-game-center .sg-xiangqi-river,
+#st-mini-game-center .sg-xiangqi-palace {
+    position:absolute;
+    pointer-events:none;
+    z-index:1;
 }
+#st-mini-game-center .sg-xiangqi-river {
+    inset:44.444444% 0 auto;
+    height:11.111111%;
+    display:flex;
+    align-items:center;
+    justify-content:space-around;
+    color:rgba(90,68,47,.82);
+    font-family:'STKaiti','KaiTi','Noto Serif CJK SC',serif;
+    font-weight:700;
+    font-size:clamp(15px,3.7vw,24px);
+    letter-spacing:.18em;
+}
+#st-mini-game-center .sg-xiangqi-palace {
+    left:37.5%;
+    width:25%;
+    height:22.222222%;
+    background:
+      linear-gradient(45deg, transparent 48.8%, rgba(76,59,43,.66) 49.2%, rgba(76,59,43,.66) 50.8%, transparent 51.2%),
+      linear-gradient(-45deg, transparent 48.8%, rgba(76,59,43,.66) 49.2%, rgba(76,59,43,.66) 50.8%, transparent 51.2%);
+}
+#st-mini-game-center .sg-xiangqi-palace.top { top:0; }
+#st-mini-game-center .sg-xiangqi-palace.bottom { bottom:0; }
+@media (max-width:640px){
+  #st-mini-game-center .sg-chess-board,#st-mini-game-center .sg-xiangqi-board{width:min(96vw,540px);}
+  #st-mini-game-center .sg-chess-piece{font-size:clamp(24px,8vw,44px);}
+}
+
+#st-mini-game-center .farm-crop-apple .farm-plant-art::before { content:''; position:absolute; left:50%; bottom:16px; width:16px; height:58px; transform:translateX(-50%); background:#6d5b48; border-radius:8px; }
+#st-mini-game-center .farm-crop-apple .farm-plant-leaves::before, #st-mini-game-center .farm-crop-apple .farm-plant-leaves::after { content:''; position:absolute; bottom:38px; width:46px; height:23px; border-radius:80% 15% 80% 15%; background:#7e9271; }
+#st-mini-game-center .farm-crop-apple .farm-plant-leaves::before { left:8px; transform:rotate(-18deg); } #st-mini-game-center .farm-crop-apple .farm-plant-leaves::after { right:8px; transform:scaleX(-1) rotate(-18deg); }
+#st-mini-game-center .farm-crop-apple .farm-plant-fruit::before { content:''; position:absolute; left:50%; bottom:42px; width:18px; height:18px; border-radius:50%; background:#ba6b68; box-shadow:-17px 8px 0 -1px #c87a73, 17px 5px 0 -2px #b45f5d; transform:translateX(-50%); }
+#st-mini-game-center .farm-crop-pear .farm-plant-art::before { content:''; position:absolute; left:50%; bottom:15px; width:15px; height:60px; transform:translateX(-50%); background:#6a5a45; border-radius:8px; }
+#st-mini-game-center .farm-crop-pear .farm-plant-leaves::before, #st-mini-game-center .farm-crop-pear .farm-plant-leaves::after { content:''; position:absolute; bottom:34px; width:42px; height:24px; border-radius:70% 15% 70% 15%; background:#728c73; }
+#st-mini-game-center .farm-crop-pear .farm-plant-leaves::before { left:9px; transform:rotate(18deg); } #st-mini-game-center .farm-crop-pear .farm-plant-leaves::after { right:9px; transform:scaleX(-1) rotate(18deg); }
+#st-mini-game-center .farm-crop-pear .farm-plant-fruit::before { content:''; position:absolute; left:50%; bottom:41px; width:18px; height:22px; transform:translateX(-50%); border-radius:50% 50% 60% 60%; background:#b7ad68; box-shadow:-16px 10px 0 -1px #c0b573, 17px 6px 0 -2px #a99e5d; }
