@@ -1134,14 +1134,31 @@
                         'aria-label': v < 0 ? '空位' : `${STARPOP_COLORS[v]}星星`,
                     });
                     if (v >= 0) {
-                        cell.addEventListener('dblclick', event => {
+                        // 用自己的双击判定，不依赖浏览器 dblclick；移动端 touch/click 也可靠。
+                        let lastTapAt = 0;
+                        let lastTapCell = '';
+                        const activate = event => {
                             event.preventDefault();
                             event.stopPropagation();
-                            starPopClick(r, c);
-                            draw();
-                        });
+                            const now = Date.now();
+                            const key = `${r},${c}`;
+                            if (lastTapCell === key && now - lastTapAt <= 420) {
+                                lastTapAt = 0;
+                                lastTapCell = '';
+                                starPopClick(r, c);
+                                draw();
+                            } else {
+                                lastTapAt = now;
+                                lastTapCell = key;
+                            }
+                        };
+                        cell.addEventListener('click', activate);
                         cell.addEventListener('keydown', event => {
-                            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); starPopClick(r,c); draw(); }
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                starPopClick(r,c);
+                                draw();
+                            }
                         });
                     }
                     board.append(cell);
