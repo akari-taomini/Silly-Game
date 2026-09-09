@@ -6376,3 +6376,222 @@ n
         border-width: 1.5px;
     }
 }
+
+
+/* ==================== Chess ==================== */
+#st-mini-game-center .chess-board {
+    width: min(560px, 100%);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
+    box-shadow: 0 10px 28px rgba(0,0,0,.12);
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+}
+#st-mini-game-center .chess-cell {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: clamp(24px, 7vw, 54px);
+    line-height: 1;
+    transition: filter .08s ease, box-shadow .08s ease;
+}
+#st-mini-game-center .chess-cell:not(.dark) {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+}
+#st-mini-game-center .chess-cell.dark {
+    background: color-mix(in srgb, var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, #777)) 18%, transparent);
+}
+#st-mini-game-center .chess-cell.selected {
+    box-shadow: inset 0 0 0 3px var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
+}
+#st-mini-game-center .chess-cell.legal::after {
+    content: '';
+    width: 18%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--SmartThemeUnderlineColor, currentColor);
+    opacity: .62;
+    position: absolute;
+}
+#st-mini-game-center .chess-piece {
+    position: relative;
+    z-index: 2;
+    font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "DejaVu Sans", serif;
+    font-weight: 700;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+}
+#st-mini-game-center .chess-piece.light {
+    color: #f3efe5;
+    text-shadow: 0 1px 2px rgba(0,0,0,.62);
+}
+#st-mini-game-center .chess-piece.dark-piece {
+    color: #242522;
+    text-shadow: 0 1px 1px rgba(255,255,255,.16);
+}
+
+/* ==================== Xiangqi ==================== */
+#st-mini-game-center .xiangqi-board {
+    width: min(600px, 100%);
+    aspect-ratio: 8 / 9;
+    margin: 0 auto;
+    padding: 5%;
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-rows: repeat(10, minmax(0, 1fr));
+    border: 1px solid var(--board-edge, #6d8785);
+    border-radius: 12px;
+    background-color: var(--board-surface, #7f9c9a);
+    box-shadow: 0 10px 28px rgba(0,0,0,.14);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+}
+#st-mini-game-center .xiangqi-board::before {
+    content: '';
+    position: absolute;
+    inset: 5%;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(to right,
+            transparent 0,
+            transparent calc(12.5% - .5px),
+            var(--board-line, #324a49) calc(12.5% - .5px),
+            var(--board-line, #324a49) calc(12.5% + .5px)),
+        repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(11.111% - .5px),
+            var(--board-line, #324a49) calc(11.111% - .5px),
+            var(--board-line, #324a49) calc(11.111% + .5px));
+    z-index: 0;
+}
+#st-mini-game-center .xiangqi-board::after {
+    content: '楚 河　　　漢 界';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0 .8em;
+    color: var(--board-line, #324a49);
+    background: var(--board-surface, #7f9c9a);
+    font-family: "Noto Serif CJK SC", "Songti SC", serif;
+    font-size: clamp(12px, 2.5vw, 20px);
+    letter-spacing: .15em;
+    line-height: 1.15;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+}
+#st-mini-game-center .xiangqi-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+#st-mini-game-center .xiangqi-cell::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background: var(--board-line, rgba(72,52,34,.7));
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+#st-mini-game-center .xiangqi-cell:not(:nth-child(9n+1))::after {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    background: var(--board-line, rgba(72,52,34,.7));
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+#st-mini-game-center .xiangqi-cell.selected {
+    box-shadow: inset 0 0 0 3px var(--customThemeColor, var(--SmartThemeQuoteColor, rgba(80,120,110,.72)));
+    border-radius: 6px;
+}
+#st-mini-game-center .xiangqi-legal-dot {
+    width: 16%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--board-line, rgba(63,78,70,.7));
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 4;
+    pointer-events: none;
+}
+#st-mini-game-center .xiangqi-piece {
+    width: 78%;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    position: relative;
+    z-index: 5;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.22), transparent 32%), #d7be99;
+    border: 1px solid rgba(68,48,31,.55);
+    box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 0 0 2px rgba(255,255,255,.12);
+    font-family: "Noto Serif CJK SC", "Songti SC", serif;
+    font-size: clamp(18px, 4.8vw, 35px);
+    line-height: 1;
+}
+#st-mini-game-center .xiangqi-piece.red { color: #9a403c; }
+#st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
+
+@media (max-width: 640px) {
+    #st-mini-game-center .chess-board { padding: 4px; border-radius: 10px; }
+    #st-mini-game-center .xiangqi-board { padding: 6%; border-radius: 10px; }
+    #st-mini-game-center .xiangqi-piece { width: 84%; font-size: clamp(16px, 5.4vw, 30px); }
+    #st-mini-game-center .xiangqi-board::after { font-size: clamp(11px, 3.2vw, 18px); }
+}
+
+
+/* ==================== 新增作物：杏子 / 竹笋 ==================== */
+#st-mini-game-center .farm-crop-apricot .farm-plant-art::before {
+    content: '';
+    position: absolute;
+    left: 31%; bottom: 7px; width: 35px; height: 42px;
+    border-radius: 48% 52% 56% 46%;
+    background: linear-gradient(135deg,#f2c1a9,#e39b83 68%,#bd7463);
+    box-shadow: inset -5px -5px 0 rgba(116,67,58,.14);
+}
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::before,
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::after {
+    content: ''; position:absolute; width:24px; height:11px; bottom:38px;
+    border-radius:100% 8px 100% 8px; background:#73975f;
+}
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::before { left:25%; transform:rotate(25deg); }
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::after { right:25%; transform:scaleX(-1) rotate(25deg); }
+#st-mini-game-center .farm-crop-bamboo .farm-plant-art::before {
+    content:''; position:absolute; left:50%; bottom:2px; width:7px; height:51px;
+    transform:translateX(-50%); border-radius:7px; background:linear-gradient(90deg,#5f8c52,#8bb96e,#527d49);
+    box-shadow:-12px 0 0 -1px #648f55,12px 2px 0 -1px #6d9959;
+}
+#st-mini-game-center .farm-crop-bamboo .farm-plant-leaves::before {
+    content:''; position:absolute; width:35px; height:10px; left:11%; bottom:38px;
+    border-radius:100% 8px 100% 8px; background:#79a960; transform:rotate(-18deg);
+    box-shadow:24px 8px 0 -1px #6e9f58,4px 13px 0 -2px #86b56b;
+}
+#st-mini-game-center .farm-crop-bamboo.farm-stage-sprout .farm-plant-art::before { height:20px; bottom:6px; }
+#st-mini-game-center .farm-crop-bamboo.farm-stage-growing .farm-plant-art::before { height:36px; }
