@@ -1,6 +1,6 @@
 # Silly Game
 
-**当前版本：v1.5.9**
+**当前版本：v1.6.2**
 
 Silly Game 是一个 SillyTavern 小游戏扩展。
 
