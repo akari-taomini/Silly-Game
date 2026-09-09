@@ -6194,166 +6194,185 @@ n
 #st-mini-game-center .go-palette-select {
     min-width: 84px;
 }
-#st-mini-game-center .chess-difficulty,
-#st-mini-game-center .xiangqi-difficulty {
-    min-width: 72px;
-}
 
-
-/* ==================== Chess ==================== */
-#st-mini-game-center .chess-board {
-    width: min(560px, 100%);
-    aspect-ratio: 1;
-    margin: 0 auto;
-    padding: 6px;
+/* ==================== 数方 ==================== */
+#st-mini-game-center .shikaku-board {
+    --shikaku-size: 7;
+    width: min(620px, 100%);
+    aspect-ratio: 1 / 1;
+    margin: 10px auto 14px;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
-    border-radius: 12px;
-    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
-    box-shadow: 0 10px 28px rgba(0,0,0,.12);
+    grid-template-columns: repeat(var(--shikaku-size), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--shikaku-size), minmax(0, 1fr));
+    position: relative;
     overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+    touch-action: none;
     user-select: none;
-    touch-action: manipulation;
-}
-#st-mini-game-center .chess-cell {
-    position: relative;
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    font-size: clamp(24px, 7vw, 54px);
-    line-height: 1;
-    transition: filter .08s ease, box-shadow .08s ease;
-}
-#st-mini-game-center .chess-cell:not(.dark) {
-    background: rgba(255,255,255,.34);
-}
-#st-mini-game-center .chess-cell.dark {
-    background: rgba(90,90,90,.28);
-}
-#st-mini-game-center .chess-cell.selected {
-    box-shadow: inset 0 0 0 3px var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
-}
-#st-mini-game-center .chess-cell.legal::after {
-    content: '';
-    width: 18%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: var(--SmartThemeUnderlineColor, currentColor);
-    opacity: .62;
-    position: absolute;
-}
-#st-mini-game-center .chess-piece {
-    position: relative;
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    text-shadow: 0 1px 1px rgba(0,0,0,.22);
-}
-#st-mini-game-center .chess-piece.light {
-    color: #f3efe5;
-    filter: drop-shadow(0 1px 0 rgba(0,0,0,.34));
-}
-#st-mini-game-center .chess-piece.dark-piece {
-    color: #292827;
-    filter: drop-shadow(0 1px 0 rgba(255,255,255,.10));
 }
 
-/* ==================== Xiangqi ==================== */
-#st-mini-game-center .xiangqi-board {
-    width: min(580px, 100%);
-    aspect-ratio: 8 / 9;
-    margin: 0 auto;
-    padding: 0;
-    position: relative;
-    overflow: visible;
-    user-select: none;
-    touch-action: manipulation;
-    background: #c9b08c;
-    border: 1px solid rgba(57,43,33,.45);
-    border-radius: 12px;
-    box-shadow: 0 10px 28px rgba(0,0,0,.14);
-}
-#st-mini-game-center .xiangqi-board::before {
-    content: '';
-    position: absolute;
-    inset: 4%;
-    pointer-events: none;
-    background:
-        repeating-linear-gradient(to right, transparent 0, transparent calc(12.5% - .5px), rgba(72,52,34,.72) calc(12.5% - .5px), rgba(72,52,34,.72) calc(12.5% + .5px), transparent calc(12.5% + .5px)),
-        repeating-linear-gradient(to bottom, transparent 0, transparent calc(11.111111% - .5px), rgba(72,52,34,.72) calc(11.111111% - .5px), rgba(72,52,34,.72) calc(11.111111% + .5px), transparent calc(11.111111% + .5px));
-    box-shadow: inset 0 0 0 1px rgba(72,52,34,.72);
-}
-#st-mini-game-center .xiangqi-board::after {
-    content: '楚河   漢界';
-    position: absolute;
-    left: 4%;
-    right: 4%;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 17%;
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    pointer-events: none;
-    color: rgba(72,52,34,.72);
-    font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(13px, 3vw, 24px);
-    letter-spacing: .45em;
-}
-#st-mini-game-center .xiangqi-cell {
-    position: absolute;
-    width: 11.5%;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    display: grid;
-    place-items: center;
+#st-mini-game-center .shikaku-cell {
     min-width: 0;
     min-height: 0;
-    cursor: pointer;
+    display: grid;
+    place-items: center;
+    position: relative;
+    border-right: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 88%, transparent);
+}
+
+
+#st-mini-game-center .shikaku-cell.filled {
+    background: color-mix(in srgb, var(--customThemeColor, var(--SmartThemeQuoteColor, #888)) 10%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-cell.preview-valid {
+    background: color-mix(in srgb, #78b982 20%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-cell.preview-invalid {
+    background: color-mix(in srgb, #d97878 18%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .shikaku-clue {
+    position: relative;
     z-index: 3;
-}
-#st-mini-game-center .xiangqi-cell.selected {
+    min-width: 1.55em;
+    min-height: 1.55em;
+    display: inline-grid;
+    place-items: center;
+    padding: .12em .28em;
     border-radius: 50%;
-    box-shadow: 0 0 0 3px var(--SmartThemeQuoteColor, rgba(80,120,110,.72));
+    font-size: clamp(11px, 2.6vw, 17px);
+    font-weight: 800;
+    color: var(--SmartThemeBodyColor, currentColor);
 }
-#st-mini-game-center .xiangqi-cell.legal::before {
+
+#st-mini-game-center .shikaku-region-border {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    border: 2px solid var(--SmartThemeBodyColor, currentColor);
+    border-radius: 3px;
+    opacity: .72;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 50%, transparent);
+}
+
+#st-mini-game-center .shikaku-cell.valid-region .shikaku-clue {
+    background: color-mix(in srgb, #78b982 24%, var(--SmartThemeBlurTintColor, #888));
+}
+
+#st-mini-game-center .stgc-home-update-btn,
+#st-mini-game-center .stgc-extension-update-btn {
+    position: relative;
+}
+
+#st-mini-game-center .stgc-home-update-btn.has-update::after,
+#stgc-extension-settings .stgc-extension-update-btn.has-update::after {
     content: '';
-    width: 18%;
-    aspect-ratio: 1;
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: rgba(63,78,70,.72);
+    background: #e45f6f;
+    box-shadow: 0 0 0 2px var(--SmartThemeBlurTintColor, rgba(0,0,0,.35));
+}
+
+#stgc-extension-settings .stgc-extension-update-btn {
+    position: relative;
+}
+
+/* 新增作物：茉莉 */
+#st-mini-game-center .farm-crop-jasmine .farm-plant-art::before {
+    content: '';
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%,-50%);
-    z-index: 1;
+    bottom: 11px;
+    width: 4px;
+    height: 43px;
+    transform: translateX(-50%);
+    border-radius: 5px;
+    background: #6f875f;
 }
-#st-mini-game-center .xiangqi-piece {
-    width: 82%;
-    aspect-ratio: 1;
-    display: grid;
-    place-items: center;
-    position: relative;
-    z-index: 4;
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before,
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 11px;
+    bottom: 25px;
+    border-radius: 100% 10px 100% 10px;
+    background: #80986d;
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before {
+    left: 22px;
+    transform: rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+    right: 22px;
+    transform: scaleX(-1) rotate(24deg);
+}
+
+#st-mini-game-center .farm-crop-jasmine .farm-plant-fruit::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 48px;
+    width: 27px;
+    height: 27px;
+    transform: translateX(-50%);
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 28%, rgba(255,255,255,.22), transparent 34%), #d5bc98;
-    border: 1px solid rgba(68,48,31,.55);
-    box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 0 0 2px rgba(255,255,255,.12);
-    font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(18px, 4.6vw, 34px);
-    line-height: 1;
+    background: #f2eee7;
+    box-shadow: 0 0 0 5px rgba(255,255,255,.18), 12px 2px 0 -5px #e6e1d7, -12px 2px 0 -5px #e6e1d7;
 }
-#st-mini-game-center .xiangqi-piece.red { color: #9a403c; }
-#st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-art::before {
+    height: 16px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-fruit::before {
+    width: 12px;
+    height: 12px;
+    bottom: 24px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-art::before {
+    height: 8px;
+    bottom: 12px;
+}
+
+#st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-fruit::before {
+    opacity: 0;
+}
+
+#st-mini-game-center .farm-seed-visual.farm-crop-jasmine::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    bottom: 9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #f2eee7;
+    box-shadow: 11px 4px 0 -5px #e6e1d7, -10px 4px 0 -5px #e6e1d7;
+}
+
 @media (max-width: 640px) {
-    #st-mini-game-center .chess-board { padding: 4px; border-radius: 10px; }
-    #st-mini-game-center .xiangqi-board { border-radius: 10px; }
-    #st-mini-game-center .xiangqi-piece { width: 84%; font-size: clamp(16px, 5.2vw, 29px); }
-    #st-mini-game-center .xiangqi-board::after { font-size: clamp(11px, 3.3vw, 18px); }
+    #st-mini-game-center .shikaku-board {
+        width: min(92vw, 540px);
+        margin-top: 6px;
+    }
+
+    #st-mini-game-center .shikaku-region-border {
+        border-width: 1.5px;
+    }
 }
