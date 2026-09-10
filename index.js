@@ -1084,15 +1084,31 @@
         for(const [r,c] of active)board[r][c]=match3RandomTile();
         return board;
     }
-    function match3Collapse(board,levelId=1){
-        const shape=match3ShapeByLevel(levelId);
-        for(let c=0;c<MATCH3_SIZE;c++){
-            const openRows=[];
-            for(let r=MATCH3_SIZE-1;r>=0;r--)if(shape[r]?.[c]==='1')openRows.push(r);
-            const alive=[];
-            for(const r of openRows)if(board[r][c])alive.push(board[r][c]);
-            for(let i=0;i<openRows.length;i++)board[openRows[i]][c]=alive[i]||match3RandomTile();
-            for(let r=0;r<MATCH3_SIZE;r++)if(shape[r]?.[c]!=='1')board[r][c]=null;
+    function match3Collapse(board, levelId = 1) {
+        const shape = match3ShapeByLevel(levelId);
+        for (let c = 0; c < MATCH3_SIZE; c++) {
+            // 棋盘挖空是“墙”，不能被糖果穿过去。
+            // 每一段连续的可用格子独立下落，因此洞会永久保留，不会被补糖填平。
+            let r = MATCH3_SIZE - 1;
+            while (r >= 0) {
+                while (r >= 0 && shape[r]?.[c] !== '1') {
+                    board[r][c] = null;
+                    r--;
+                }
+                if (r < 0) break;
+
+                const bottom = r;
+                while (r >= 0 && shape[r]?.[c] === '1') r--;
+                const top = r + 1;
+                const alive = [];
+                for (let row = bottom; row >= top; row--) {
+                    if (board[row][c]) alive.push(board[row][c]);
+                }
+                for (let i = 0; i < bottom - top + 1; i++) {
+                    const row = bottom - i;
+                    board[row][c] = alive[i] || match3RandomTile();
+                }
+            }
         }
     }
     function match3Save(g){try{localStorage.setItem(MATCH3_KEY,JSON.stringify(g));}catch{}}
@@ -1255,7 +1271,7 @@
             const gain=cells.length*20*chain + Math.max(0,cells.length-3)*18;
             g.score+=gain;
             match3CollectAndClear(g,cells);
-            match3Collapse(g.board);
+            match3Collapse(g.board, g.level);
         }
         match3FinishCheck(g);
     }
@@ -1295,12 +1311,12 @@
         for(const pos of [...clearSet]){const [r,c]=pos.split(',').map(Number),t=g.board[r]?.[c];if(t?.special)queue.push([r,c]);}
         while(queue.length){const [r,c]=queue.shift();match3Activate(g,r,c,clearSet,queue);}
         const cells=[...clearSet].map(key=>key.split(',').map(Number));
-        match3CollectAndClear(g,cells);g.score+=cells.length*cells.length*5+120;match3Collapse(g.board);match3Resolve(g);return true;
+        match3CollectAndClear(g,cells);g.score+=cells.length*cells.length*5+120;match3Collapse(g.board, g.level);match3Resolve(g);return true;
     }
     function match3RemoveCells(g,cells,scoreMultiplier=1){
         const unique=[...new Map(cells.map(([r,c])=>[`${r},${c}`,[r,c]])).values()];
         for(const [r,c] of unique){const tile=g.board[r][c];if(!tile)continue;g.collected[tile.type]=(g.collected[tile.type]||0)+1;if(tile.jelly)g.jellyCleared++;g.board[r][c]=null;}
-        const n=unique.length;g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board);return n;
+        const n=unique.length;g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board, g.level);return n;
     }
     function match3ShuffleBoard(g){
         const tiles=g.board.flat();
@@ -1356,7 +1372,7 @@
             const tool=g.tool;
             if(tool==='hammer'){
                 if(g.board[r][c].special){
-                    const queue=[];const clearSet=new Set();match3Activate(g,r,c,clearSet,queue);while(queue.length){const [rr,cc]=queue.shift();match3Activate(g,rr,cc,clearSet,queue);}match3CollectAndClear(g,[...clearSet].map(k=>k.split(',').map(Number)));match3Collapse(g.board);g.score+=180;
+                    const queue=[];const clearSet=new Set();match3Activate(g,r,c,clearSet,queue);while(queue.length){const [rr,cc]=queue.shift();match3Activate(g,rr,cc,clearSet,queue);}match3CollectAndClear(g,[...clearSet].map(k=>k.split(',').map(Number)));match3Collapse(g.board, g.level);g.score+=180;
                 }else{
                     match3RemoveCells(g,[[r,c]],1.5);
                 }
