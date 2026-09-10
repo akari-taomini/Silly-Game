@@ -26,6 +26,9 @@
         shikaku: null,
         chess: null,
         xiangqi: null,
+        uno: null,
+        unoTimer: null,
+        unoPenaltyTimer: null,
         chessAiTimer: null,
         xiangqiAiTimer: null,
     };
@@ -33,7 +36,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.6.0';
+    const CURRENT_VERSION = '1.6.6';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -64,11 +67,12 @@
         jasmine:   { name: '茉莉',   seedCost: 14, sell: 68, grow: 320, unlock: 'shikaku' },
         apricot:   { name: '杏子',   seedCost: 15, sell: 74, grow: 340, unlock: 'chess' },
         bamboo:    { name: '竹笋',   seedCost: 16, sell: 80, grow: 360, unlock: 'xiangqi' },
+        apple:     { name: '苹果',   seedCost: 17, sell: 86, grow: 380, unlock: 'uno' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
-        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方', chess: '国际象棋', xiangqi: '中国象棋',
+        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方', chess: '国际象棋', xiangqi: '中国象棋', uno: 'UNO',
     };
 
     function loadGameWins() {
@@ -853,6 +857,7 @@
             { id: 'shikaku', icon: 'fa-vector-square', name: '数方', desc: '矩形分区 · 5×5 / 7×7 / 10×10 · 逻辑解谜' },
             { id: 'chess', icon: 'fa-chess-knight', name: '国际象棋', desc: '标准 8×8 · 人机 / 双人 · 无需 API' },
             { id: 'xiangqi', icon: 'fa-chess', name: '中国象棋', desc: '标准 9×10 · 人机 / 双人 · 无需 API' },
+            { id: 'uno', icon: 'fa-layer-group', name: 'UNO', desc: '经典出牌 · 3 名 AI · +2 / +4 / 变色 · 本地保存' },
         ]; 
 
         for (const game of games) {
@@ -914,6 +919,7 @@
             shikaku: '数方',
             chess: '国际象棋',
             xiangqi: '中国象棋',
+            uno: 'UNO',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -938,8 +944,86 @@
         else if (game === 'shikaku') renderShikaku(body);
         else if (game === 'chess') renderChess(body);
         else if (game === 'xiangqi') renderXiangqi(body);
+        else if (game === 'uno') renderUno(body);
     }
 
+
+    /* ==================== UNO ==================== */
+    const UNO_KEY = 'silly-game:uno:v1';
+    const UNO_COLORS = ['red','yellow','green','blue'];
+    const UNO_COLOR_NAMES = { red:'红', yellow:'黄', green:'绿', blue:'蓝' };
+    const UNO_CARD_WEIGHT = { number:0, reverse:2, skip:3, draw2:4, wild:5, wild4:6 };
+
+    function unoMakeDeck() {
+        const deck=[];
+        for(const color of UNO_COLORS){
+            deck.push({color,type:'number',value:0});
+            for(let n=1;n<=9;n++){deck.push({color,type:'number',value:n},{color,type:'number',value:n});}
+            for(let i=0;i<2;i++) deck.push({color,type:'skip',value:'跳过'},{color,type:'reverse',value:'反转'},{color,type:'draw2',value:'+2'});
+        }
+        for(let i=0;i<4;i++) deck.push({color:'wild',type:'wild',value:'变色'},{color:'wild',type:'wild4',value:'+4'});
+        return deck;
+    }
+    function unoShuffle(deck){for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}return deck;}
+    function unoRecycleDiscard(g){if(g.deck.length||g.discard.length<=1)return;const top=g.discard[g.discard.length-1];g.deck=unoShuffle(g.discard.slice(0,-1));g.discard=[top];}
+    function unoNew(){
+        const deck=unoShuffle(unoMakeDeck()),hands=Array.from({length:4},()=>[]);
+        for(let i=0;i<7;i++)for(let p=0;p<4;p++)hands[p].push(deck.pop());
+        while(deck.length&&deck.at(-1).type!=='number')deck.unshift(deck.pop());
+        const first=deck.pop();
+        return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3};
+    }
+    function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
+    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;return g;}catch{return null;}}
+    function unoPlayable(card,g){const top=g.discard.at(-1);return !!card&&(card.color==='wild'||card.color===g.currentColor||card.type===top.type||(card.type==='number'&&top.type==='number'&&card.value===top.value));}
+    function unoNextIndex(g,steps=1){return (g.current+g.direction*steps+8)%4;}
+    function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
+    function unoBestWildColor(hand){const count=Object.fromEntries(UNO_COLORS.map(c=>[c,0]));for(const card of hand)if(UNO_COLORS.includes(card.color))count[card.color]++;return UNO_COLORS.reduce((best,c)=>count[c]>count[best]?c:best,'red');}
+    function unoApplyPlay(g,p,index,chosenColor=null){
+        const card=g.hands[p]?.[index];if(!card||!unoPlayable(card,g))return false;
+        g.hands[p].splice(index,1);g.discard.push(card);g.currentColor=card.color==='wild'?(chosenColor||'red'):card.color;g.lastPlayedBy=p;g.needsUno=p===0&&g.hands[p].length===1;
+        if(g.hands[p].length===0){g.over=true;g.winner=p;g.message=p===0?'你赢了！':'AI 赢了';if(p===0)recordGameWin('uno');return true;}
+        if(card.type==='reverse')g.direction*=-1;
+        let steps=1;
+        if(card.type==='skip')steps=2;
+        if(card.type==='draw2'||card.type==='wild4'){const target=unoNextIndex(g,1);unoAddDraw(g,target,card.type==='draw2'?2:4);steps=2;}
+        g.current=unoNextIndex(g,steps);g.message=g.current===0?'你的回合':`AI ${g.current} 回合`;
+        return true;
+    }
+    function unoAiTurn(g,onUpdate){
+        if(g.over||g.current===0)return;
+        const p=g.current;let playable=g.hands[p].map((c,i)=>({c,i})).filter(x=>unoPlayable(x.c,g));
+        if(!playable.length){unoAddDraw(g,p,1);const drawn=g.hands[p].at(-1);if(drawn&&unoPlayable(drawn,g))playable=[{c:drawn,i:g.hands[p].length-1}];}
+        if(playable.length){playable.sort((a,b)=>UNO_CARD_WEIGHT[b.c.type]-UNO_CARD_WEIGHT[a.c.type]);const pick=playable[0];const color=pick.c.color==='wild'?unoBestWildColor(g.hands[p]):null;unoApplyPlay(g,p,pick.i,color);}
+        else {g.current=unoNextIndex(g);g.message=g.current===0?'你的回合':`AI ${g.current} 回合`;}
+        unoSave(g);onUpdate();
+        if(!g.over&&g.current===0&&g.needsUno){
+            if(state.unoPenaltyTimer)clearTimeout(state.unoPenaltyTimer);
+            state.unoPenaltyTimer=setTimeout(()=>{
+                if(state.uno!==g||g.over||g.current!==0||!g.needsUno)return;
+                unoAddDraw(g,0,2);g.needsUno=false;g.message='忘记喊 UNO：罚摸 2 张';unoSave(g);onUpdate();state.unoPenaltyTimer=null;
+            },1200);
+        }
+        if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,onUpdate),360);
+    }
+    function renderUno(body){
+        cleanupGame();state.uno=unoLoad()||unoNew();unoSave();
+        const bar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),drawBtn=el('button',{class:'stgc-btn',type:'button',text:'摸牌'}),unoBtn=el('button',{class:'stgc-btn',type:'button',text:'喊 UNO'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        bar.append(status,drawBtn,unoBtn,reset);
+        const table=el('div',{class:'uno-table'}),topAI=el('div',{class:'uno-ai-hand uno-ai-top'}),leftAI=el('div',{class:'uno-ai-hand uno-ai-left'}),rightAI=el('div',{class:'uno-ai-hand uno-ai-right'}),center=el('div',{class:'uno-center'}),deckBtn=el('button',{class:'uno-deck',type:'button',text:'摸牌堆'}),discard=el('div',{class:'uno-discard'}),hand=el('div',{class:'uno-player-hand'}),hint=el('div',{class:'stgc-game-hint',text:'出牌需与当前颜色、数字或牌型匹配。万能牌可选颜色；剩 1 张牌时可点击“喊 UNO”。'}),colorPicker=el('div',{class:'uno-color-picker',hidden:true});
+        UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);}});colorPicker.append(b);});
+        center.append(deckBtn,discard,colorPicker);table.append(topAI,leftAI,center,rightAI);body.append(bar,table,hand,hint);
+        function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
+        function makeCard(card,index,clickable){const node=el(clickable?'button':'div',{class:`uno-card ${card.color}${clickable&&unoPlayable(card,state.uno)?' playable':''}`,type:'button'});node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
+        function drawUno(){const g=state.uno;status.textContent=g.over?(g.winner===0?'你获胜！':'AI 获胜'):(g.current===0?'你的回合':`AI ${g.current} 回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;drawBtn.disabled=g.over||g.current!==0||g.needsUno;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.textContent=`AI 2 · ${g.hands[2].length} 张`;leftAI.textContent=`AI 1 · ${g.hands[1].length} 张`;rightAI.textContent=`AI 3 · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));}
+        function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;const card=g.hands[0][index];if(!unoPlayable(card,g)){status.textContent='这张牌不能出';return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);return;}unoApplyPlay(g,0,index);unoSave();drawUno();if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);}
+        drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;unoAddDraw(g,0,1);g.message='摸到 1 张牌';unoSave();drawUno();});
+        deckBtn.addEventListener('click',()=>drawBtn.click());
+        unoBtn.addEventListener('click',()=>{const g=state.uno;if(!g.needsUno)return;if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}g.needsUno=false;g.message='你已喊 UNO';unoSave();drawUno();});
+        reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}state.uno=unoNew();unoSave();drawUno();});
+        state.cleanup=()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}unoSave(state.uno);};
+        drawUno();if(!state.uno.over&&state.uno.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);
+    }
 
     /* ==================== 消灭星星 ==================== */
     const STARPOP_STORAGE_KEY = 'silly-game:star-pop:v2';

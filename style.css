@@ -1,7 +1,4 @@
-/* Silly Game — consolidated stylesheet
- * 外层容器与功能控件跟随 SillyTavern 主题；游戏元素保持各自视觉。
- * 重复选择器/重复属性已合并，保留最终级联结果。
- */
+/* Silly Game — consolidated stylesheet */
 
 #st-mini-game-center,
 #st-mini-game-center-launcher,
@@ -878,11 +875,9 @@
 
 #st-mini-game-center .mine-cell.mine {
 
-    /* 踩雷后的雷格：沿用酒馆下划线色，但压暗并叠一层半透明黑遮罩。 */
     color: color-mix(in srgb, var(--mine-accent) 78%, var(--SmartThemeBodyColor, #fff) 22%);
 
-    background:
-        linear-gradient(rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.34)),
+    background: linear-gradient(rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.34)),
         color-mix(
             in srgb,
             var(--mine-accent) 76%,
@@ -895,8 +890,7 @@
         #000 42%
     );
 
-    box-shadow:
-        inset 0 1px 2px rgba(255, 255, 255, 0.06),
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06),
         inset 0 -2px 5px rgba(0, 0, 0, 0.28),
         0 1px 2px rgba(0, 0, 0, 0.18);
 
@@ -1298,100 +1292,6 @@
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center {
-
-        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-
-        align-items: center !important;
-
-        justify-content: center !important;
-
-        height: 100dvh !important;
-
-        min-height: 100svh;
-
-    }
-
-    #st-mini-game-center .stgc-difficulty-bar {
-
-        gap: 3px;
-
-    }
-
-    #st-mini-game-center .stgc-difficulty-btn {
-
-        flex: 1 1 auto;
-
-        min-width: 0;
-
-    }
-
-    #st-mini-game-center .mine-viewport {
-
-        width: min(100%, calc(100vw - 24px));
-
-        height: min(55dvh, 460px);
-
-        min-height: 240px;
-
-    }
-
-    #st-mini-game-center .mine-view-tools {
-
-        width: 100%;
-
-    }
-
-    #st-mini-game-center .stgc-panel {
-
-        width: min(680px, calc(100vw - 16px));
-
-        max-height: calc(100dvh - 16px);
-
-        margin: auto !important;
-
-    }
-
-    #st-mini-game-center .stgc-menu-grid {
-
-        grid-template-columns: 1fr;
-
-    }
-
-    #st-mini-game-center .stgc-game-card {
-
-        min-height: 72px;
-
-    }
-
-    #st-mini-game-center .stgc-card-icon {
-
-        width: 34px;
-
-        height: 34px;
-
-        flex-basis: 34px;
-
-    }
-
-    #st-mini-game-center .stgc-game-toolbar {
-
-        align-items: stretch;
-
-    }
-
-    #st-mini-game-center .stgc-game-info {
-
-        flex-basis: 100%;
-
-        width: 100%;
-
-    }
-
-}
-
 #st-mini-game-center .stgc-select {
 
     appearance: auto;
@@ -1565,36 +1465,6 @@
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center .sudoku-keypad {
-
-        gap: 5px;
-
-    }
-
-    #st-mini-game-center .sudoku-key {
-
-        min-height: 40px;
-
-    }
-
-    #st-mini-game-center .stgc-2048-controls {
-
-        grid-template-columns: repeat(3, 50px);
-
-    }
-
-    #st-mini-game-center .stgc-2048-controls .game-direction-btn {
-
-        width: 50px;
-
-        min-height: 46px;
-
-    }
-
-}
-
 #st-mini-game-center .stgc-level-select {
 
     min-width: 120px;
@@ -1608,24 +1478,6 @@
     opacity: .45;
 
     cursor: default;
-
-}
-
-@media (max-width: 640px) {
-
-    #st-mini-game-center-launcher {
-
-        width: 50px !important;
-
-        height: 50px !important;
-
-    }
-
-    #st-mini-game-center .stgc-settings-dialog {
-
-        padding: 10px;
-
-    }
 
 }
 
@@ -1884,54 +1736,6 @@
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center .spider-tableau {
-
-        min-width: 650px;
-
-        grid-template-columns: repeat(10, 59px);
-
-        gap: 4px;
-
-    }
-
-    #st-mini-game-center .spider-column {
-
-        min-height: 166px;
-
-    }
-
-    #st-mini-game-center .spider-card {
-
-        height: 72px;
-
-        top: var(--card-offset);
-
-    }
-
-    #st-mini-game-center .spider-bottom {
-
-        flex-wrap: wrap;
-
-    }
-
-    #st-mini-game-center .spider-status {
-
-        width: 100%;
-
-        flex-basis: 100%;
-
-        justify-content: center;
-
-        text-align: center;
-
-        order: 3;
-
-    }
-
-}
-
 #stgc-extension-settings .stgc-extension-note {
 
     display: block;
@@ -1941,42 +1745,6 @@
     opacity: .68;
 
     line-height: 1.5;
-
-}
-
-#st-mini-game-center .gomoku-board {
-
-    width: min(560px, 100%);
-
-    aspect-ratio: 1;
-
-    margin: 6px auto 12px;
-
-    padding: 8px;
-
-    display: grid;
-
-    background: repeating-linear-gradient(to right,
-            transparent 0,
-            transparent calc(6.666% - 1px),
-            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
-            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
-        repeating-linear-gradient(to bottom,
-            transparent 0,
-            transparent calc(6.666% - 1px),
-            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
-            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
-        var(--SmartThemeBlurTintColor, var(--black10a, rgba(0,0,0,.10)));
-
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.42));
-
-    border-radius: var(--SmartThemeBorderRadius, 6px);
-
-    overflow: hidden;
-
-    touch-action: manipulation;
-
-    user-select: none;
 
 }
 
@@ -2061,30 +1829,6 @@
 
 }
 
-#st-mini-game-center .gomoku-cell.center-star::after {
-
-    content: "";
-
-    position: absolute;
-
-    left: 50%;
-
-    top: 50%;
-
-    width: 5px;
-
-    height: 5px;
-
-    transform: translate(-50%, -50%);
-
-    border-radius: 50%;
-
-    background: currentColor;
-
-    opacity: .65;
-
-}
-
 #st-mini-game-center .gomoku-cell.black.center-star::after,
 #st-mini-game-center .gomoku-cell.white.center-star::after {
 
@@ -2102,26 +1846,6 @@
 #st-mini-game-center .gomoku-cell.white:hover::before {
 
     opacity: 1;
-
-}
-
-@media (max-width: 640px) {
-
-    #st-mini-game-center .gomoku-board {
-
-        width: min(94vw, 500px);
-
-        padding: 6px;
-
-    }
-
-    #st-mini-game-center .gomoku-cell::before {
-
-        width: 66%;
-
-        height: 66%;
-
-    }
 
 }
 
@@ -2415,75 +2139,6 @@
 
 }
 
-#st-mini-game-center .go-board {
-
-    --go-size: 13;
-
-    --go-step: calc(100% / 12);
-
-    width: min(620px, 96vw, calc(100% - 8px));
-
-    aspect-ratio: 1 / 1;
-
-    margin: 12px auto;
-
-    padding: clamp(12px, 2vw, 18px);
-
-    box-sizing: border-box;
-
-    display: grid;
-
-    grid-template-columns: repeat(var(--go-size), minmax(0, 1fr));
-
-    grid-template-rows: repeat(var(--go-size), minmax(0, 1fr));
-
-    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #c9ad93) 80%, transparent);
-
-    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
-
-    border-radius: var(--SmartThemeBorderRadius, 6px);
-
-    position: relative;
-
-    overflow: hidden;
-
-    touch-action: manipulation;
-
-    user-select: none;
-
-    -webkit-user-select: none;
-
-}
-
-#st-mini-game-center .go-board::before {
-
-    content: "";
-
-    position: absolute;
-
-    inset: clamp(12px, 2vw, 18px);
-
-    pointer-events: none;
-
-    z-index: 0;
-
-    background: repeating-linear-gradient(
-            to right,
-            transparent 0,
-            transparent calc(var(--go-step) - .5px),
-            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) - .5px),
-            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) + .5px)
-        ),
-        repeating-linear-gradient(
-            to bottom,
-            transparent 0,
-            transparent calc(var(--go-step) - .5px),
-            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) - .5px),
-            var(--SmartThemeBorderColor, rgba(70,70,70,.58)) calc(var(--go-step) + .5px)
-        );
-
-}
-
 #st-mini-game-center .go-cell {
 
     position: relative;
@@ -2603,54 +2258,6 @@
 #st-mini-game-center .go-cell:hover::before {
 
     filter: brightness(1.08);
-
-}
-
-@media (max-width: 640px) {
-
-    #st-mini-game-center .go-size-row {
-
-        margin-top: 0;
-
-    }
-
-    #st-mini-game-center .go-size-btn {
-
-        min-width: 0;
-
-        flex: 1 1 0;
-
-        max-width: 100px;
-
-    }
-
-    #st-mini-game-center .go-board {
-
-        width: min(96vw, calc(100% - 2px));
-
-        padding: clamp(8px, 2.8vw, 14px);
-
-        margin-top: 10px;
-
-    }
-
-    #st-mini-game-center .go-board::before {
-
-        inset: clamp(8px, 2.8vw, 14px);
-
-    }
-
-    #st-mini-game-center .go-cell::before {
-
-        width: 80%;
-
-        height: 80%;
-
-        left: 10%;
-
-        top: 10%;
-
-    }
 
 }
 
@@ -2814,62 +2421,6 @@
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center .water-sort-board {
-
-        width: min(100%, 520px);
-
-        grid-template-columns: repeat(4, minmax(56px, 1fr));
-
-        gap: 14px 6px;
-
-        padding: 8px 2px 6px;
-
-    }
-
-    #st-mini-game-center .water-tube-wrap {
-
-        width: 68px;
-
-    }
-
-    #st-mini-game-center .water-tube {
-
-        width: 50px;
-
-        height: 140px;
-
-    }
-
-}
-
-@media (max-width: 390px) {
-
-    #st-mini-game-center .water-sort-board {
-
-        grid-template-columns: repeat(4, minmax(48px, 1fr));
-
-        column-gap: 2px;
-
-    }
-
-    #st-mini-game-center .water-tube-wrap {
-
-        width: 58px;
-
-    }
-
-    #st-mini-game-center .water-tube {
-
-        width: 46px;
-
-        height: 130px;
-
-    }
-
-}
-
 #st-mini-game-center .water-mode-row {
 
     margin-bottom: 6px;
@@ -2882,41 +2433,11 @@
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center .water-sort-board {
-
-        width: 100%;
-
-        grid-template-columns: repeat(4, minmax(52px, 1fr));
-
-        gap: 14px 5px;
-
-        padding-left: 0;
-
-        padding-right: 0;
-
-    }
-
-    #st-mini-game-center .water-tube-wrap {
-
-        width: 64px;
-
-    }
-
-    #st-mini-game-center .water-tube {
-
-        width: 48px;
-
-        height: 136px;
-
-    }
-
-}
-
 @media (max-width: 390px) {
 
     #st-mini-game-center .water-sort-board {
+
+        column-gap: 2px;
 
         grid-template-columns: repeat(4, minmax(48px, 1fr));
 
@@ -5545,40 +5066,6 @@ n
 
 }
 
-@media (max-width: 640px) {
-
-    #st-mini-game-center .star-pop-board {
-
-        width: min(96vw, 540px);
-
-        gap: 3px;
-
-        padding: 5px;
-
-        border-radius: 14px;
-
-    }
-
-    #st-mini-game-center .star-pop-cell {
-
-        border-radius: 20%;
-
-    }
-
-    #st-mini-game-center .star-pop-palette-wrap {
-
-        width: 100%;
-
-        justify-content: center;
-
-        order: 4;
-
-        margin-top: 2px;
-
-    }
-
-}
-
 #st-mini-game-center .farm-crop-cherry .farm-plant-art::before {
 
     width: 4px;
@@ -6122,44 +5609,102 @@ n
 }
 
 
-/* ==================== 固定棋盘配色 ==================== */
+
 #st-mini-game-center .gomoku-board[data-palette="qingstone"],
 #st-mini-game-center .go-board[data-palette="qingstone"] {
+
     --board-surface: #7f9c9a;
+
     --board-line: #324a49;
+
     --board-edge: #6d8785;
+
 }
+
 #st-mini-game-center .gomoku-board[data-palette="daigreen"],
 #st-mini-game-center .go-board[data-palette="daigreen"] {
+
     --board-surface: #6f8475;
+
     --board-line: #2e3d35;
+
     --board-edge: #5f7466;
+
 }
+
 #st-mini-game-center .gomoku-board[data-palette="warmwood"],
 #st-mini-game-center .go-board[data-palette="warmwood"],
 #st-mini-game-center .xiangqi-board[data-palette="warmwood"] {
+
     --board-surface: #c8a66b;
+
     --board-line: #5a4634;
+
     --board-edge: #9a784d;
+
 }
+
 #st-mini-game-center .gomoku-board[data-palette="inkstone"],
 #st-mini-game-center .go-board[data-palette="inkstone"] {
+
     --board-surface: #727879;
+
     --board-line: #34383a;
+
     --board-edge: #62686a;
+
 }
+
 #st-mini-game-center .gomoku-board[data-palette="ricepaper"],
 #st-mini-game-center .go-board[data-palette="ricepaper"] {
+
     --board-surface: #c9b89a;
+
     --board-line: #6f6252;
+
     --board-edge: #b5a27f;
+
 }
 
 #st-mini-game-center .gomoku-board {
+
+    width: min(560px, 100%);
+
+    aspect-ratio: 1;
+
+    margin: 6px auto 12px;
+
+    padding: 8px;
+
+    display: grid;
+
+    background: repeating-linear-gradient(to right,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
+        repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) calc(6.666% - 1px),
+            var(--SmartThemeBorderColor, rgba(127,127,127,.42)) 6.666%),
+        var(--SmartThemeBlurTintColor, var(--black10a, rgba(0,0,0,.10)));
+
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.42));
+
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+
+    overflow: hidden;
+
+    touch-action: manipulation;
+
+    user-select: none;
+
     background-color: var(--board-surface, #c8a66b);
+
     border-color: var(--board-edge, #6d8785);
-    background-image:
-        repeating-linear-gradient(to right,
+
+    background-image: repeating-linear-gradient(to right,
             transparent 0,
             transparent calc(6.666% - 1px),
             var(--board-line, #324a49) calc(6.666% - 1px),
@@ -6170,18 +5715,88 @@ n
             var(--board-line, #324a49) calc(6.666% - 1px),
             var(--board-line, #324a49) 6.666%),
         linear-gradient(var(--board-surface, #c8a66b), var(--board-surface, #c8a66b));
+
 }
+
 #st-mini-game-center .gomoku-cell.center-star::after {
+
+    content: "";
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 5px;
+
+    height: 5px;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    opacity: .65;
+
     background: var(--board-line, currentColor);
+
 }
 
 #st-mini-game-center .go-board {
+
+    --go-size: 13;
+
+    --go-step: calc(100% / 12);
+
+    width: min(620px, 96vw, calc(100% - 8px));
+
+    aspect-ratio: 1 / 1;
+
+    margin: 12px auto;
+
+    padding: clamp(12px, 2vw, 18px);
+
+    box-sizing: border-box;
+
+    display: grid;
+
+    grid-template-columns: repeat(var(--go-size), minmax(0, 1fr));
+
+    grid-template-rows: repeat(var(--go-size), minmax(0, 1fr));
+
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.45));
+
+    border-radius: var(--SmartThemeBorderRadius, 6px);
+
+    position: relative;
+
+    overflow: hidden;
+
+    touch-action: manipulation;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+
     background: var(--board-surface, #c8a66b);
+
     border-color: var(--board-edge, #6d8785);
+
 }
+
 #st-mini-game-center .go-board::before {
-    background:
-        repeating-linear-gradient(to right,
+
+    content: "";
+
+    position: absolute;
+
+    inset: clamp(12px, 2vw, 18px);
+
+    pointer-events: none;
+
+    z-index: 0;
+
+    background: repeating-linear-gradient(to right,
             transparent 0,
             transparent calc(var(--go-step) - .5px),
             var(--board-line, #324a49) calc(var(--go-step) - .5px),
@@ -6191,405 +5806,1096 @@ n
             transparent calc(var(--go-step) - .5px),
             var(--board-line, #324a49) calc(var(--go-step) - .5px),
             var(--board-line, #324a49) calc(var(--go-step) + .5px));
-}
-#st-mini-game-center .go-palette-select {
-    min-width: 84px;
+
 }
 
-/* ==================== 数方 ==================== */
+#st-mini-game-center .go-palette-select {
+
+    min-width: 84px;
+
+}
+
 #st-mini-game-center .shikaku-board {
+
     --shikaku-size: 7;
+
     width: min(620px, 100%);
+
     aspect-ratio: 1 / 1;
+
     margin: 10px auto 14px;
+
     display: grid;
+
     grid-template-columns: repeat(var(--shikaku-size), minmax(0, 1fr));
+
     grid-template-rows: repeat(var(--shikaku-size), minmax(0, 1fr));
+
     position: relative;
+
     overflow: hidden;
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: 8px;
+
     background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+
     touch-action: none;
+
     user-select: none;
+
 }
 
 #st-mini-game-center .shikaku-cell {
+
     min-width: 0;
+
     min-height: 0;
+
     display: grid;
+
     place-items: center;
+
     position: relative;
+
     border-right: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+
     border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 55%, transparent);
+
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 88%, transparent);
+
 }
 
-
 #st-mini-game-center .shikaku-cell.filled {
+
     background: color-mix(in srgb, var(--customThemeColor, var(--SmartThemeQuoteColor, #888)) 10%, var(--SmartThemeBlurTintColor, #888));
+
 }
 
 #st-mini-game-center .shikaku-cell.preview-valid {
+
     background: color-mix(in srgb, #78b982 20%, var(--SmartThemeBlurTintColor, #888));
+
 }
 
 #st-mini-game-center .shikaku-cell.preview-invalid {
+
     background: color-mix(in srgb, #d97878 18%, var(--SmartThemeBlurTintColor, #888));
+
 }
 
 #st-mini-game-center .shikaku-clue {
+
     position: relative;
+
     z-index: 3;
+
     min-width: 1.55em;
+
     min-height: 1.55em;
+
     display: inline-grid;
+
     place-items: center;
+
     padding: .12em .28em;
+
     border-radius: 50%;
+
     font-size: clamp(11px, 2.6vw, 17px);
+
     font-weight: 800;
+
     color: var(--SmartThemeBodyColor, currentColor);
+
 }
 
 #st-mini-game-center .shikaku-region-border {
+
     position: absolute;
+
     z-index: 4;
+
     pointer-events: none;
+
     border: 2px solid var(--SmartThemeBodyColor, currentColor);
+
     border-radius: 3px;
+
     opacity: .72;
+
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--SmartThemeBlurTintColor, #888) 50%, transparent);
+
 }
 
 #st-mini-game-center .shikaku-cell.valid-region .shikaku-clue {
+
     background: color-mix(in srgb, #78b982 24%, var(--SmartThemeBlurTintColor, #888));
+
 }
 
 #st-mini-game-center .stgc-home-update-btn,
 #st-mini-game-center .stgc-extension-update-btn {
+
     position: relative;
+
 }
 
 #st-mini-game-center .stgc-home-update-btn.has-update::after,
 #stgc-extension-settings .stgc-extension-update-btn.has-update::after {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     top: -3px;
+
     right: -3px;
+
     width: 8px;
+
     height: 8px;
+
     border-radius: 50%;
+
     background: #e45f6f;
+
     box-shadow: 0 0 0 2px var(--SmartThemeBlurTintColor, rgba(0,0,0,.35));
+
 }
 
 #stgc-extension-settings .stgc-extension-update-btn {
+
     position: relative;
+
 }
 
-/* 新增作物：茉莉 */
 #st-mini-game-center .farm-crop-jasmine .farm-plant-art::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     left: 50%;
+
     bottom: 11px;
+
     width: 4px;
+
     height: 43px;
+
     transform: translateX(-50%);
+
     border-radius: 5px;
+
     background: #6f875f;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before,
 #st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     width: 24px;
+
     height: 11px;
+
     bottom: 25px;
+
     border-radius: 100% 10px 100% 10px;
+
     background: #80986d;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::before {
+
     left: 22px;
+
     transform: rotate(24deg);
+
 }
 
 #st-mini-game-center .farm-crop-jasmine .farm-plant-leaves::after {
+
     right: 22px;
+
     transform: scaleX(-1) rotate(24deg);
+
 }
 
 #st-mini-game-center .farm-crop-jasmine .farm-plant-fruit::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     left: 50%;
+
     bottom: 48px;
+
     width: 27px;
+
     height: 27px;
+
     transform: translateX(-50%);
+
     border-radius: 50%;
+
     background: #f2eee7;
+
     box-shadow: 0 0 0 5px rgba(255,255,255,.18), 12px 2px 0 -5px #e6e1d7, -12px 2px 0 -5px #e6e1d7;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-art::before {
+
     height: 16px;
+
     bottom: 12px;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine.farm-stage-sprout .farm-plant-fruit::before {
+
     width: 12px;
+
     height: 12px;
+
     bottom: 24px;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-art::before {
+
     height: 8px;
+
     bottom: 12px;
+
 }
 
 #st-mini-game-center .farm-crop-jasmine.farm-stage-soil .farm-plant-fruit::before {
+
     opacity: 0;
+
 }
 
 #st-mini-game-center .farm-seed-visual.farm-crop-jasmine::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
+
     left: 13px;
+
     bottom: 9px;
+
     width: 20px;
+
     height: 20px;
+
     border-radius: 50%;
+
     background: #f2eee7;
+
     box-shadow: 11px 4px 0 -5px #e6e1d7, -10px 4px 0 -5px #e6e1d7;
+
 }
 
-@media (max-width: 640px) {
-    #st-mini-game-center .shikaku-board {
-        width: min(92vw, 540px);
-        margin-top: 6px;
-    }
-
-    #st-mini-game-center .shikaku-region-border {
-        border-width: 1.5px;
-    }
-}
-
-
-/* ==================== Chess ==================== */
 #st-mini-game-center .chess-board {
+
     width: min(560px, 100%);
+
     aspect-ratio: 1;
+
     margin: 0 auto;
+
     padding: 6px;
+
     display: grid;
+
     grid-template-columns: repeat(8, 1fr);
+
     grid-template-rows: repeat(8, 1fr);
+
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+
     border-radius: 12px;
+
     background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
+
     box-shadow: 0 10px 28px rgba(0,0,0,.12);
+
     overflow: hidden;
+
     user-select: none;
+
     touch-action: manipulation;
+
 }
+
 #st-mini-game-center .chess-cell {
+
     position: relative;
+
     min-width: 0;
+
     min-height: 0;
+
     display: grid;
+
     place-items: center;
+
     cursor: pointer;
+
     font-size: clamp(24px, 7vw, 54px);
+
     line-height: 1;
+
     transition: filter .08s ease, box-shadow .08s ease;
+
 }
+
 #st-mini-game-center .chess-cell:not(.dark) {
+
     background: color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 12%, transparent);
+
 }
+
 #st-mini-game-center .chess-cell.dark {
+
     background: color-mix(in srgb, var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, #777)) 18%, transparent);
+
 }
+
 #st-mini-game-center .chess-cell.selected {
+
     box-shadow: inset 0 0 0 3px var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
+
 }
+
 #st-mini-game-center .chess-cell.legal::after {
-    content: '';
+
+    content: "";
+
     width: 18%;
+
     aspect-ratio: 1;
+
     border-radius: 50%;
+
     background: var(--SmartThemeUnderlineColor, currentColor);
+
     opacity: .62;
+
     position: absolute;
+
 }
+
 #st-mini-game-center .chess-piece {
+
     position: relative;
+
     z-index: 2;
+
     font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "DejaVu Sans", serif;
+
     font-weight: 700;
+
     line-height: 1;
+
     filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+
 }
+
 #st-mini-game-center .chess-piece.light {
+
     color: #f3efe5;
+
     text-shadow: 0 1px 2px rgba(0,0,0,.62);
+
 }
+
 #st-mini-game-center .chess-piece.dark-piece {
+
     color: #242522;
+
     text-shadow: 0 1px 1px rgba(255,255,255,.16);
+
 }
 
-/* ==================== Xiangqi ==================== */
 #st-mini-game-center .xiangqi-board {
+
     width: min(600px, 100%);
+
     aspect-ratio: 8 / 9;
+
     margin: 0 auto;
+
     position: relative;
+
     overflow: hidden;
+
     user-select: none;
+
     touch-action: manipulation;
+
     border: 1px solid var(--board-edge, #9a784d);
+
     border-radius: 12px;
+
     background: var(--board-surface, #c8a66b);
+
     box-shadow: 0 10px 28px rgba(0,0,0,.14), inset 0 0 0 1px rgba(255,255,255,.08);
+
 }
 
-/* 真正的中国象棋“线 + 交叉点”棋盘。棋盘本身不用 CSS 渐变画线，避免浏览器百分比渐变产生错位。 */
 #st-mini-game-center .xiangqi-board-lines {
+
     position: absolute;
+
     inset: 5%;
+
     z-index: 0;
+
     pointer-events: none;
+
 }
+
 #st-mini-game-center .xiangqi-board-lines svg {
+
     width: 100%;
+
     height: 100%;
+
     display: block;
+
     overflow: visible;
+
 }
+
 #st-mini-game-center .xq-grid-lines line,
 #st-mini-game-center .xq-palace-lines line {
+
     vector-effect: non-scaling-stroke;
+
     stroke: var(--board-line, #5a4634);
+
     stroke-width: 1.25;
+
     stroke-linecap: square;
+
     fill: none;
-}
-#st-mini-game-center .xq-palace-lines line {
-    stroke-width: 1.5;
+
 }
 
-/* 楚河汉界覆盖在线条之上，但只遮掉河面，不会盖住两侧棋盘线。 */
+#st-mini-game-center .xq-palace-lines line {
+
+    stroke-width: 1.5;
+
+}
+
 #st-mini-game-center .xiangqi-board::after {
-    content: '楚  河　　　漢  界';
+
+    content: "楚  河　　　漢  界";
+
     position: absolute;
+
     left: 50%;
+
     top: 50%;
+
     transform: translate(-50%, -50%);
+
     padding: 0 .9em;
+
     color: var(--board-line, #5a4634);
+
     background: var(--board-surface, #c8a66b);
+
     font-family: "Noto Serif CJK SC", "Songti SC", serif;
+
     font-size: clamp(13px, 2.5vw, 21px);
+
     letter-spacing: .08em;
+
     line-height: 1.15;
+
     white-space: nowrap;
+
     pointer-events: none;
+
     z-index: 1;
+
 }
 
 #st-mini-game-center .xiangqi-cells {
+
     position: absolute;
+
     inset: 0;
+
     z-index: 3;
+
 }
 
-/* 每个点击区只是“交叉点热区”，棋子和提示点都以交叉点为中心。 */
 #st-mini-game-center .xiangqi-cell {
+
     position: absolute;
+
     width: 11.25%;
+
     height: 10%;
+
     transform: translate(-50%, -50%);
+
     display: grid;
+
     place-items: center;
+
     min-width: 0;
+
     min-height: 0;
+
     cursor: pointer;
+
     z-index: 2;
+
     border-radius: 50%;
-}
-#st-mini-game-center .xiangqi-cell.selected {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--SmartThemeQuoteColor, #806a55) 72%, transparent);
+
 }
 
-/* 合法落点提示：独立圆点，不再和棋盘线抢伪元素。 */
+#st-mini-game-center .xiangqi-cell.selected {
+
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--SmartThemeQuoteColor, #806a55) 72%, transparent);
+
+}
+
 #st-mini-game-center .xiangqi-legal-dot {
+
     position: absolute;
+
     left: 50%;
+
     top: 50%;
+
     width: 12px;
+
     height: 12px;
+
     transform: translate(-50%, -50%);
+
     border-radius: 50%;
+
     background: var(--SmartThemeUnderlineColor, var(--SmartThemeQuoteColor, #6a5848));
+
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-surface) 72%, transparent);
+
     z-index: 4;
+
     pointer-events: none;
+
 }
 
 #st-mini-game-center .xiangqi-piece {
+
     width: 78%;
+
     aspect-ratio: 1;
+
     display: grid;
+
     place-items: center;
+
     position: relative;
+
     z-index: 5;
+
     border-radius: 50%;
+
     background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.24), transparent 32%), #ead3a6;
+
     border: 1px solid rgba(80,55,31,.55);
+
     box-shadow: 0 2px 5px rgba(0,0,0,.17), inset 0 0 0 2px rgba(255,255,255,.12);
+
     font-family: "Noto Serif CJK SC", "Songti SC", serif;
+
     font-size: clamp(18px, 4.6vw, 35px);
+
     line-height: 1;
+
 }
-#st-mini-game-center .xiangqi-piece.red { color: #a1473f; }
-#st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
+
+#st-mini-game-center .xiangqi-piece.red {
+
+    color: #a1473f;
+
+}
+
+#st-mini-game-center .xiangqi-piece.black {
+
+    color: #2f302f;
+
+}
 
 @media (max-width: 640px) {
-    #st-mini-game-center .xiangqi-board { border-radius: 10px; }
-    #st-mini-game-center .xiangqi-piece { font-size: clamp(16px, 5.2vw, 30px); }
-    #st-mini-game-center .xiangqi-legal-dot { width: 9px; height: 9px; }
-    #st-mini-game-center .xiangqi-board::after { font-size: clamp(11px, 3.2vw, 18px); }
+
+    #st-mini-game-center {
+
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+
+        align-items: center !important;
+
+        justify-content: center !important;
+
+        height: 100dvh !important;
+
+        min-height: 100svh;
+
+    }
+
+    #st-mini-game-center .stgc-difficulty-bar {
+
+        gap: 3px;
+
+    }
+
+    #st-mini-game-center .stgc-difficulty-btn {
+
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+    }
+
+    #st-mini-game-center .mine-viewport {
+
+        width: min(100%, calc(100vw - 24px));
+
+        height: min(55dvh, 460px);
+
+        min-height: 240px;
+
+    }
+
+    #st-mini-game-center .mine-view-tools {
+
+        width: 100%;
+
+    }
+
+    #st-mini-game-center .stgc-panel {
+
+        width: min(680px, calc(100vw - 16px));
+
+        max-height: calc(100dvh - 16px);
+
+        margin: auto !important;
+
+    }
+
+    #st-mini-game-center .stgc-menu-grid {
+
+        grid-template-columns: 1fr;
+
+    }
+
+    #st-mini-game-center .stgc-game-card {
+
+        min-height: 72px;
+
+    }
+
+    #st-mini-game-center .stgc-card-icon {
+
+        width: 34px;
+
+        height: 34px;
+
+        flex-basis: 34px;
+
+    }
+
+    #st-mini-game-center .stgc-game-toolbar {
+
+        align-items: stretch;
+
+    }
+
+    #st-mini-game-center .stgc-game-info {
+
+        flex-basis: 100%;
+
+        width: 100%;
+
+    }
+
+    #st-mini-game-center .sudoku-keypad {
+
+        gap: 5px;
+
+    }
+
+    #st-mini-game-center .sudoku-key {
+
+        min-height: 40px;
+
+    }
+
+    #st-mini-game-center .stgc-2048-controls {
+
+        grid-template-columns: repeat(3, 50px);
+
+    }
+
+    #st-mini-game-center .stgc-2048-controls .game-direction-btn {
+
+        width: 50px;
+
+        min-height: 46px;
+
+    }
+
+    #st-mini-game-center-launcher {
+
+        width: 50px !important;
+
+        height: 50px !important;
+
+    }
+
+    #st-mini-game-center .stgc-settings-dialog {
+
+        padding: 10px;
+
+    }
+
+    #st-mini-game-center .spider-tableau {
+
+        min-width: 650px;
+
+        grid-template-columns: repeat(10, 59px);
+
+        gap: 4px;
+
+    }
+
+    #st-mini-game-center .spider-column {
+
+        min-height: 166px;
+
+    }
+
+    #st-mini-game-center .spider-card {
+
+        height: 72px;
+
+        top: var(--card-offset);
+
+    }
+
+    #st-mini-game-center .spider-bottom {
+
+        flex-wrap: wrap;
+
+    }
+
+    #st-mini-game-center .spider-status {
+
+        width: 100%;
+
+        flex-basis: 100%;
+
+        justify-content: center;
+
+        text-align: center;
+
+        order: 3;
+
+    }
+
+    #st-mini-game-center .gomoku-board {
+
+        width: min(94vw, 500px);
+
+        padding: 6px;
+
+    }
+
+    #st-mini-game-center .gomoku-cell::before {
+
+        width: 66%;
+
+        height: 66%;
+
+    }
+
+    #st-mini-game-center .go-size-row {
+
+        margin-top: 0;
+
+    }
+
+    #st-mini-game-center .go-size-btn {
+
+        min-width: 0;
+
+        flex: 1 1 0;
+
+        max-width: 100px;
+
+    }
+
+    #st-mini-game-center .go-board {
+
+        width: min(96vw, calc(100% - 2px));
+
+        padding: clamp(8px, 2.8vw, 14px);
+
+        margin-top: 10px;
+
+    }
+
+    #st-mini-game-center .go-board::before {
+
+        inset: clamp(8px, 2.8vw, 14px);
+
+    }
+
+    #st-mini-game-center .go-cell::before {
+
+        width: 80%;
+
+        height: 80%;
+
+        left: 10%;
+
+        top: 10%;
+
+    }
+
+    #st-mini-game-center .water-sort-board {
+
+        padding: 8px 2px 6px;
+
+        width: 100%;
+
+        grid-template-columns: repeat(4, minmax(52px, 1fr));
+
+        gap: 14px 5px;
+
+        padding-left: 0;
+
+        padding-right: 0;
+
+    }
+
+    #st-mini-game-center .water-tube-wrap {
+
+        width: 64px;
+
+    }
+
+    #st-mini-game-center .water-tube {
+
+        width: 48px;
+
+        height: 136px;
+
+    }
+
+    #st-mini-game-center .star-pop-board {
+
+        width: min(96vw, 540px);
+
+        gap: 3px;
+
+        padding: 5px;
+
+        border-radius: 14px;
+
+    }
+
+    #st-mini-game-center .star-pop-cell {
+
+        border-radius: 20%;
+
+    }
+
+    #st-mini-game-center .star-pop-palette-wrap {
+
+        width: 100%;
+
+        justify-content: center;
+
+        order: 4;
+
+        margin-top: 2px;
+
+    }
+
+    #st-mini-game-center .shikaku-board {
+
+        width: min(92vw, 540px);
+
+        margin-top: 6px;
+
+    }
+
+    #st-mini-game-center .shikaku-region-border {
+
+        border-width: 1.5px;
+
+    }
+
+    #st-mini-game-center .xiangqi-board {
+
+        border-radius: 10px;
+
+    }
+
+    #st-mini-game-center .xiangqi-piece {
+
+        font-size: clamp(16px, 5.2vw, 30px);
+
+    }
+
+    #st-mini-game-center .xiangqi-legal-dot {
+
+        width: 9px;
+
+        height: 9px;
+
+    }
+
+    #st-mini-game-center .xiangqi-board::after {
+
+        font-size: clamp(11px, 3.2vw, 18px);
+
+    }
+
 }
 
-/* ==================== 新增作物：杏子 / 竹笋 ==================== */
 #st-mini-game-center .farm-crop-apricot .farm-plant-art::before {
-    content: '';
+
+    content: "";
+
     position: absolute;
-    left: 31%; bottom: 7px; width: 35px; height: 42px;
+
+    left: 31%;
+
+    bottom: 7px;
+
+    width: 35px;
+
+    height: 42px;
+
     border-radius: 48% 52% 56% 46%;
+
     background: linear-gradient(135deg,#f2c1a9,#e39b83 68%,#bd7463);
+
     box-shadow: inset -5px -5px 0 rgba(116,67,58,.14);
+
 }
+
 #st-mini-game-center .farm-crop-apricot .farm-plant-leaves::before,
 #st-mini-game-center .farm-crop-apricot .farm-plant-leaves::after {
-    content: ''; position:absolute; width:24px; height:11px; bottom:38px;
-    border-radius:100% 8px 100% 8px; background:#73975f;
+
+    content: "";
+
+    position: absolute;
+
+    width: 24px;
+
+    height: 11px;
+
+    bottom: 38px;
+
+    border-radius: 100% 8px 100% 8px;
+
+    background: #73975f;
+
 }
-#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::before { left:25%; transform:rotate(25deg); }
-#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::after { right:25%; transform:scaleX(-1) rotate(25deg); }
+
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::before {
+
+    left: 25%;
+
+    transform: rotate(25deg);
+
+}
+
+#st-mini-game-center .farm-crop-apricot .farm-plant-leaves::after {
+
+    right: 25%;
+
+    transform: scaleX(-1) rotate(25deg);
+
+}
+
 #st-mini-game-center .farm-crop-bamboo .farm-plant-art::before {
-    content:''; position:absolute; left:50%; bottom:2px; width:7px; height:51px;
-    transform:translateX(-50%); border-radius:7px; background:linear-gradient(90deg,#5f8c52,#8bb96e,#527d49);
-    box-shadow:-12px 0 0 -1px #648f55,12px 2px 0 -1px #6d9959;
+
+    content: "";
+
+    position: absolute;
+
+    left: 50%;
+
+    bottom: 2px;
+
+    width: 7px;
+
+    height: 51px;
+
+    transform: translateX(-50%);
+
+    border-radius: 7px;
+
+    background: linear-gradient(90deg,#5f8c52,#8bb96e,#527d49);
+
+    box-shadow: -12px 0 0 -1px #648f55,12px 2px 0 -1px #6d9959;
+
 }
+
 #st-mini-game-center .farm-crop-bamboo .farm-plant-leaves::before {
-    content:''; position:absolute; width:35px; height:10px; left:11%; bottom:38px;
-    border-radius:100% 8px 100% 8px; background:#79a960; transform:rotate(-18deg);
-    box-shadow:24px 8px 0 -1px #6e9f58,4px 13px 0 -2px #86b56b;
+
+    content: "";
+
+    position: absolute;
+
+    width: 35px;
+
+    height: 10px;
+
+    left: 11%;
+
+    bottom: 38px;
+
+    border-radius: 100% 8px 100% 8px;
+
+    background: #79a960;
+
+    transform: rotate(-18deg);
+
+    box-shadow: 24px 8px 0 -1px #6e9f58,4px 13px 0 -2px #86b56b;
+
 }
-#st-mini-game-center .farm-crop-bamboo.farm-stage-sprout .farm-plant-art::before { height:20px; bottom:6px; }
-#st-mini-game-center .farm-crop-bamboo.farm-stage-growing .farm-plant-art::before { height:36px; }
+
+#st-mini-game-center .farm-crop-bamboo.farm-stage-sprout .farm-plant-art::before {
+
+    height: 20px;
+
+    bottom: 6px;
+
+}
+
+#st-mini-game-center .farm-crop-bamboo.farm-stage-growing .farm-plant-art::before {
+
+    height: 36px;
+
+}
