@@ -4614,57 +4614,36 @@
         const nextMoves=chessAllMoves(game,game.turn); if(!nextMoves.length){game.over=true;game.winner=chessInCheck(game.board,game.turn)?color:3;if(game.winner===color)recordGameWin('chess');}
     }
     function chessUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.castling=h.castling;game.enPassant=h.enPassant;game.over=h.over;game.winner=h.winner;return true;}
-    const CHESS_PST = {
-        p:[0,0,0,0,0,0,0,0, 5,10,10,-20,-20,10,10,5, 5,-5,-10,0,0,-10,-5,5, 0,0,0,20,20,0,0,0, 5,5,10,25,25,10,5,5, 10,10,20,30,30,20,10,10, 50,50,50,50,50,50,50,50, 0,0,0,0,0,0,0,0],
-        n:[-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,5,5,0,-20,-40, -30,5,10,15,15,10,5,-30, -30,0,15,20,20,15,0,-30, -30,5,15,20,20,15,5,-30, -30,0,10,15,15,10,0,-30, -40,-20,0,0,0,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
-        b:[-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10, -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
-        r:[0,0,0,5,5,0,0,0, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 5,10,10,10,10,10,10,5, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0],
-        q:[-20,-10,-10,0,0,-10,-10,-20, -10,0,5,0,0,0,0,-10, -10,5,5,5,5,5,0,-10, 0,0,5,5,5,5,0,-5, -5,0,5,5,5,5,0,-5, -10,0,5,5,5,5,0,-10, -10,0,0,0,0,0,0,-10, -20,-10,-10,0,0,-10,-10,-20],
-        k:[20,30,10,0,0,10,30,20, 20,20,0,0,0,0,20,20, -10,-20,-20,-20,-20,-20,-20,-10, -20,-30,-30,-40,-40,-30,-30,-20, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-30,-30,-30,-30,-30,-30,-30, -30,-30,-30,-30,-30,-30,-30,-30]
-    };
     function chessEval(board){
         const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let score=0;
-        for(let y=0;y<8;y++)for(let x=0;x<8;x++){
-            const p=board[y][x]; if(!p)continue;
-            const t=chessType(p), base=val[t]||0, idx=chessColor(p)===2?(y*8+x):((7-y)*8+x);
-            score += chessColor(p)===2 ? base + (CHESS_PST[t]?.[idx]||0) : -(base + (CHESS_PST[t]?.[idx]||0));
-        }
+        for(let y=0;y<8;y++)for(let x=0;x<8;x++){const p=board[y][x];if(!p)continue; const v=val[chessType(p)]||0; score+=(chessColor(p)===2?v:-v);}
         return score;
     }
-    function chessSimulate(game,m){
-        const p=game.board[m.fromY][m.fromX], cap=game.board[m.toY][m.toX], color=game.turn;
-        const g={board:chessApply(game.board,m),turn:color===1?2:1,castling:{...game.castling},enPassant:null,over:false,winner:0,history:[],difficulty:game.difficulty};
-        if(chessType(p)==='k'){if(color===1){g.castling.K=false;g.castling.Q=false;}else{g.castling.k=false;g.castling.q=false;}}
-        if(chessType(p)==='r'){if(m.fromX===0&&m.fromY===7)g.castling.Q=false;if(m.fromX===7&&m.fromY===7)g.castling.K=false;if(m.fromX===0&&m.fromY===0)g.castling.q=false;if(m.fromX===7&&m.fromY===0)g.castling.k=false;}
-        if(cap&&chessType(cap)==='r'){if(m.toX===0&&m.toY===7)g.castling.Q=false;if(m.toX===7&&m.toY===7)g.castling.K=false;if(m.toX===0&&m.toY===0)g.castling.q=false;if(m.toX===7&&m.toY===0)g.castling.k=false;}
-        g.enPassant=chessType(p)==='p'&&Math.abs(m.toY-m.fromY)===2?{x:m.fromX,y:(m.fromY+m.toY)/2}:null;
-        return g;
-    }
-    function chessOrderMoves(game,moves){
-        const val={p:100,n:320,b:330,r:500,q:900,k:20000};
-        return moves.slice().sort((a,b)=>{
-            const ac=game.board[a.toY][a.toX],bc=game.board[b.toY][b.toX];
-            const as=(ac?val[chessType(ac)]:0)+(a.promotion?900:0), bs=(bc?val[chessType(bc)]:0)+(b.promotion?900:0);
-            return bs-as;
-        });
-    }
-    function chessSearch(game,depth,alpha,beta){
-        const moves=chessOrderMoves(game,chessAllMoves(game,game.turn));
-        if(!moves.length){if(chessInCheck(game.board,game.turn))return game.turn===2?-30000+depth:30000-depth;return 0;}
-        if(depth<=0)return chessEval(game.board);
-        const maximizing=game.turn===2;
-        if(maximizing){let best=-Infinity;for(const m of moves){const child=chessSimulate(game,m);const v=chessSearch(child,depth-1,alpha,beta);if(v>best)best=v;if(v>alpha)alpha=v;if(alpha>=beta)break;}return best;}
-        let best=Infinity;for(const m of moves){const child=chessSimulate(game,m);const v=chessSearch(child,depth-1,alpha,beta);if(v<best)best=v;if(v<beta)beta=v;if(alpha>=beta)break;}return best;
-    }
     function chessPickAI(game){
-        const moves=chessOrderMoves(game,chessAllMoves(game,2)); if(!moves.length)return null;
-        if(game.difficulty==='easy')return moves[Math.floor(Math.random()*moves.length)];
-        const depth=game.difficulty==='hard'?3:2;
-        let best=-Infinity,bm=moves[0];
-        for(const m of moves){const child=chessSimulate(game,m);let score=chessSearch(child,depth-1,-Infinity,Infinity);score+=(game.board[m.toY][m.toX]?500:0);score+=Math.random()*(game.difficulty==='hard'?1.5:5);if(score>best){best=score;bm=m;}}
+        const moves=chessAllMoves(game,2); if(!moves.length)return null;
+        if(game.difficulty==='easy') return moves[Math.floor(Math.random()*moves.length)];
+        const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let best=-Infinity,bm=null;
+        for(const m of moves){
+            const p=game.board[m.fromY][m.fromX],c=game.board[m.toY][m.toX];
+            let score=(c?val[chessType(c)]:0)+Math.random()*8;
+            const nb=chessApply(game.board,m);
+            if(chessInCheck(nb,1))score+=80;
+            if(game.difficulty==='hard'){
+                const replyGame={board:nb,turn:1,castling:{K:false,Q:false,k:false,q:false},enPassant:null};
+                const replies=chessAllMoves(replyGame,1);
+                if(!replies.length){ score+=chessInCheck(nb,1)?18000:0; }
+                else{
+                    let worst=Infinity;
+                    for(const r of replies.slice(0,36)){
+                        const rb=chessApply(nb,r); worst=Math.min(worst,chessEval(rb));
+                    }
+                    score += worst * 0.55;
+                }
+            }
+            if(score>best){best=score;bm=m;}
+        }
         return bm;
     }
-
     function renderChess(body){
         state.chess=chessLoad()||chessNew(); chessSave();
         const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
@@ -4710,9 +4689,9 @@
     function xqApply(b,m){const nb=xqClone(b);nb[m.toY][m.toX]=nb[m.fromY][m.fromX];nb[m.fromY][m.fromX]='';return nb;}
     function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
     function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
-    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',palette:'warmwood'};}
+    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',palette:'qingstone'};}
     function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
-    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'qingstone';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
     function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
     function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
     function xqEvalBoard(board){
@@ -4720,78 +4699,34 @@
         for(let y=0;y<10;y++)for(let x=0;x<9;x++){const p=board[y][x];if(!p)continue;const value=v[xqType(p)]||0;s+=(xqColor(p)===2?value:-value);}
         return s;
     }
-    function xqSimulate(game,m){return{board:xqApply(game.board,m),turn:game.turn===1?2:1,difficulty:game.difficulty};}
-    function xqOrderMoves(game,moves){
-        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000};
-        const scoreMove=(m)=>{
-            const captured=game.board[m.toY][m.toX];
-            const next=xqApply(game.board,m);
-            const enemy=game.turn===1?2:1;
-            return (captured ? v[xqType(captured)] : 0) + (xqGeneralInCheck(next,enemy) ? 80 : 0);
-        };
-        return moves.slice().sort((a,b)=>scoreMove(b)-scoreMove(a));
-    }
-    function xqSearch(game,depth,alpha,beta){
-        const moves=xqOrderMoves(game,xqAll(game,game.turn));
-        if(!moves.length){return xqGeneralInCheck(game.board,game.turn)?(game.turn===2?-16000+depth:16000-depth):0;}
-        if(depth<=0)return xqEvalBoard(game.board);
-        if(game.turn===2){let best=-Infinity;for(const m of moves){const child=xqSimulate(game,m),v=xqSearch(child,depth-1,alpha,beta);if(v>best)best=v;if(v>alpha)alpha=v;if(alpha>=beta)break;}return best;}
-        let best=Infinity;for(const m of moves){const child=xqSimulate(game,m),v=xqSearch(child,depth-1,alpha,beta);if(v<best)best=v;if(v<beta)beta=v;if(alpha>=beta)break;}return best;
-    }
     function xqAI(g){
-        const moves=xqOrderMoves(g,xqAll(g,2));if(!moves.length)return null;
+        const moves=xqAll(g,2);if(!moves.length)return null;
         if(g.difficulty==='easy')return moves[Math.floor(Math.random()*moves.length)];
-        const depth=g.difficulty==='hard'?3:2;
-        let bm=moves[0],bs=-Infinity;
-        for(const m of moves){const child=xqSimulate(g,m);let s=xqSearch(child,depth-1,-Infinity,Infinity);s+=(g.board[m.toY][m.toX]?300:0);s+=Math.random()*(g.difficulty==='hard'?1.2:4);if(s>bs){bs=s;bm=m;}}
-        return bm;
+        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000};let bm=moves[0],bs=-1e9;
+        for(const m of moves){const c=g.board[m.toY][m.toX];let s=(c?v[xqType(c)]:0)+Math.random()*8;const nb=xqApply(g.board,m);if(xqGeneralInCheck(nb,1))s+=70;
+            if(g.difficulty==='hard'){
+                const temp={board:nb,turn:1};const replies=xqAll(temp,1);if(!replies.length){s+=xqGeneralInCheck(nb,1)?18000:0;}else{let worst=Infinity;for(const r of replies.slice(0,32)){worst=Math.min(worst,xqEvalBoard(xqApply(nb,r)));}s+=worst*.55;}
+            }
+            if(s>bs){bs=s;bm=m;}
+        }return bm;
     }
     function renderXiangqi(body){
         state.xiangqi=xqLoad()||xqNew();xqSave();
-        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
+        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
+        const mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
         difficulty.append(el('option',{value:'easy',text:'简单'}),el('option',{value:'normal',text:'普通'}),el('option',{value:'hard',text:'困难'}));
         const palette=el('select',{class:'stgc-select','aria-label':'中国象棋棋盘配色'});
-        [['warmwood','传统木色'],['qingstone','青石'],['daigreen','黛绿'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
+        [['qingstone','青石'],['daigreen','黛绿'],['warmwood','暖木'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
         const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
         toolbar.append(status,mode,difficulty,palette,undo,reset);
-        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});
-        const palaceLines=el('div',{class:'xiangqi-palace-lines','aria-hidden':'true'});
-        palaceLines.innerHTML='<svg viewBox="0 0 1000 1000" preserveAspectRatio="none"><line x1="387.5" y1="50" x2="612.5" y2="250"></line><line x1="612.5" y1="50" x2="387.5" y2="250"></line><line x1="387.5" y1="750" x2="612.5" y2="950"></line><line x1="612.5" y1="750" x2="387.5" y2="950"></line></svg>';
-        const cellsLayer=el('div',{class:'xiangqi-cells'});
-        board.append(palaceLines,cellsLayer);
-        body.append(toolbar,board);
-        const draw=()=>{
-            const g=state.xiangqi;
-            board.dataset.palette=g.palette||'warmwood';
-            cellsLayer.innerHTML='';
-            status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');
-            mode.textContent=g.mode==='ai'?'人机对战':'双人对战';
-            difficulty.value=g.difficulty||'normal';
-            palette.value=g.palette||'warmwood';
-            difficulty.disabled=g.mode!=='ai';
-            undo.disabled=g.history.length===0||!!g.aiThinking;
-            const legalMoves=g.selected?xqLegal(g,g.selected.x,g.selected.y):[];
-            for(let y=0;y<10;y++)for(let x=0;x<9;x++){
-                const c=el('div',{class:'xiangqi-cell',role:'gridcell'});
-                c.dataset.x=String(x);c.dataset.y=String(y);
-                c.style.left=`${5+x*11.25}%`;
-                c.style.top=`${5+y*10}%`;
-                const p=g.board[y][x];
-                if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));
-                if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');
-                if(legalMoves.some(m=>m.x===x&&m.y===y)){
-                    c.classList.add('legal');
-                    c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));
-                }
-                cellsLayer.append(c);
-            }
-        };
+        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
+        const draw=()=>{const g=state.xiangqi;board.dataset.palette=g.palette||'qingstone';board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';palette.value=g.palette||'qingstone';difficulty.disabled=g.mode!=='ai';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(g.selected&&xqLegal(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y)){c.classList.add('legal');c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));}board.append(c);}};
         board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;const am=xqAI(g);g.aiThinking=false;if(am)xqApplyMove(g,am);xqSave();draw();},180);return;}}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
-        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
         difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();});
         palette.addEventListener('change',()=>{state.xiangqi.palette=palette.value;xqSave();draw();});
         undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='ai'){xqUndo(g);xqUndo(g);}else xqUndo(g);xqSave();draw();});
-        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
         state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}xqSave();};draw();
     }
 
@@ -5044,7 +4979,7 @@
         const draw=()=>{
             const g=state.go;
             const size=g.size;
-            cellsLayer.innerHTML='';
+            board.innerHTML='';
             board.style.setProperty('--go-size',String(size));
             board.style.setProperty('--go-step',`calc(100% / ${size - 1})`);
             board.dataset.size=String(size);
@@ -5073,7 +5008,7 @@
                 if(stars.has(i))c.classList.add('star');
                 c.dataset.index=String(i);
                 c.setAttribute('aria-label',`第 ${Math.floor(i/size)+1} 行，第 ${i%size+1} 列`);
-                cellsLayer.append(c);
+                board.append(c);
             }
         };
 

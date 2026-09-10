@@ -6136,11 +6136,10 @@ n
     --board-edge: #5f7466;
 }
 #st-mini-game-center .gomoku-board[data-palette="warmwood"],
-#st-mini-game-center .go-board[data-palette="warmwood"],
-#st-mini-game-center .xiangqi-board[data-palette="warmwood"] {
-    --board-surface: #c9a36a;
-    --board-line: #5f472f;
-    --board-edge: #ab7f4e;
+#st-mini-game-center .go-board[data-palette="warmwood"] {
+    --board-surface: #b18f73;
+    --board-line: #5b4637;
+    --board-edge: #9b785d;
 }
 #st-mini-game-center .gomoku-board[data-palette="inkstone"],
 #st-mini-game-center .go-board[data-palette="inkstone"] {
@@ -6447,68 +6446,39 @@ n
     width: min(600px, 100%);
     aspect-ratio: 8 / 9;
     margin: 0 auto;
+    padding: 5%;
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-rows: repeat(10, minmax(0, 1fr));
+    border: 1px solid var(--board-edge, #6d8785);
+    border-radius: 12px;
+    background-color: var(--board-surface, #7f9c9a);
+    box-shadow: 0 10px 28px rgba(0,0,0,.14);
     position: relative;
     overflow: hidden;
     user-select: none;
     touch-action: manipulation;
-    border: 1px solid var(--board-edge, #6d8785);
-    border-radius: 12px;
-    background: var(--board-surface, #7f9c9a);
-    box-shadow: 0 10px 28px rgba(0,0,0,.14);
 }
-
-/* 九列十行的真正“交叉点棋盘”：横向 8 个间隔、纵向 9 个间隔。 */
 #st-mini-game-center .xiangqi-board::before {
     content: '';
     position: absolute;
     inset: 5%;
     pointer-events: none;
-    background-image:
-        /* 9 条竖线 */
-        repeating-linear-gradient(
-            to right,
+    background:
+        repeating-linear-gradient(to right,
             transparent 0,
-            transparent calc(12.5% - .55px),
-            var(--board-line, #324a49) calc(12.5% - .55px),
-            var(--board-line, #324a49) calc(12.5% + .55px)
-        ),
-        /* 10 条横线 */
-        repeating-linear-gradient(
-            to bottom,
+            transparent calc(12.5% - .5px),
+            var(--board-line, #324a49) calc(12.5% - .5px),
+            var(--board-line, #324a49) calc(12.5% + .5px)),
+        repeating-linear-gradient(to bottom,
             transparent 0,
-            transparent calc(11.111111% - .55px),
-            var(--board-line, #324a49) calc(11.111111% - .55px),
-            var(--board-line, #324a49) calc(11.111111% + .55px)
-        ),
-    background-repeat: no-repeat;
+            transparent calc(11.111% - .5px),
+            var(--board-line, #324a49) calc(11.111% - .5px),
+            var(--board-line, #324a49) calc(11.111% + .5px));
     z-index: 0;
 }
-
-#st-mini-game-center .xiangqi-palace-lines {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-}
-#st-mini-game-center .xiangqi-palace-lines svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-#st-mini-game-center .xiangqi-palace-lines line {
-    vector-effect: non-scaling-stroke;
-    stroke: var(--board-line, #5f472f);
-    stroke-width: 1.5;
-    stroke-linecap: square;
-}
-#st-mini-game-center .xiangqi-cells {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-}
-
 #st-mini-game-center .xiangqi-board::after {
-    content: '楚  河　　　漢  界';
+    content: '楚 河　　　漢 界';
     position: absolute;
     left: 50%;
     top: 50%;
@@ -6517,20 +6487,15 @@ n
     color: var(--board-line, #324a49);
     background: var(--board-surface, #7f9c9a);
     font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(12px, 2.4vw, 20px);
-    letter-spacing: .1em;
+    font-size: clamp(12px, 2.5vw, 20px);
+    letter-spacing: .15em;
     line-height: 1.15;
     white-space: nowrap;
     pointer-events: none;
     z-index: 1;
 }
-
-/* 棋子是“落在交叉点”而不是占据格子。 */
 #st-mini-game-center .xiangqi-cell {
-    position: absolute;
-    width: 11.25%;
-    height: 10%;
-    transform: translate(-50%, -50%);
+    position: relative;
     display: grid;
     place-items: center;
     min-width: 0;
@@ -6538,21 +6503,42 @@ n
     cursor: pointer;
     z-index: 2;
 }
+#st-mini-game-center .xiangqi-cell::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background: var(--board-line, rgba(72,52,34,.7));
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+#st-mini-game-center .xiangqi-cell:not(:nth-child(9n+1))::after {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    background: var(--board-line, rgba(72,52,34,.7));
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
 #st-mini-game-center .xiangqi-cell.selected {
     box-shadow: inset 0 0 0 3px var(--customThemeColor, var(--SmartThemeQuoteColor, rgba(80,120,110,.72)));
-    border-radius: 9px;
+    border-radius: 6px;
 }
 #st-mini-game-center .xiangqi-legal-dot {
+    width: 16%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--board-line, rgba(63,78,70,.7));
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 18%;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: var(--board-line, #324a49);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-surface) 70%, transparent);
-    z-index: 3;
+    transform: translate(-50%,-50%);
+    z-index: 4;
     pointer-events: none;
 }
 #st-mini-game-center .xiangqi-piece {
@@ -6563,23 +6549,22 @@ n
     position: relative;
     z-index: 5;
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.24), transparent 32%), #ead3a6;
+    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.22), transparent 32%), #d7be99;
     border: 1px solid rgba(68,48,31,.55);
     box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 0 0 2px rgba(255,255,255,.12);
     font-family: "Noto Serif CJK SC", "Songti SC", serif;
-    font-size: clamp(18px, 4.6vw, 35px);
+    font-size: clamp(18px, 4.8vw, 35px);
     line-height: 1;
 }
-#st-mini-game-center .xiangqi-piece.red { color: #a1473f; }
+#st-mini-game-center .xiangqi-piece.red { color: #9a403c; }
 #st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
 
 @media (max-width: 640px) {
     #st-mini-game-center .chess-board { padding: 4px; border-radius: 10px; }
-    #st-mini-game-center .xiangqi-board { border-radius: 10px; }
-    #st-mini-game-center .xiangqi-piece { font-size: clamp(16px, 5.2vw, 30px); }
+    #st-mini-game-center .xiangqi-board { padding: 6%; border-radius: 10px; }
+    #st-mini-game-center .xiangqi-piece { width: 84%; font-size: clamp(16px, 5.4vw, 30px); }
     #st-mini-game-center .xiangqi-board::after { font-size: clamp(11px, 3.2vw, 18px); }
 }
-
 
 
 /* ==================== 新增作物：杏子 / 竹笋 ==================== */
