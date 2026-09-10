@@ -7316,7 +7316,7 @@ n
 #st-mini-game-center .match3-board {
     width: min(640px, 100%);
     margin: 8px auto 12px;
-    padding: 10px;
+    padding: 12px;
     display: grid;
     grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: clamp(4px, .65vw, 7px);
@@ -7328,6 +7328,7 @@ n
     user-select: none;
 }
 
+/* 格子本身不再是糖。这里只负责点击区域和选中提示。 */
 #st-mini-game-center .match3-cell {
     aspect-ratio: 1;
     min-width: 0;
@@ -7335,139 +7336,149 @@ n
     position: relative;
     display: grid;
     place-items: center;
-    border-radius: 24%;
-    border: 1px solid rgba(255,255,255,.13);
-    background: linear-gradient(145deg, var(--tile-hi), var(--tile-mid) 47%, var(--tile-low));
-    box-shadow: inset 0 2px 2px rgba(255,255,255,.22), inset 0 -3px 5px rgba(50,40,45,.18), 0 3px 6px rgba(0,0,0,.23);
-    color: rgba(255,255,255,.92);
+    border: 0;
+    border-radius: 18%;
+    background: transparent;
+    box-shadow: none;
+    color: var(--SmartThemeBodyColor, currentColor);
     cursor: pointer;
-    overflow: hidden;
-    transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
-}
-#st-mini-game-center .match3-cell:hover { transform: translateY(-1px) scale(1.025); filter: brightness(1.04) saturate(1.03); }
-#st-mini-game-center .match3-cell:active { transform: scale(.95); }
-#st-mini-game-center .match3-cell::after {
-    content: '';
-    position: absolute;
-    left: 10%; top: 7%; width: 68%; height: 38%;
-    border-radius: 45%;
-    background: linear-gradient(180deg, rgba(255,255,255,.26), transparent);
-    pointer-events: none;
-    z-index: 5;
+    overflow: visible;
+    transition: transform .12s ease, filter .12s ease;
 }
 
-/* i 原来是 inline + font-size:0，导致伪元素的百分比尺寸没有参照物，
-   所以截图里六种糖只剩下空白方块。现在给它一个明确的 100% 画布。 */
-#st-mini-game-center .match3-cell > i {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+#st-mini-game-center .match3-cell:hover .match3-candy-art {
+    transform: scale(1.045) translateY(-1px);
+    filter: brightness(1.04) saturate(1.03);
+}
+#st-mini-game-center .match3-cell:active .match3-candy-art {
+    transform: scale(.95);
+}
+
+#st-mini-game-center .match3-candy-art {
+    --candy-color-hi: var(--tile-hi);
+    --candy-color-mid: var(--tile-mid);
+    --candy-color-low: var(--tile-low);
+    width: 76%;
+    height: 76%;
+    position: relative;
     display: block;
-    z-index: 2;
-    font-size: 0;
-    line-height: 0;
-    pointer-events: none;
+    transition: transform .12s ease, filter .12s ease;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,.18));
 }
 
-#st-mini-game-center .match3-cell > i::before {
+/* 所有糖只占一个“糖本体”，不再有彩色方块底。 */
+#st-mini-game-center .match3-candy-art::before,
+#st-mini-game-center .match3-candy-art::after {
     content: '';
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: var(--candy-w, 58%);
-    height: var(--candy-h, 58%);
-    transform: translate(-50%, -50%);
-    background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(255,255,255,.54));
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,.16));
+    pointer-events: none;
 }
 
 /* 软糖星星 */
-#st-mini-game-center .match3-cell.candy-star > i::before {
-    width: 64%; height: 64%;
+#st-mini-game-center .candy-star .match3-candy-art::before {
+    inset: 2%;
     clip-path: polygon(50% 0%,61% 34%,98% 35%,68% 55%,79% 94%,50% 72%,21% 94%,32% 55%,2% 35%,39% 34%);
-    border-radius: 10%;
+    border-radius: 12%;
+    background: linear-gradient(145deg, var(--candy-color-hi), var(--candy-color-mid) 50%, var(--candy-color-low));
+    box-shadow: inset 0 5px 4px rgba(255,255,255,.26), inset 0 -4px 5px rgba(60,35,50,.16), 0 3px 3px rgba(0,0,0,.12);
 }
-
-/* 软糖阿尔卑斯：胖胖奶糖 + 中间包裹纹 */
-#st-mini-game-center .match3-cell.candy-alps > i::before {
-    width: 72%; height: 48%;
-    border-radius: 50% / 54%;
-    box-shadow: inset 0 4px 0 rgba(255,255,255,.18), inset 0 -5px 0 rgba(70,50,50,.10);
-}
-#st-mini-game-center .match3-cell.candy-alps > i::after {
-    content: '';
-    position: absolute;
-    left: 25%; top: 45%;
-    width: 50%; height: 9%;
-    border-radius: 999px;
-    background: rgba(255,255,255,.46);
-    box-shadow: 0 3px 0 rgba(120,90,90,.10);
-    z-index: 3;
-}
-
-/* 软糖熊熊：圆脑袋 + 两只圆耳朵 */
-#st-mini-game-center .match3-cell.candy-bear > i::before {
-    width: 56%; height: 56%;
-    border-radius: 44% 44% 48% 48%;
-    box-shadow:
-        -29% -28% 0 -11% rgba(255,255,255,.86),
-         29% -28% 0 -11% rgba(255,255,255,.86),
-        inset 0 -4px 0 rgba(70,50,50,.10);
-}
-
-/* 软糖心心 */
-#st-mini-game-center .match3-cell.candy-heart > i::before {
-    width: 62%; height: 60%;
-    clip-path: polygon(50% 92%,7% 45%,9% 28%,20% 15%,34% 15%,50% 31%,66% 15%,80% 15%,91% 28%,93% 45%);
-    border-radius: 22%;
-}
-
-/* 软糖环 */
-#st-mini-game-center .match3-cell.candy-ring > i::before {
-    width: 62%; height: 62%;
+/* 星星上的糖膜高光 */
+#st-mini-game-center .candy-star .match3-candy-art::after {
+    left: 22%; top: 13%; width: 46%; height: 19%;
     border-radius: 50%;
-    background: radial-gradient(circle, transparent 0 36%, rgba(255,255,255,.84) 38% 68%, rgba(255,255,255,.40) 70% 100%);
+    background: linear-gradient(180deg, rgba(255,255,255,.46), rgba(255,255,255,0));
+    transform: rotate(-8deg);
 }
 
-/* 软糖果冻：胖胖小胶囊 */
-#st-mini-game-center .match3-cell.candy-jelly > i::before {
-    width: 54%; height: 68%;
-    border-radius: 48% 48% 42% 42% / 35% 35% 58% 58%;
-    box-shadow: inset 5px 0 0 rgba(255,255,255,.14), inset -4px -5px 0 rgba(70,45,55,.10);
+/* 软糖阿尔卑斯：长条奶糖，两端有拧起来的糖纸 */
+#st-mini-game-center .candy-alps .match3-candy-art::before {
+    left: 17%; top: 29%; width: 66%; height: 42%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--candy-color-hi), var(--candy-color-mid) 52%, var(--candy-color-low));
+    box-shadow: inset 0 5px 5px rgba(255,255,255,.25), inset 0 -5px 5px rgba(60,35,50,.14), 0 3px 4px rgba(0,0,0,.14);
+}
+#st-mini-game-center .candy-alps .match3-candy-art::after {
+    left: 3%; top: 21%; width: 94%; height: 58%;
+    background:
+        linear-gradient(72deg, transparent 0 13%, var(--candy-color-mid) 13% 21%, transparent 21% 79%, var(--candy-color-mid) 79% 87%, transparent 87%),
+        linear-gradient(108deg, transparent 0 12%, rgba(255,255,255,.34) 12% 17%, transparent 17% 83%, rgba(255,255,255,.34) 83% 88%, transparent 88%);
+    clip-path: polygon(0 18%,18% 37%,18% 63%,0 82%,10% 50%,0 18%,100% 18%,82% 37%,82% 63%,100% 82%,90% 50%,100% 18%);
+    opacity: .9;
 }
 
-/* 不让不同糖型的底色被通用 i::after 规则覆盖。 */
-#st-mini-game-center .match3-cell.candy-star > i::after,
-#st-mini-game-center .match3-cell.candy-bear > i::after,
-#st-mini-game-center .match3-cell.candy-heart > i::after,
-#st-mini-game-center .match3-cell.candy-ring > i::after,
-#st-mini-game-center .match3-cell.candy-jelly > i::after {
-    content: none;
+/* 软糖熊熊：圆脑袋 + 两只耳朵 + 微微鼓起 */
+#st-mini-game-center .candy-bear .match3-candy-art::before {
+    left: 18%; top: 20%; width: 64%; height: 65%;
+    border-radius: 46% 46% 50% 50%;
+    background: radial-gradient(circle at 35% 22%, rgba(255,255,255,.32) 0 12%, transparent 13%), linear-gradient(145deg, var(--candy-color-hi), var(--candy-color-mid) 48%, var(--candy-color-low));
+    box-shadow: inset 0 -5px 5px rgba(65,38,48,.14), 0 3px 4px rgba(0,0,0,.14);
+}
+#st-mini-game-center .candy-bear .match3-candy-art::after {
+    left: 5%; top: 7%; width: 27%; height: 27%;
+    border-radius: 50%;
+    background: var(--candy-color-mid);
+    box-shadow: 66% 0 0 var(--candy-color-mid), inset 0 3px 3px rgba(255,255,255,.18);
 }
 
-/* 六种软糖统一使用当前方块的柔和色，同时让“糖”比底色亮一层。 */
-#st-mini-game-center .match3-cell > i::before {
-    background: linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--tile-hi) 34%, #fff 66%),
-        color-mix(in srgb, var(--tile-mid) 30%, #fff 70%) 52%,
-        color-mix(in srgb, var(--tile-low) 28%, #fff 72%)
-    );
+/* 软糖心形 */
+#st-mini-game-center .candy-heart .match3-candy-art::before {
+    inset: 4%;
+    clip-path: polygon(50% 94%,8% 49%,6% 31%,14% 16%,29% 11%,50% 29%,71% 11%,86% 16%,94% 31%,92% 49%);
+    background: linear-gradient(145deg, var(--candy-color-hi), var(--candy-color-mid) 48%, var(--candy-color-low));
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,.14));
+}
+#st-mini-game-center .candy-heart .match3-candy-art::after {
+    left: 20%; top: 17%; width: 38%; height: 14%;
+    border-radius: 50%;
+    background: rgba(255,255,255,.38);
+    transform: rotate(-12deg);
 }
 
-/* 颜色：莫兰迪糖色。 */
-#st-mini-game-center .match3-cell[data-color="pink"] { --tile-hi:#d8a5ac; --tile-mid:#c98e99; --tile-low:#b87984; }
-#st-mini-game-center .match3-cell[data-color="blue"] { --tile-hi:#abc4d7; --tile-mid:#91afc7; --tile-low:#7999b4; }
-#st-mini-game-center .match3-cell[data-color="yellow"] { --tile-hi:#e5d09b; --tile-mid:#d7bd78; --tile-low:#c6a861; }
-#st-mini-game-center .match3-cell[data-color="green"] { --tile-hi:#b2cda3; --tile-mid:#98ba8b; --tile-low:#7ea872; }
-#st-mini-game-center .match3-cell[data-color="purple"] { --tile-hi:#c0b3d7; --tile-mid:#aa97ca; --tile-low:#937db5; }
+/* 软糖环：真正的圆环糖，不是圆形图标 */
+#st-mini-game-center .candy-ring .match3-candy-art::before {
+    left: 9%; top: 9%; width: 82%; height: 82%;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 0 31%, var(--candy-color-hi) 32% 44%, var(--candy-color-mid) 45% 73%, var(--candy-color-low) 74% 100%);
+    box-shadow: inset 0 4px 4px rgba(255,255,255,.22), inset 0 -5px 5px rgba(60,35,50,.14), 0 3px 4px rgba(0,0,0,.13);
+}
+#st-mini-game-center .candy-ring .match3-candy-art::after {
+    left: 25%; top: 16%; width: 42%; height: 13%;
+    border-radius: 50%;
+    background: rgba(255,255,255,.36);
+    transform: rotate(-10deg);
+}
+
+/* 软糖果冻：胖胖的透明果冻块 */
+#st-mini-game-center .candy-jelly .match3-candy-art::before {
+    left: 18%; top: 8%; width: 64%; height: 84%;
+    border-radius: 46% 46% 43% 43% / 36% 36% 57% 57%;
+    background: linear-gradient(145deg, var(--candy-color-hi), var(--candy-color-mid) 50%, var(--candy-color-low));
+    box-shadow: inset 5px 0 0 rgba(255,255,255,.16), inset -5px -6px 0 rgba(60,35,50,.12), 0 3px 4px rgba(0,0,0,.14);
+}
+#st-mini-game-center .candy-jelly .match3-candy-art::after {
+    left: 27%; top: 14%; width: 36%; height: 17%;
+    border-radius: 50%;
+    background: rgba(255,255,255,.36);
+    transform: rotate(-8deg);
+}
+
+/* 颜色：现在这些颜色直接给“糖本体”，不会再给整个格子上底色。 */
+#st-mini-game-center .match3-cell[data-color="pink"] { --tile-hi:#e1afb6; --tile-mid:#cb8e99; --tile-low:#b87582; }
+#st-mini-game-center .match3-cell[data-color="blue"] { --tile-hi:#b6d0e3; --tile-mid:#94b5ce; --tile-low:#789db9; }
+#st-mini-game-center .match3-cell[data-color="yellow"] { --tile-hi:#ead39b; --tile-mid:#d8bc72; --tile-low:#bea35d; }
+#st-mini-game-center .match3-cell[data-color="green"] { --tile-hi:#bad5aa; --tile-mid:#99bb8b; --tile-low:#7ea971; }
+#st-mini-game-center .match3-cell[data-color="purple"] { --tile-hi:#c9bae1; --tile-mid:#ab96cb; --tile-low:#937ab5; }
+
+#st-mini-game-center .match3-cell.selected .match3-candy-art {
+    transform: translateY(-2px) scale(1.06);
+    filter: brightness(1.06) saturate(1.04) drop-shadow(0 5px 5px rgba(0,0,0,.19));
+}
 #st-mini-game-center .match3-cell.selected {
-    transform: translateY(-2px) scale(1.045);
     outline: 3px solid var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
-    outline-offset: 1px;
+    outline-offset: 2px;
+    border-radius: 22%;
 }
 #st-mini-game-center .match3-result { min-height: 24px; text-align:center; font-weight:700; color:var(--SmartThemeBodyColor, inherit); }
 @media (max-width:640px) {
-    #st-mini-game-center .match3-board { width:min(96vw,560px); padding:5px; gap:3px; border-radius:14px; }
+    #st-mini-game-center .match3-board { width:min(96vw,560px); padding:6px; gap:3px; border-radius:14px; }
 }

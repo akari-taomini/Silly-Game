@@ -963,12 +963,7 @@
     const MATCH3_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
     const MATCH3_TARGET = 1800;
     const MATCH3_MOVES = 30;
-    const MATCH3_ICONS = {
-        star: 'fa-star', alps: 'fa-circle', bear: 'fa-paw', heart: 'fa-heart', ring: 'fa-circle-notch', jelly: 'fa-capsules',
-        // 兼容旧存档的类型名，加载后会迁移到新的六种软糖。
-        gem: 'fa-star', leaf: 'fa-circle', bolt: 'fa-capsules', flower: 'fa-paw', moon: 'fa-circle-notch',
-    };
-    const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
+        const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
 
     function match3Clone(board) { return board.map(row => row.map(tile => tile ? { ...tile } : null)); }
     function match3RandomTile() {
@@ -1097,7 +1092,7 @@
                 if (t) {
                     cell.dataset.color = t.color;
                     cell.dataset.type = t.type;
-                    cell.innerHTML = `<i class="fa-solid ${MATCH3_ICONS[t.type]}" aria-hidden="true"></i>`;
+                    cell.innerHTML = '<span class="match3-candy-art" aria-hidden="true"></span>';
                     cell.addEventListener('click', () => select(r, c));
                 } else cell.disabled = true;
                 board.append(cell);
