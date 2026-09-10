@@ -7486,3 +7486,72 @@ n
 @media (max-width:640px) {
     #st-mini-game-center .match3-board { width:min(96vw,560px); padding:6px; gap:3px; border-radius:14px; }
 }
+
+
+/* ==================== 三消 1.8.0：关卡 + 道具 ==================== */
+#st-mini-game-center .match3-level-select { min-width: 92px; }
+#st-mini-game-center .match3-goals {
+    width: min(680px, 100%);
+    margin: 2px auto 7px;
+    padding: 7px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.08));
+}
+#st-mini-game-center .match3-goal-title { font-weight: 700; opacity: .72; }
+#st-mini-game-center .match3-goal-text { font-size: 13px; }
+#st-mini-game-center .match3-tools {
+    width: min(680px, 100%);
+    margin: 0 auto 6px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+#st-mini-game-center .match3-tool-btn {
+    min-height: 38px;
+    padding: 5px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+#st-mini-game-center .match3-tool-btn em {
+    min-width: 18px;
+    font-size: 11px;
+    opacity: .68;
+    font-style: normal;
+}
+#st-mini-game-center .match3-tool-btn.active {
+    outline: 2px solid var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, currentColor));
+    outline-offset: -2px;
+}
+#st-mini-game-center .match3-tool-btn:disabled { opacity: .45; cursor: default; }
+#st-mini-game-center .match3-tool-hint {
+    display: block;
+    min-height: 17px;
+    margin: 2px auto 7px;
+    text-align: center;
+    font-size: 11px;
+    opacity: .62;
+}
+/* 果冻目标提示：糖下面增加一层柔和透明薄膜。 */
+#st-mini-game-center .match3-cell[data-jelly="1"] .match3-candy-art::after {
+    content: '';
+    position: absolute;
+    inset: 2%;
+    border: 2px solid rgba(255,255,255,.58);
+    border-radius: 30%;
+    box-shadow: inset 0 0 7px rgba(255,255,255,.20), 0 0 4px rgba(255,255,255,.13);
+    pointer-events: none;
+    z-index: 4;
+}
+#st-mini-game-center .match3-cell[data-jelly="1"] .match3-candy-art { filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)) brightness(.99); }
+#st-mini-game-center .match3-result { min-height: 24px; text-align:center; font-weight:700; color:var(--SmartThemeBodyColor, inherit); }
+@media (max-width:640px) {
+    #st-mini-game-center .match3-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #st-mini-game-center .match3-goals { padding: 6px 8px; }
+}
