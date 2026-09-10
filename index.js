@@ -973,31 +973,36 @@
 
     // 关卡制：每关都有独立目标，后面继续加关卡只需要往这里添加配置即可。
     const MATCH3_LEVELS = [
-        { id:1,  moves:28, goals:{score:900} },
-        { id:2,  moves:28, goals:{score:1200} },
-        { id:3,  moves:27, goals:{score:1500, collect:{star:5}} },
-        { id:4,  moves:27, goals:{score:1700, collect:{alps:6}} },
-        { id:5,  moves:26, goals:{score:1900, collect:{bear:7}} },
-        { id:6,  moves:26, goals:{jelly:18} },
-        { id:7,  moves:25, goals:{jelly:22, collect:{heart:7}} },
-        { id:8,  moves:25, goals:{score:2200, jelly:15} },
-        { id:9,  moves:24, goals:{score:2400, collect:{ring:10}} },
-        { id:10, moves:24, goals:{jelly:28} },
-        { id:11, moves:23, goals:{score:2700, jelly:20, collect:{jelly:8}} },
-        { id:12, moves:23, goals:{score:3000, collect:{star:10, heart:10}} },
-        { id:13, moves:22, goals:{jelly:32, collect:{alps:10}} },
-        { id:14, moves:22, goals:{score:3400, collect:{bear:12}} },
-        { id:15, moves:21, goals:{score:3600, jelly:25} },
-        { id:16, moves:21, goals:{jelly:36, collect:{ring:12}} },
-        { id:17, moves:20, goals:{score:4000, jelly:30, collect:{heart:12}} },
-        { id:18, moves:20, goals:{score:4300, collect:{star:14, alps:14}} },
-        { id:19, moves:19, goals:{jelly:42} },
-        { id:20, moves:18, goals:{score:5000, jelly:36, collect:{bear:15}} },
-        { id:21, moves:18, goals:{score:5400, collect:{jelly:18, ring:18}} },
-        { id:22, moves:17, goals:{jelly:48, collect:{heart:16}} },
-        { id:23, moves:17, goals:{score:6000, jelly:42} },
-        { id:24, moves:16, goals:{score:6500, collect:{star:20, bear:20}} },
-        { id:25, moves:16, goals:{score:7000, jelly:54, collect:{alps:18}} },
+        { id:1,  moves:30, goals:{score:1200} },
+        { id:2,  moves:30, goals:{score:1500} },
+        { id:3,  moves:29, goals:{score:1800} },
+        { id:4,  moves:29, goals:{score:2100, collect:{star:5}} },
+        { id:5,  moves:28, goals:{score:2400, collect:{alps:7}} },
+        { id:6,  moves:28, goals:{score:2600, jelly:12} },
+        { id:7,  moves:27, goals:{score:2900, jelly:16, collect:{bear:8}} },
+        { id:8,  moves:27, goals:{score:3200, jelly:20, ice:6} },
+        { id:9,  moves:26, goals:{score:3500, ice:8, collect:{ring:10}} },
+        { id:10, moves:26, goals:{score:3800, jelly:20, ice:10} },
+        { id:11, moves:25, goals:{score:4100, ice:12, collect:{heart:12}} },
+        { id:12, moves:25, goals:{score:4400, jelly:22, ice:12, vine:5} },
+        { id:13, moves:24, goals:{score:4700, vine:8, collect:{star:12}} },
+        { id:14, moves:24, goals:{score:5000, jelly:26, vine:10, collect:{alps:12}} },
+        { id:15, moves:23, goals:{score:5300, ice:14, vine:10} },
+        { id:16, moves:23, goals:{score:5600, jelly:28, ice:16, vine:12} },
+        { id:17, moves:22, goals:{score:5900, ice:18, collect:{bear:15}} },
+        { id:18, moves:22, goals:{score:6200, jelly:30, vine:14, collect:{jelly:14}} },
+        { id:19, moves:21, goals:{score:6600, ice:18, vine:16} },
+        { id:20, moves:21, goals:{score:7000, jelly:34, ice:20, collect:{ring:18}} },
+        { id:21, moves:20, goals:{score:7400, vine:18, collect:{heart:18}} },
+        { id:22, moves:20, goals:{score:7800, jelly:38, ice:22, vine:18} },
+        { id:23, moves:19, goals:{score:8200, ice:24, collect:{star:20, alps:18}} },
+        { id:24, moves:19, goals:{score:8600, jelly:42, vine:20, collect:{bear:20}} },
+        { id:25, moves:18, goals:{score:9000, ice:26, vine:22} },
+        { id:26, moves:18, goals:{score:9500, jelly:46, ice:28, vine:22} },
+        { id:27, moves:17, goals:{score:10000, ice:30, collect:{ring:24, heart:20}} },
+        { id:28, moves:17, goals:{score:10600, jelly:50, vine:26, collect:{jelly:22}} },
+        { id:29, moves:16, goals:{score:11200, ice:32, vine:28, collect:{star:25}} },
+        { id:30, moves:15, goals:{score:12000, jelly:54, ice:34, vine:30, collect:{alps:25}} },
     ];
     const MATCH3_TOOLS_DEFAULT = { hammer:3, shuffle:2, colorClear:1, extraMoves:2 };
 
@@ -1061,6 +1066,7 @@
             const nr=r+dr,nc=c+dc; if(nr>=MATCH3_SIZE||nc>=MATCH3_SIZE)continue;
             const a=board[r][c],b=board[nr][nc];
             if (!a||!b) continue;
+            if (a.ice || a.vine || b.ice || b.vine) continue;
             if (a.special || b.special) return true;
             const next=match3Clone(board); [next[r][c],next[nr][nc]]=[next[nr][nc],next[r][c]];
             if(match3FindMatches(next).length)return true;
@@ -1084,7 +1090,7 @@
         if(!tile)return null;
         const type=MATCH3_TYPES.includes(tile.type)?tile.type:(MATCH3_TYPE_MIGRATION[tile.type]||MATCH3_TYPES[Math.floor(Math.random()*MATCH3_TYPES.length)]);
         const special=['row','col','bomb','color'].includes(tile.special)?tile.special:null;
-        return {type,color:MATCH3_GUMMIES[type].color,special};
+        return {type,color:MATCH3_GUMMIES[type].color,special,ice:tile.ice?1:0,vine:tile.vine?1:0};
     }
     function match3NormalizeStats(g){
         g.score=Math.max(0,Number(g.score)||0); g.moves=Math.max(0,Number(g.moves)||0);
@@ -1094,6 +1100,8 @@
         g.collected=g.collected&&typeof g.collected==='object'?g.collected:{};
         MATCH3_TYPES.forEach(t=>g.collected[t]=Math.max(0,Number(g.collected[t])||0));
         g.jellyCleared=Math.max(0,Number(g.jellyCleared)||0);
+        g.iceBroken=Math.max(0,Number(g.iceBroken)||0);
+        g.vineBroken=Math.max(0,Number(g.vineBroken)||0);
         g.selected=null; g.tool=null;
         g.tools={...MATCH3_TOOLS_DEFAULT,...(g.tools&&typeof g.tools==='object'?g.tools:{})};
         Object.keys(g.tools).forEach(k=>g.tools[k]=Math.max(0,Number(g.tools[k])||0));
@@ -1117,17 +1125,23 @@
         const level=match3LevelById(levelId);
         const jellyGoal=Number(level.goals.jelly)||0;
         const board=match3GenerateBoard();
-        if(jellyGoal){
-            const cells=[]; for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)cells.push([r,c]);
-            for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
-            for(let i=0;i<Math.min(jellyGoal,cells.length);i++){const [r,c]=cells[i];board[r][c].jelly=true;}
-        }
-        return {board,level:level.id,unlockedLevel:Math.max(level.id,unlockedLevel),stars,score:0,moves:0,maxMoves:level.moves,target:level.goals.score||0,over:false,won:false,selected:null,tool:null,collected:Object.fromEntries(MATCH3_TYPES.map(t=>[t,0])),jellyCleared:0,tools:{...MATCH3_TOOLS_DEFAULT}};
+        const cells=[]; for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)cells.push([r,c]);
+        for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+        if(jellyGoal) for(let i=0;i<Math.min(jellyGoal,cells.length);i++){const [r,c]=cells[i];board[r][c].jelly=true;}
+        const used=new Set();
+        const obstacleCells=cells.filter(([r,c])=>!board[r][c].jelly);
+        const iceGoal=Number(level.goals.ice)||0, vineGoal=Number(level.goals.vine)||0;
+        for(let i=0;i<Math.min(iceGoal,obstacleCells.length);i++){const [r,c]=obstacleCells[i];board[r][c].ice=1;used.add(`${r},${c}`);}
+        let vinePlaced=0;
+        for(const [r,c] of obstacleCells.slice(iceGoal)){if(vinePlaced>=vineGoal)break;const key=`${r},${c}`;if(used.has(key))continue;board[r][c].vine=1;used.add(key);vinePlaced++;}
+        return {board,level:level.id,unlockedLevel:Math.max(level.id,unlockedLevel),stars,score:0,moves:0,maxMoves:level.moves,target:level.goals.score||0,over:false,won:false,selected:null,tool:null,collected:Object.fromEntries(MATCH3_TYPES.map(t=>[t,0])),jellyCleared:0,iceBroken:0,vineBroken:0,tools:{...MATCH3_TOOLS_DEFAULT}};
     }
     function match3GoalText(g){
         const goals=match3LevelById(g.level).goals, parts=[];
         if(goals.score)parts.push(`得分 ${g.score}/${goals.score}`);
         if(goals.jelly)parts.push(`果冻 ${Math.min(g.jellyCleared,goals.jelly)}/${goals.jelly}`);
+        if(goals.ice)parts.push(`冰块 ${Math.min(g.iceBroken||0,goals.ice)}/${goals.ice}`);
+        if(goals.vine)parts.push(`藤蔓 ${Math.min(g.vineBroken||0,goals.vine)}/${goals.vine}`);
         if(goals.collect)Object.entries(goals.collect).forEach(([type,n])=>parts.push(`${MATCH3_GUMMIES[type].name.replace('软糖','')} ${Math.min(g.collected[type]||0,n)}/${n}`));
         return parts.join(' · ');
     }
@@ -1135,6 +1149,8 @@
         const goals=match3LevelById(g.level).goals;
         if(goals.score&&g.score<goals.score)return false;
         if(goals.jelly&&g.jellyCleared<goals.jelly)return false;
+        if(goals.ice&&(g.iceBroken||0)<goals.ice)return false;
+        if(goals.vine&&(g.vineBroken||0)<goals.vine)return false;
         if(goals.collect)for(const [type,n] of Object.entries(goals.collect))if((g.collected[type]||0)<n)return false;
         return true;
     }
@@ -1155,14 +1171,39 @@
         return g.over;
     }
     function match3CollectAndClear(g,cells){
+        const clearSet=new Set(cells.map(([r,c])=>`${r},${c}`));
+        const actual=[];
+        // 藤蔓：命中或相邻消除都会被破坏，但不会吞掉下面的糖。
+        for(const key of clearSet){
+            const [r,c]=key.split(',').map(Number),tile=g.board[r]?.[c];
+            if(!tile)continue;
+            if(tile.ice){tile.ice=0;g.iceBroken=(g.iceBroken||0)+1;continue;}
+            if(tile.vine){tile.vine=0;g.vineBroken=(g.vineBroken||0)+1;continue;}
+            actual.push([r,c]);
+        }
+        const neighbors=new Set();
         for(const [r,c] of cells){
+            for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+                if(!dr&&!dc)continue;
+                const nr=r+dr,nc=c+dc;
+                if(nr>=0&&nr<MATCH3_SIZE&&nc>=0&&nc<MATCH3_SIZE)neighbors.add(`${nr},${nc}`);
+            }
+        }
+        for(const key of neighbors){
+            if(clearSet.has(key))continue;
+            const [r,c]=key.split(',').map(Number),tile=g.board[r]?.[c];
+            if(tile?.vine){tile.vine=0;g.vineBroken=(g.vineBroken||0)+1;}
+        }
+        for(const [r,c] of actual){
             const tile=g.board[r]?.[c];
             if(!tile)continue;
             g.collected[tile.type]=(g.collected[tile.type]||0)+1;
             if(tile.jelly)g.jellyCleared++;
             g.board[r][c]=null;
         }
+        return actual.length;
     }
+
     function match3Activate(g,r,c,clearSet,queue){
         if(r<0||r>=MATCH3_SIZE||c<0||c>=MATCH3_SIZE)return;
         const tile=g.board[r][c]; if(!tile)return;
@@ -1260,15 +1301,6 @@
         }
         g.board=match3GenerateBoard();
     }
-    function match3ShuffleBoard(g){
-        const tiles=g.board.flat();
-        for(let attempt=0;attempt<120;attempt++){
-            for(let i=tiles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}
-            let k=0;for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)g.board[r][c]=tiles[k++];
-            if(!match3HasInitialMatch(g.board)&&match3HasMove(g.board))return;
-        }
-        g.board=match3GenerateBoard();
-    }
     function renderMatch3(body){
         cleanupGame();
         state.match3=match3Load()||match3New(1,1,[]);match3Save(state.match3);
@@ -1276,11 +1308,14 @@
         const levelSelect=el('select',{class:'stgc-select match3-level-select','aria-label':'选择三消关卡'});
         const toolHint=el('span',{class:'match3-tool-hint'});
         const reset=el('button',{class:'stgc-btn',type:'button',text:'重开本关'});
+        const nextLevel=el('button',{class:'stgc-btn match3-next-level',type:'button',text:'下一关'});
+        nextLevel.hidden=true;
         top.append(info,levelSelect,reset);
 
         const goals=el('div',{class:'match3-goals'});
         const board=el('div',{class:'match3-board',role:'grid','aria-label':'三消棋盘'});
         const result=el('div',{class:'match3-result'});
+        result.append(nextLevel);
         const tools=el('div',{class:'match3-tools'});
         const toolDefs=[
             ['hammer','锤子','fa-hammer'],['shuffle','洗牌','fa-shuffle'],['colorClear','清色','fa-wand-magic-sparkles'],['extraMoves','+5 步','fa-plus']
@@ -1324,10 +1359,15 @@
             for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
                 const t=g.board[r][c];
                 const cell=el('button',{class:`match3-cell candy-${t?.type||'empty'}${g.selected?.r===r&&g.selected?.c===c?' selected':''}`,type:'button'});
-                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
+                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';if(t.ice)cell.dataset.ice='1';if(t.vine)cell.dataset.vine='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
                 else cell.disabled=true;board.append(cell);
             }
-            result.textContent=g.won?`本关获得 ${match3StarFor(g)} 星 · 下一关已${g.unlockedLevel>g.level?'解锁':'开放'}`:g.over?'本关没有完成目标，可以重开本关或换关':'选择两个相邻软糖交换';
+            result.firstChild && result.removeChild(result.firstChild);
+            const message=document.createElement('span');
+            message.textContent=g.won?`🎉 第 ${g.level} 关通关！获得 ${match3StarFor(g)} 星`:g.over?'本关没有完成目标，可以重开本关':'选择两个相邻软糖交换';
+            result.insertBefore(message,nextLevel);
+            nextLevel.hidden=!(g.won && g.level<MATCH3_LEVELS.length);
+            nextLevel.textContent=g.level<MATCH3_LEVELS.length?`下一关 · 第 ${g.level+1} 关`:'已通关全部关卡';
         }
         function select(r,c){
             const g=state.match3;if(g.over||!g.board[r][c])return;
@@ -1340,6 +1380,7 @@
             if(g.selected.r===r&&g.selected.c===c){g.selected=null;draw();return;}
             const a=g.selected,adjacent=Math.abs(a.r-r)+Math.abs(a.c-c)===1;if(!adjacent){g.selected={r,c};draw();return;}
             const first=g.board[a.r][a.c],second=g.board[r][c];
+            if(first?.ice||first?.vine||second?.ice||second?.vine){g.selected={r,c};draw();return;}
             if(first?.special||second?.special){
                 if(match3SwapSpecialCombo(g,a,{r,c})){g.moves++;g.selected=null;match3FinishCheck(g);match3Save(g);draw();return;}
             }
@@ -1351,6 +1392,14 @@
             else if(specialA)create={r:a.r,c:a.c,special:specialA};
             g.board=next;g.moves++;g.selected=null;match3Resolve(g,[a,{r,c}],create);match3Save(g);draw();
         }
+        nextLevel.addEventListener('click',()=>{
+            const g=state.match3;
+            if(!g.won || g.level>=MATCH3_LEVELS.length)return;
+            const stars=g.stars?.slice()||[];
+            state.match3=match3New(g.level+1,Math.max(g.unlockedLevel,g.level+1),stars);
+            match3Save(state.match3);
+            draw();
+        });
         levelSelect.addEventListener('change',()=>{
             const id=Number(levelSelect.value);const g=state.match3;const currentStars=g.stars?.slice()||[];state.match3=match3New(id,Math.max(g.unlockedLevel,id),currentStars);match3Save(state.match3);draw();
         });
