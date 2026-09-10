@@ -958,19 +958,24 @@
     const MATCH3_KEY = 'silly-game:match3:v2';
     const MATCH3_LEGACY_KEY = 'silly-game:match3:v1';
     const MATCH3_SIZE = 8;
-    // 六种软糖：星星、阿尔卑斯、熊熊、心形、圆环、果冻。
-    const MATCH3_TYPES = ['star', 'alps', 'bear', 'heart', 'ring', 'jelly'];
-    const MATCH3_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
+    // 六种软糖 = 六种固定元素；每种元素永远只有自己的固定颜色，不再出现 6×5=30 种组合。
+    const MATCH3_GUMMIES = {
+        star:   { name: '软糖星星', color: 'pink' },
+        alps:   { name: '软糖阿尔卑斯', color: 'yellow' },
+        bear:   { name: '软糖熊熊', color: 'orange' },
+        heart:  { name: '软糖心形', color: 'red' },
+        ring:   { name: '软糖环', color: 'blue' },
+        jelly:  { name: '软糖果冻', color: 'green' },
+    };
+    const MATCH3_TYPES = Object.keys(MATCH3_GUMMIES);
     const MATCH3_TARGET = 1800;
     const MATCH3_MOVES = 30;
-        const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
+    const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
 
     function match3Clone(board) { return board.map(row => row.map(tile => tile ? { ...tile } : null)); }
     function match3RandomTile() {
-        return {
-            type: MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)],
-            color: MATCH3_COLORS[Math.floor(Math.random() * MATCH3_COLORS.length)],
-        };
+        const type = MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)];
+        return { type, color: MATCH3_GUMMIES[type].color };
     }
     function match3FindMatches(board) {
         const found = new Set();
@@ -980,7 +985,7 @@
                 const t = board[r][start];
                 if (!t) { start++; continue; }
                 let end = start + 1;
-                while (end < MATCH3_SIZE && board[r][end] && board[r][end].type === t.type && board[r][end].color === t.color) end++;
+                while (end < MATCH3_SIZE && board[r][end] && board[r][end].type === t.type) end++;
                 if (end - start >= 3) for (let c = start; c < end; c++) found.add(`${r},${c}`);
                 start = end;
             }
@@ -991,7 +996,7 @@
                 const t = board[start][c];
                 if (!t) { start++; continue; }
                 let end = start + 1;
-                while (end < MATCH3_SIZE && board[end][c] && board[end][c].type === t.type && board[end][c].color === t.color) end++;
+                while (end < MATCH3_SIZE && board[end][c] && board[end][c].type === t.type) end++;
                 if (end - start >= 3) for (let r = start; r < end; r++) found.add(`${r},${c}`);
                 start = end;
             }
@@ -1001,9 +1006,11 @@
     function match3HasInitialMatch(board) { return match3FindMatches(board).length > 0; }
     function match3GenerateBoard() {
         let board;
+        let attempts = 0;
         do {
             board = Array.from({ length: MATCH3_SIZE }, () => Array.from({ length: MATCH3_SIZE }, () => match3RandomTile()));
-        } while (match3HasInitialMatch(board));
+            attempts++;
+        } while ((match3HasInitialMatch(board) || !match3HasMove(board)) && attempts < 400);
         return board;
     }
     function match3HasMove(board) {
@@ -1031,10 +1038,7 @@
     function match3NormalizeTile(tile) {
         if (!tile) return null;
         const type = MATCH3_TYPES.includes(tile.type) ? tile.type : (MATCH3_TYPE_MIGRATION[tile.type] || MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)]);
-        return {
-            type,
-            color: MATCH3_COLORS.includes(tile.color) ? tile.color : MATCH3_COLORS[Math.floor(Math.random() * MATCH3_COLORS.length)],
-        };
+        return { type, color: MATCH3_GUMMIES[type].color };
     }
     function match3Load() {
         try {
@@ -1078,7 +1082,7 @@
         const reset = el('button', { class: 'stgc-btn', type: 'button', text: '重新开始' });
         top.append(info, shuffle, reset);
         const board = el('div', { class: 'match3-board', role: 'grid', 'aria-label': '三消棋盘' });
-        const hint = el('div', { class: 'stgc-game-hint', text: `交换相邻方块，三个以上相同图案连在一起即可消除。目标 ${MATCH3_TARGET} 分。` });
+        const hint = el('div', { class: 'stgc-game-hint', text: `交换相邻软糖，三个以上相同软糖连在一起即可消除。每种软糖颜色固定，不会出现同一种软糖多种颜色。目标 ${MATCH3_TARGET} 分。` });
         const result = el('div', { class: 'match3-result' });
         body.append(top, board, result, hint);
         function draw() {
@@ -1090,8 +1094,8 @@
                 const t = g.board[r][c];
                 const cell = el('button', { class: `match3-cell candy-${t?.type || 'empty'}${g.selected?.r === r && g.selected?.c === c ? ' selected' : ''}`, type: 'button' });
                 if (t) {
-                    cell.dataset.color = t.color;
                     cell.dataset.type = t.type;
+                    cell.dataset.color = MATCH3_GUMMIES[t.type].color;
                     cell.innerHTML = '<span class="match3-candy-art" aria-hidden="true"></span>';
                     cell.addEventListener('click', () => select(r, c));
                 } else cell.disabled = true;

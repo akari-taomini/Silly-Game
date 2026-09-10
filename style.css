@@ -7462,12 +7462,16 @@ n
     transform: rotate(-8deg);
 }
 
-/* 颜色：现在这些颜色直接给“糖本体”，不会再给整个格子上底色。 */
-#st-mini-game-center .match3-cell[data-color="pink"] { --tile-hi:#e1afb6; --tile-mid:#cb8e99; --tile-low:#b87582; }
-#st-mini-game-center .match3-cell[data-color="blue"] { --tile-hi:#b6d0e3; --tile-mid:#94b5ce; --tile-low:#789db9; }
-#st-mini-game-center .match3-cell[data-color="yellow"] { --tile-hi:#ead39b; --tile-mid:#d8bc72; --tile-low:#bea35d; }
-#st-mini-game-center .match3-cell[data-color="green"] { --tile-hi:#bad5aa; --tile-mid:#99bb8b; --tile-low:#7ea971; }
-#st-mini-game-center .match3-cell[data-color="purple"] { --tile-hi:#c9bae1; --tile-mid:#ab96cb; --tile-low:#937ab5; }
+/* 六种软糖固定颜色：颜色与元素绑定，绝不随机混色。 */
+#st-mini-game-center .candy-star .match3-candy-art { --tile-hi:#e6a7b2; --tile-mid:#d58c99; --tile-low:#b96f7d; }
+#st-mini-game-center .candy-alps .match3-candy-art { --tile-hi:#f1d994; --tile-mid:#dfc06d; --tile-low:#c5a451; }
+#st-mini-game-center .candy-bear .match3-candy-art { --tile-hi:#efbf8f; --tile-mid:#df9b67; --tile-low:#bd7446; }
+#st-mini-game-center .candy-heart .match3-candy-art { --tile-hi:#e6a2a5; --tile-mid:#d77c83; --tile-low:#b85b65; }
+#st-mini-game-center .candy-ring .match3-candy-art { --tile-hi:#a9c7dc; --tile-mid:#8eafc9; --tile-low:#6f93ad; }
+#st-mini-game-center .candy-jelly .match3-candy-art { --tile-hi:#b9d4aa; --tile-mid:#9dbd8e; --tile-low:#7fa673; }
+
+/* 禁止旧版“按颜色数据上色”的规则继续影响三消。 */
+#st-mini-game-center .match3-cell[data-color] { --legacy-tile-hi: initial; }
 
 #st-mini-game-center .match3-cell.selected .match3-candy-art {
     transform: translateY(-2px) scale(1.06);
