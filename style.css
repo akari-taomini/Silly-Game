@@ -7152,24 +7152,43 @@ n
     min-width: clamp(86px, 13vw, 112px);
 }
 
+#st-mini-game-center .uno-top-area {
+    grid-area: top;
+    position: relative;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    min-height: 0;
+}
+
+#st-mini-game-center .uno-ai-top {
+    width: 100%;
+}
+
 #st-mini-game-center .uno-color-picker {
-    /* 放到两张核心牌下方，不再盖住牌面和 AI 信息。 */
-    position: absolute;
-    left: 50%;
-    top: calc(50% + 94px);
-    transform: translate(-50%, 0);
+    position: static;
+    transform: none;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(4, minmax(48px, 1fr));
-    gap: 6px;
-    width: min(270px, calc(100% - 24px));
-    padding: 7px;
-    border-radius: 10px;
+    grid-template-columns: repeat(4, minmax(42px, 1fr));
+    gap: 5px;
+    width: min(250px, 100%);
+    padding: 6px;
+    border-radius: 9px;
     background: color-mix(in srgb, var(--SmartThemeBlurTintColor, var(--stgc-browser-surface)) 94%, transparent);
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.32));
-    box-shadow: 0 7px 18px rgba(0,0,0,.16);
+    box-shadow: 0 7px 18px rgba(0,0,0,.13);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+}
+
+#st-mini-game-center .uno-card.unplayable {
+    opacity: .58;
+    filter: saturate(.62);
+    cursor: not-allowed;
 }
 
 #st-mini-game-center .uno-color-btn {
@@ -7217,7 +7236,7 @@ n
     }
     #st-mini-game-center .uno-card strong { font-size: 28px; }
     #st-mini-game-center .uno-color-picker {
-        width: min(90vw, 250px);
+        width: min(92vw, 250px);
         grid-template-columns: repeat(2, 1fr);
     }
 }
@@ -7272,10 +7291,9 @@ n
 }
 /* 选色面板改成轻量浮层，不压住整副牌。 */
 #st-mini-game-center .uno-color-picker {
-    bottom: 18%;
-    padding: 8px;
-    border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(0,0,0,.2);
+    padding: 6px;
+    border-radius: 9px;
+    box-shadow: 0 7px 18px rgba(0,0,0,.13);
 }
 #st-mini-game-center .uno-color-picker::before {
     content: '选择颜色';
