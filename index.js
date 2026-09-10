@@ -972,41 +972,40 @@
     const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
 
     // 关卡制：每关都有独立目标，后面继续加关卡只需要往这里添加配置即可。
+    const MATCH3_SHAPES = [
+        ['11111111','11111111','11111111','11111111','11111111','11111111','11111111','11111111'],
+        ['00111100','01111110','11111111','11111111','11111111','11111111','01111110','00111100'],
+        ['11111111','11111111','11100111','11100111','11100111','11100111','11111111','11111111'],
+        ['11111111','11000011','11000011','11111111','11111111','11000011','11000011','11111111'],
+        ['11100111','11100111','11111111','11111111','11111111','11111111','11100111','11100111'],
+        ['11111111','10111101','11111111','11111111','11111111','11111111','10111101','11111111'],
+        ['00111100','01111110','11100111','11000011','11000011','11100111','01111110','00111100'],
+        ['11111111','11111111','11001111','10000111','10000111','11001111','11111111','11111111'],
+        ['11111111','11011111','10000111','10000111','10000111','10000111','11011111','11111111'],
+        ['00111100','01111110','11111111','11011011','11011011','11111111','01111110','00111100'],
+    ];
     const MATCH3_LEVELS = [
-        { id:1,  moves:30, goals:{score:1200} },
-        { id:2,  moves:30, goals:{score:1500} },
-        { id:3,  moves:29, goals:{score:1800} },
-        { id:4,  moves:29, goals:{score:2100, collect:{star:5}} },
-        { id:5,  moves:28, goals:{score:2400, collect:{alps:7}} },
-        { id:6,  moves:28, goals:{score:2600, jelly:12} },
-        { id:7,  moves:27, goals:{score:2900, jelly:16, collect:{bear:8}} },
-        { id:8,  moves:27, goals:{score:3200, jelly:20, ice:6} },
-        { id:9,  moves:26, goals:{score:3500, ice:8, collect:{ring:10}} },
-        { id:10, moves:26, goals:{score:3800, jelly:20, ice:10} },
-        { id:11, moves:25, goals:{score:4100, ice:12, collect:{heart:12}} },
-        { id:12, moves:25, goals:{score:4400, jelly:22, ice:12, vine:5} },
-        { id:13, moves:24, goals:{score:4700, vine:8, collect:{star:12}} },
-        { id:14, moves:24, goals:{score:5000, jelly:26, vine:10, collect:{alps:12}} },
-        { id:15, moves:23, goals:{score:5300, ice:14, vine:10} },
-        { id:16, moves:23, goals:{score:5600, jelly:28, ice:16, vine:12} },
-        { id:17, moves:22, goals:{score:5900, ice:18, collect:{bear:15}} },
-        { id:18, moves:22, goals:{score:6200, jelly:30, vine:14, collect:{jelly:14}} },
-        { id:19, moves:21, goals:{score:6600, ice:18, vine:16} },
-        { id:20, moves:21, goals:{score:7000, jelly:34, ice:20, collect:{ring:18}} },
-        { id:21, moves:20, goals:{score:7400, vine:18, collect:{heart:18}} },
-        { id:22, moves:20, goals:{score:7800, jelly:38, ice:22, vine:18} },
-        { id:23, moves:19, goals:{score:8200, ice:24, collect:{star:20, alps:18}} },
-        { id:24, moves:19, goals:{score:8600, jelly:42, vine:20, collect:{bear:20}} },
-        { id:25, moves:18, goals:{score:9000, ice:26, vine:22} },
-        { id:26, moves:18, goals:{score:9500, jelly:46, ice:28, vine:22} },
-        { id:27, moves:17, goals:{score:10000, ice:30, collect:{ring:24, heart:20}} },
-        { id:28, moves:17, goals:{score:10600, jelly:50, vine:26, collect:{jelly:22}} },
-        { id:29, moves:16, goals:{score:11200, ice:32, vine:28, collect:{star:25}} },
-        { id:30, moves:15, goals:{score:12000, jelly:54, ice:34, vine:30, collect:{alps:25}} },
+        {id:1,moves:30,shape:0,goals:{score:2400}}, {id:2,moves:30,shape:1,goals:{score:3000}},
+        {id:3,moves:29,shape:2,goals:{score:3600}}, {id:4,moves:29,shape:3,goals:{score:4300,collect:{star:5}}},
+        {id:5,moves:28,shape:4,goals:{score:5000,collect:{alps:7}}}, {id:6,moves:28,shape:5,goals:{score:5600,jelly:12}},
+        {id:7,moves:27,shape:6,goals:{score:6300,jelly:16,collect:{bear:8}}}, {id:8,moves:27,shape:7,goals:{score:7000,jelly:20,ice:6}},
+        {id:9,moves:26,shape:8,goals:{score:7600,ice:8,collect:{ring:10}}}, {id:10,moves:26,shape:9,goals:{score:8300,jelly:20,ice:10}},
+        {id:11,moves:25,shape:1,goals:{score:9000,ice:12,collect:{heart:12}}}, {id:12,moves:25,shape:2,goals:{score:9700,jelly:22,ice:12,vine:5}},
+        {id:13,moves:24,shape:3,goals:{score:10400,vine:8,collect:{star:12}}}, {id:14,moves:24,shape:4,goals:{score:11200,jelly:26,vine:10,collect:{alps:12}}},
+        {id:15,moves:23,shape:5,goals:{score:12000,ice:14,vine:10}}, {id:16,moves:23,shape:6,goals:{score:12800,jelly:28,ice:16,vine:12}},
+        {id:17,moves:22,shape:7,goals:{score:13700,ice:18,collect:{bear:15}}}, {id:18,moves:22,shape:8,goals:{score:14600,jelly:30,vine:14,collect:{jelly:14}}},
+        {id:19,moves:21,shape:9,goals:{score:15500,ice:18,vine:16}}, {id:20,moves:21,shape:0,goals:{score:16500,jelly:34,ice:20,collect:{ring:18}}},
+        {id:21,moves:20,shape:1,goals:{score:17500,vine:18,collect:{heart:18}}}, {id:22,moves:20,shape:2,goals:{score:18500,jelly:38,ice:22,vine:18}},
+        {id:23,moves:19,shape:3,goals:{score:19600,ice:24,collect:{star:20,alps:18}}}, {id:24,moves:19,shape:4,goals:{score:20700,jelly:42,vine:20,collect:{bear:20}}},
+        {id:25,moves:18,shape:5,goals:{score:21900,ice:26,vine:22}}, {id:26,moves:18,shape:6,goals:{score:23100,jelly:46,ice:28,vine:22}},
+        {id:27,moves:17,shape:7,goals:{score:24300,ice:30,collect:{ring:24,heart:20}}}, {id:28,moves:17,shape:8,goals:{score:25500,jelly:50,ice:32,vine:26,collect:{jelly:22}}},
+        {id:29,moves:16,shape:9,goals:{score:26800,ice:34,vine:28,collect:{star:25}}}, {id:30,moves:15,shape:0,goals:{score:28200,jelly:56,ice:36,vine:30,collect:{alps:25}}},
     ];
     const MATCH3_TOOLS_DEFAULT = { hammer:3, shuffle:2, colorClear:1, extraMoves:2 };
 
     function match3LevelById(id) { return MATCH3_LEVELS[Math.max(1, Math.min(MATCH3_LEVELS.length, Number(id)||1)) - 1]; }
+    function match3ShapeByLevel(id) { return MATCH3_SHAPES[match3LevelById(id).shape || 0]; }
+    function match3IsOpen(level,r,c) { return match3ShapeByLevel(level)[r]?.[c] === '1'; }
     function match3Clone(board) { return board.map(row => row.map(tile => tile ? { ...tile } : null)); }
     function match3RandomTile() {
         const type = MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)];
@@ -1073,16 +1072,27 @@
         }
         return false;
     }
-    function match3GenerateBoard(){
-        let board,attempts=0;
-        do{board=Array.from({length:MATCH3_SIZE},()=>Array.from({length:MATCH3_SIZE},()=>match3RandomTile()));attempts++;}
-        while((match3HasInitialMatch(board)||!match3HasMove(board))&&attempts<600);
+    function match3GenerateBoard(levelId=1){
+        const shape=match3ShapeByLevel(levelId), active=[];
+        for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)if(shape[r]?.[c]==='1')active.push([r,c]);
+        for(let attempt=0;attempt<1500;attempt++){
+            const board=Array.from({length:MATCH3_SIZE},()=>Array(MATCH3_SIZE).fill(null));
+            for(const [r,c] of active)board[r][c]=match3RandomTile();
+            if(!match3HasInitialMatch(board)&&match3HasMove(board))return board;
+        }
+        const board=Array.from({length:MATCH3_SIZE},()=>Array(MATCH3_SIZE).fill(null));
+        for(const [r,c] of active)board[r][c]=match3RandomTile();
         return board;
     }
-    function match3Collapse(board){
+    function match3Collapse(board,levelId=1){
+        const shape=match3ShapeByLevel(levelId);
         for(let c=0;c<MATCH3_SIZE;c++){
-            const alive=[]; for(let r=MATCH3_SIZE-1;r>=0;r--)if(board[r][c])alive.push(board[r][c]);
-            for(let r=MATCH3_SIZE-1,i=0;r>=0;r--,i++)board[r][c]=alive[i]||match3RandomTile();
+            const openRows=[];
+            for(let r=MATCH3_SIZE-1;r>=0;r--)if(shape[r]?.[c]==='1')openRows.push(r);
+            const alive=[];
+            for(const r of openRows)if(board[r][c])alive.push(board[r][c]);
+            for(let i=0;i<openRows.length;i++)board[openRows[i]][c]=alive[i]||match3RandomTile();
+            for(let r=0;r<MATCH3_SIZE;r++)if(shape[r]?.[c]!=='1')board[r][c]=null;
         }
     }
     function match3Save(g){try{localStorage.setItem(MATCH3_KEY,JSON.stringify(g));}catch{}}
@@ -1114,8 +1124,8 @@
             if(!g)g=JSON.parse(localStorage.getItem(MATCH3_LEGACY_KEY)||'null');
             if(!g)g=JSON.parse(localStorage.getItem(MATCH3_OLD_KEY)||'null');
             if(!g||!Array.isArray(g.board)||g.board.length!==MATCH3_SIZE||!g.board.every(r=>Array.isArray(r)&&r.length===MATCH3_SIZE))return null;
-            g.board=g.board.map(r=>r.map(match3NormalizeTile));
             if(!g.level)g.level=1;
+            g.board=g.board.map((r,ri)=>r.map((tile,ci)=>match3IsOpen(g.level,ri,ci)?match3NormalizeTile(tile):null));
             if(g.maxMoves&&!g.unlockedLevel)g.unlockedLevel=1;
             g.over=!!g.over; g.won=!!g.won;
             return match3NormalizeStats(g);
@@ -1124,8 +1134,8 @@
     function match3New(levelId=1, unlockedLevel=1, stars=[]){
         const level=match3LevelById(levelId);
         const jellyGoal=Number(level.goals.jelly)||0;
-        const board=match3GenerateBoard();
-        const cells=[]; for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)cells.push([r,c]);
+        const board=match3GenerateBoard(level.id);
+        const cells=[]; for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)if(match3IsOpen(level.id,r,c))cells.push([r,c]);
         for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
         if(jellyGoal) for(let i=0;i<Math.min(jellyGoal,cells.length);i++){const [r,c]=cells[i];board[r][c].jelly=true;}
         const used=new Set();

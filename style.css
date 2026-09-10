@@ -7646,3 +7646,29 @@ n
         margin: 5px 0 0;
     }
 }
+
+/* 三消 1.8.3：挖空棋盘与明确的通关推进提示 */
+#st-mini-game-center .match3-cell.candy-empty {
+    visibility: hidden;
+    pointer-events: none;
+}
+#st-mini-game-center .match3-result.is-won {
+    min-height: 62px;
+    margin: 10px auto;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.3));
+    border-radius: 10px;
+    background: var(--SmartThemeBlurTintColor, rgba(127,127,127,.12));
+    box-shadow: 0 4px 18px rgba(0,0,0,.1);
+}
+#st-mini-game-center .match3-result.is-won .match3-next-level {
+    min-width: 170px;
+    min-height: 40px;
+    font-size: 14px;
+    font-weight: 700;
+}
