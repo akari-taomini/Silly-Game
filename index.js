@@ -4748,15 +4748,39 @@
     }
     function renderXiangqi(body){
         state.xiangqi=xqLoad()||xqNew();xqSave();
-        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
-        const mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
+        const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
         difficulty.append(el('option',{value:'easy',text:'简单'}),el('option',{value:'normal',text:'普通'}),el('option',{value:'hard',text:'困难'}));
         const palette=el('select',{class:'stgc-select','aria-label':'中国象棋棋盘配色'});
         [['qingstone','青石'],['daigreen','黛绿'],['warmwood','暖木'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
         const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
         toolbar.append(status,mode,difficulty,palette,undo,reset);
         const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
-        const draw=()=>{const g=state.xiangqi;board.dataset.palette=g.palette||'qingstone';board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');mode.textContent=g.mode==='ai'?'人机对战':'双人对战';difficulty.value=g.difficulty||'normal';palette.value=g.palette||'qingstone';difficulty.disabled=g.mode!=='ai';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(g.selected&&xqLegal(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y)){c.classList.add('legal');c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));}board.append(c);}};
+        const draw=()=>{
+            const g=state.xiangqi;
+            board.dataset.palette=g.palette||'qingstone';
+            board.innerHTML='';
+            status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');
+            mode.textContent=g.mode==='ai'?'人机对战':'双人对战';
+            difficulty.value=g.difficulty||'normal';
+            palette.value=g.palette||'qingstone';
+            difficulty.disabled=g.mode!=='ai';
+            undo.disabled=g.history.length===0||!!g.aiThinking;
+            const legalMoves=g.selected?xqLegal(g,g.selected.x,g.selected.y):[];
+            for(let y=0;y<10;y++)for(let x=0;x<9;x++){
+                const c=el('div',{class:'xiangqi-cell',role:'gridcell'});
+                c.dataset.x=String(x);c.dataset.y=String(y);
+                c.style.left=`${5+x*11.25}%`;
+                c.style.top=`${5+y*10}%`;
+                const p=g.board[y][x];
+                if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));
+                if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');
+                if(legalMoves.some(m=>m.x===x&&m.y===y)){
+                    c.classList.add('legal');
+                    c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));
+                }
+                board.append(c);
+            }
+        };
         board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;const am=xqAI(g);g.aiThinking=false;if(am)xqApplyMove(g,am);xqSave();draw();},180);return;}}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
         mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
         difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();});
