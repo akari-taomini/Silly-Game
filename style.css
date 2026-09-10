@@ -7153,25 +7153,29 @@ n
 }
 
 #st-mini-game-center .uno-color-picker {
+    /* 放到两张核心牌下方，不再盖住牌面和 AI 信息。 */
     position: absolute;
     left: 50%;
-    bottom: calc(50% - 46px);
+    top: calc(50% + 94px);
     transform: translate(-50%, 0);
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(2, minmax(88px, 1fr));
-    gap: 7px;
-    padding: 10px;
-    border-radius: 12px;
-    background: var(--SmartThemeBlurTintColor, var(--stgc-browser-surface));
+    grid-template-columns: repeat(4, minmax(48px, 1fr));
+    gap: 6px;
+    width: min(270px, calc(100% - 24px));
+    padding: 7px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, var(--stgc-browser-surface)) 94%, transparent);
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.32));
-    box-shadow: 0 12px 28px rgba(0,0,0,.24);
+    box-shadow: 0 7px 18px rgba(0,0,0,.16);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 #st-mini-game-center .uno-color-btn {
-    min-width: 88px;
-    min-height: 38px;
-    border: 1px solid rgba(255,255,255,.2);
+    min-width: 0;
+    min-height: 34px;
+    border: 1px solid rgba(255,255,255,.20);
     border-radius: 7px;
     color: #fff;
     font-weight: 700;
