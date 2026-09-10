@@ -4614,36 +4614,57 @@
         const nextMoves=chessAllMoves(game,game.turn); if(!nextMoves.length){game.over=true;game.winner=chessInCheck(game.board,game.turn)?color:3;if(game.winner===color)recordGameWin('chess');}
     }
     function chessUndo(game){const h=game.history.pop();if(!h)return false;game.board=h.board;game.turn=h.turn;game.castling=h.castling;game.enPassant=h.enPassant;game.over=h.over;game.winner=h.winner;return true;}
+    const CHESS_PST = {
+        p:[0,0,0,0,0,0,0,0, 5,10,10,-20,-20,10,10,5, 5,-5,-10,0,0,-10,-5,5, 0,0,0,20,20,0,0,0, 5,5,10,25,25,10,5,5, 10,10,20,30,30,20,10,10, 50,50,50,50,50,50,50,50, 0,0,0,0,0,0,0,0],
+        n:[-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,5,5,0,-20,-40, -30,5,10,15,15,10,5,-30, -30,0,15,20,20,15,0,-30, -30,5,15,20,20,15,5,-30, -30,0,10,15,15,10,0,-30, -40,-20,0,0,0,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+        b:[-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10, -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+        r:[0,0,0,5,5,0,0,0, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 5,10,10,10,10,10,10,5, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0],
+        q:[-20,-10,-10,0,0,-10,-10,-20, -10,0,5,0,0,0,0,-10, -10,5,5,5,5,5,0,-10, 0,0,5,5,5,5,0,-5, -5,0,5,5,5,5,0,-5, -10,0,5,5,5,5,0,-10, -10,0,0,0,0,0,0,-10, -20,-10,-10,0,0,-10,-10,-20],
+        k:[20,30,10,0,0,10,30,20, 20,20,0,0,0,0,20,20, -10,-20,-20,-20,-20,-20,-20,-10, -20,-30,-30,-40,-40,-30,-30,-20, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-30,-30,-30,-30,-30,-30,-30, -30,-30,-30,-30,-30,-30,-30,-30]
+    };
     function chessEval(board){
         const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let score=0;
-        for(let y=0;y<8;y++)for(let x=0;x<8;x++){const p=board[y][x];if(!p)continue; const v=val[chessType(p)]||0; score+=(chessColor(p)===2?v:-v);}
+        for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+            const p=board[y][x]; if(!p)continue;
+            const t=chessType(p), base=val[t]||0, idx=chessColor(p)===2?(y*8+x):((7-y)*8+x);
+            score += chessColor(p)===2 ? base + (CHESS_PST[t]?.[idx]||0) : -(base + (CHESS_PST[t]?.[idx]||0));
+        }
         return score;
     }
+    function chessSimulate(game,m){
+        const p=game.board[m.fromY][m.fromX], cap=game.board[m.toY][m.toX], color=game.turn;
+        const g={board:chessApply(game.board,m),turn:color===1?2:1,castling:{...game.castling},enPassant:null,over:false,winner:0,history:[],difficulty:game.difficulty};
+        if(chessType(p)==='k'){if(color===1){g.castling.K=false;g.castling.Q=false;}else{g.castling.k=false;g.castling.q=false;}}
+        if(chessType(p)==='r'){if(m.fromX===0&&m.fromY===7)g.castling.Q=false;if(m.fromX===7&&m.fromY===7)g.castling.K=false;if(m.fromX===0&&m.fromY===0)g.castling.q=false;if(m.fromX===7&&m.fromY===0)g.castling.k=false;}
+        if(cap&&chessType(cap)==='r'){if(m.toX===0&&m.toY===7)g.castling.Q=false;if(m.toX===7&&m.toY===7)g.castling.K=false;if(m.toX===0&&m.toY===0)g.castling.q=false;if(m.toX===7&&m.toY===0)g.castling.k=false;}
+        g.enPassant=chessType(p)==='p'&&Math.abs(m.toY-m.fromY)===2?{x:m.fromX,y:(m.fromY+m.toY)/2}:null;
+        return g;
+    }
+    function chessOrderMoves(game,moves){
+        const val={p:100,n:320,b:330,r:500,q:900,k:20000};
+        return moves.slice().sort((a,b)=>{
+            const ac=game.board[a.toY][a.toX],bc=game.board[b.toY][b.toX];
+            const as=(ac?val[chessType(ac)]:0)+(a.promotion?900:0), bs=(bc?val[chessType(bc)]:0)+(b.promotion?900:0);
+            return bs-as;
+        });
+    }
+    function chessSearch(game,depth,alpha,beta){
+        const moves=chessOrderMoves(game,chessAllMoves(game,game.turn));
+        if(!moves.length){if(chessInCheck(game.board,game.turn))return game.turn===2?-30000+depth:30000-depth;return 0;}
+        if(depth<=0)return chessEval(game.board);
+        const maximizing=game.turn===2;
+        if(maximizing){let best=-Infinity;for(const m of moves){const child=chessSimulate(game,m);const v=chessSearch(child,depth-1,alpha,beta);if(v>best)best=v;if(v>alpha)alpha=v;if(alpha>=beta)break;}return best;}
+        let best=Infinity;for(const m of moves){const child=chessSimulate(game,m);const v=chessSearch(child,depth-1,alpha,beta);if(v<best)best=v;if(v<beta)beta=v;if(alpha>=beta)break;}return best;
+    }
     function chessPickAI(game){
-        const moves=chessAllMoves(game,2); if(!moves.length)return null;
-        if(game.difficulty==='easy') return moves[Math.floor(Math.random()*moves.length)];
-        const val={p:100,n:320,b:330,r:500,q:900,k:20000}; let best=-Infinity,bm=null;
-        for(const m of moves){
-            const p=game.board[m.fromY][m.fromX],c=game.board[m.toY][m.toX];
-            let score=(c?val[chessType(c)]:0)+Math.random()*8;
-            const nb=chessApply(game.board,m);
-            if(chessInCheck(nb,1))score+=80;
-            if(game.difficulty==='hard'){
-                const replyGame={board:nb,turn:1,castling:{K:false,Q:false,k:false,q:false},enPassant:null};
-                const replies=chessAllMoves(replyGame,1);
-                if(!replies.length){ score+=chessInCheck(nb,1)?18000:0; }
-                else{
-                    let worst=Infinity;
-                    for(const r of replies.slice(0,36)){
-                        const rb=chessApply(nb,r); worst=Math.min(worst,chessEval(rb));
-                    }
-                    score += worst * 0.55;
-                }
-            }
-            if(score>best){best=score;bm=m;}
-        }
+        const moves=chessOrderMoves(game,chessAllMoves(game,2)); if(!moves.length)return null;
+        if(game.difficulty==='easy')return moves[Math.floor(Math.random()*moves.length)];
+        const depth=game.difficulty==='hard'?3:2;
+        let best=-Infinity,bm=moves[0];
+        for(const m of moves){const child=chessSimulate(game,m);let score=chessSearch(child,depth-1,-Infinity,Infinity);score+=(game.board[m.toY][m.toX]?500:0);score+=Math.random()*(game.difficulty==='hard'?1.5:5);if(score>best){best=score;bm=m;}}
         return bm;
     }
+
     function renderChess(body){
         state.chess=chessLoad()||chessNew(); chessSave();
         const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'});
@@ -4699,16 +4720,31 @@
         for(let y=0;y<10;y++)for(let x=0;x<9;x++){const p=board[y][x];if(!p)continue;const value=v[xqType(p)]||0;s+=(xqColor(p)===2?value:-value);}
         return s;
     }
+    function xqSimulate(game,m){return{board:xqApply(game.board,m),turn:game.turn===1?2:1,difficulty:game.difficulty};}
+    function xqOrderMoves(game,moves){
+        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000};
+        const scoreMove=(m)=>{
+            const captured=game.board[m.toY][m.toX];
+            const next=xqApply(game.board,m);
+            const enemy=game.turn===1?2:1;
+            return (captured ? v[xqType(captured)] : 0) + (xqGeneralInCheck(next,enemy) ? 80 : 0);
+        };
+        return moves.slice().sort((a,b)=>scoreMove(b)-scoreMove(a));
+    }
+    function xqSearch(game,depth,alpha,beta){
+        const moves=xqOrderMoves(game,xqAll(game,game.turn));
+        if(!moves.length){return xqGeneralInCheck(game.board,game.turn)?(game.turn===2?-16000+depth:16000-depth):0;}
+        if(depth<=0)return xqEvalBoard(game.board);
+        if(game.turn===2){let best=-Infinity;for(const m of moves){const child=xqSimulate(game,m),v=xqSearch(child,depth-1,alpha,beta);if(v>best)best=v;if(v>alpha)alpha=v;if(alpha>=beta)break;}return best;}
+        let best=Infinity;for(const m of moves){const child=xqSimulate(game,m),v=xqSearch(child,depth-1,alpha,beta);if(v<best)best=v;if(v<beta)beta=v;if(alpha>=beta)break;}return best;
+    }
     function xqAI(g){
-        const moves=xqAll(g,2);if(!moves.length)return null;
+        const moves=xqOrderMoves(g,xqAll(g,2));if(!moves.length)return null;
         if(g.difficulty==='easy')return moves[Math.floor(Math.random()*moves.length)];
-        const v={p:100,n:320,b:250,a:200,r:500,c:450,k:10000};let bm=moves[0],bs=-1e9;
-        for(const m of moves){const c=g.board[m.toY][m.toX];let s=(c?v[xqType(c)]:0)+Math.random()*8;const nb=xqApply(g.board,m);if(xqGeneralInCheck(nb,1))s+=70;
-            if(g.difficulty==='hard'){
-                const temp={board:nb,turn:1};const replies=xqAll(temp,1);if(!replies.length){s+=xqGeneralInCheck(nb,1)?18000:0;}else{let worst=Infinity;for(const r of replies.slice(0,32)){worst=Math.min(worst,xqEvalBoard(xqApply(nb,r)));}s+=worst*.55;}
-            }
-            if(s>bs){bs=s;bm=m;}
-        }return bm;
+        const depth=g.difficulty==='hard'?3:2;
+        let bm=moves[0],bs=-Infinity;
+        for(const m of moves){const child=xqSimulate(g,m);let s=xqSearch(child,depth-1,-Infinity,Infinity);s+=(g.board[m.toY][m.toX]?300:0);s+=Math.random()*(g.difficulty==='hard'?1.2:4);if(s>bs){bs=s;bm=m;}}
+        return bm;
     }
     function renderXiangqi(body){
         state.xiangqi=xqLoad()||xqNew();xqSave();
