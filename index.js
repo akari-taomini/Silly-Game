@@ -27,6 +27,7 @@
         chess: null,
         xiangqi: null,
         uno: null,
+        match3: null,
         unoTimer: null,
         unoPenaltyTimer: null,
         chessAiTimer: null,
@@ -68,11 +69,12 @@
         apricot:   { name: '杏子',   seedCost: 15, sell: 74, grow: 340, unlock: 'chess' },
         bamboo:    { name: '竹笋',   seedCost: 16, sell: 80, grow: 360, unlock: 'xiangqi' },
         apple:     { name: '苹果',   seedCost: 17, sell: 86, grow: 380, unlock: 'uno' },
+        peachblossom: { name: '桃花', seedCost: 18, sell: 92, grow: 400, unlock: 'match3' },
     };
     const FARM_GAME_NAMES = {
         mines: '扫雷', '2048': '2048', sokoban: '推箱子', sudoku: '数独', spider: '蜘蛛纸牌',
         gomoku: '五子棋', puzzle15: '数字华容道', tetris: '俄罗斯方块', go: '围棋', waterSort: '倒水瓶',
-        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方', chess: '国际象棋', xiangqi: '中国象棋', uno: 'UNO',
+        cake: '叠蛋糕', starPop: '消灭星星', linkMatch: '连连看', shikaku: '数方', chess: '国际象棋', xiangqi: '中国象棋', uno: 'UNO', match3: '三消',
     };
 
     function loadGameWins() {
@@ -858,6 +860,7 @@
             { id: 'chess', icon: 'fa-chess-knight', name: '国际象棋', desc: '标准 8×8 · 人机 / 双人 · 无需 API' },
             { id: 'xiangqi', icon: 'fa-chess', name: '中国象棋', desc: '标准 9×10 · 人机 / 双人 · 无需 API' },
             { id: 'uno', icon: 'fa-layer-group', name: 'UNO', desc: '经典出牌 · 3 名 AI · +2 / +4 / 变色 · 本地保存' },
+            { id: 'match3', icon: 'fa-table-cells', name: '三消', desc: '交换相邻方块 · 三个相同即可消除 · 连锁加分' },
         ]; 
 
         for (const game of games) {
@@ -920,6 +923,7 @@
             chess: '国际象棋',
             xiangqi: '中国象棋',
             uno: 'UNO',
+            match3: '三消',
         };
         panel.append(buildHeader({ back: true, title: titles[game] }));
 
@@ -945,8 +949,185 @@
         else if (game === 'chess') renderChess(body);
         else if (game === 'xiangqi') renderXiangqi(body);
         else if (game === 'uno') renderUno(body);
+        else if (game === 'match3') renderMatch3(body);
     }
 
+
+
+    /* ==================== 三消 ==================== */
+    const MATCH3_KEY = 'silly-game:match3:v2';
+    const MATCH3_LEGACY_KEY = 'silly-game:match3:v1';
+    const MATCH3_SIZE = 8;
+    // 六种软糖：星星、阿尔卑斯、熊熊、心形、圆环、果冻。
+    const MATCH3_TYPES = ['star', 'alps', 'bear', 'heart', 'ring', 'jelly'];
+    const MATCH3_COLORS = ['pink', 'blue', 'yellow', 'green', 'purple'];
+    const MATCH3_TARGET = 1800;
+    const MATCH3_MOVES = 30;
+    const MATCH3_ICONS = {
+        star: 'fa-star', alps: 'fa-circle', bear: 'fa-paw', heart: 'fa-heart', ring: 'fa-circle-notch', jelly: 'fa-capsules',
+        // 兼容旧存档的类型名，加载后会迁移到新的六种软糖。
+        gem: 'fa-star', leaf: 'fa-circle', bolt: 'fa-capsules', flower: 'fa-paw', moon: 'fa-circle-notch',
+    };
+    const MATCH3_TYPE_MIGRATION = { gem: 'star', leaf: 'alps', heart: 'heart', bolt: 'jelly', flower: 'bear', moon: 'ring' };
+
+    function match3Clone(board) { return board.map(row => row.map(tile => tile ? { ...tile } : null)); }
+    function match3RandomTile() {
+        return {
+            type: MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)],
+            color: MATCH3_COLORS[Math.floor(Math.random() * MATCH3_COLORS.length)],
+        };
+    }
+    function match3FindMatches(board) {
+        const found = new Set();
+        for (let r = 0; r < MATCH3_SIZE; r++) {
+            let start = 0;
+            while (start < MATCH3_SIZE) {
+                const t = board[r][start];
+                if (!t) { start++; continue; }
+                let end = start + 1;
+                while (end < MATCH3_SIZE && board[r][end] && board[r][end].type === t.type && board[r][end].color === t.color) end++;
+                if (end - start >= 3) for (let c = start; c < end; c++) found.add(`${r},${c}`);
+                start = end;
+            }
+        }
+        for (let c = 0; c < MATCH3_SIZE; c++) {
+            let start = 0;
+            while (start < MATCH3_SIZE) {
+                const t = board[start][c];
+                if (!t) { start++; continue; }
+                let end = start + 1;
+                while (end < MATCH3_SIZE && board[end][c] && board[end][c].type === t.type && board[end][c].color === t.color) end++;
+                if (end - start >= 3) for (let r = start; r < end; r++) found.add(`${r},${c}`);
+                start = end;
+            }
+        }
+        return [...found].map(key => key.split(',').map(Number));
+    }
+    function match3HasInitialMatch(board) { return match3FindMatches(board).length > 0; }
+    function match3GenerateBoard() {
+        let board;
+        do {
+            board = Array.from({ length: MATCH3_SIZE }, () => Array.from({ length: MATCH3_SIZE }, () => match3RandomTile()));
+        } while (match3HasInitialMatch(board));
+        return board;
+    }
+    function match3HasMove(board) {
+        for (let r = 0; r < MATCH3_SIZE; r++) for (let c = 0; c < MATCH3_SIZE; c++) {
+            for (const [dr, dc] of [[0, 1], [1, 0]]) {
+                const nr = r + dr, nc = c + dc;
+                if (nr >= MATCH3_SIZE || nc >= MATCH3_SIZE) continue;
+                const next = match3Clone(board);
+                [next[r][c], next[nr][nc]] = [next[nr][nc], next[r][c]];
+                if (match3FindMatches(next).length) return true;
+            }
+        }
+        return false;
+    }
+    function match3Collapse(board) {
+        for (let c = 0; c < MATCH3_SIZE; c++) {
+            const alive = [];
+            for (let r = MATCH3_SIZE - 1; r >= 0; r--) if (board[r][c]) alive.push(board[r][c]);
+            for (let r = MATCH3_SIZE - 1, i = 0; r >= 0; r--, i++) board[r][c] = alive[i] || match3RandomTile();
+        }
+    }
+    function match3Save(g) {
+        try { localStorage.setItem(MATCH3_KEY, JSON.stringify(g)); } catch { /* ignore */ }
+    }
+    function match3NormalizeTile(tile) {
+        if (!tile) return null;
+        const type = MATCH3_TYPES.includes(tile.type) ? tile.type : (MATCH3_TYPE_MIGRATION[tile.type] || MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)]);
+        return {
+            type,
+            color: MATCH3_COLORS.includes(tile.color) ? tile.color : MATCH3_COLORS[Math.floor(Math.random() * MATCH3_COLORS.length)],
+        };
+    }
+    function match3Load() {
+        try {
+            let g = JSON.parse(localStorage.getItem(MATCH3_KEY) || 'null');
+            if (!g) g = JSON.parse(localStorage.getItem(MATCH3_LEGACY_KEY) || 'null');
+            if (!g || !Array.isArray(g.board) || g.board.length !== MATCH3_SIZE) return null;
+            if (!g.board.every(row => Array.isArray(row) && row.length === MATCH3_SIZE)) return null;
+            g.board = g.board.map(row => row.map(match3NormalizeTile));
+            g.score = Math.max(0, Number(g.score) || 0); g.moves = Math.max(0, Number(g.moves) || 0);
+            g.target = MATCH3_TARGET; g.maxMoves = MATCH3_MOVES; g.over = !!g.over; g.won = !!g.won; g.selected = null;
+            return g;
+        } catch { return null; }
+    }
+    function match3New() {
+        return { board: match3GenerateBoard(), score: 0, moves: 0, target: MATCH3_TARGET, maxMoves: MATCH3_MOVES, over: false, won: false, selected: null };
+    }
+    function match3Resolve(g) {
+        let chain = 0;
+        while (true) {
+            const matches = match3FindMatches(g.board);
+            if (!matches.length) break;
+            chain++;
+            const gain = matches.length * 20 * chain + (matches.length >= 4 ? 40 : 0) + (matches.length >= 5 ? 80 : 0);
+            g.score += gain;
+            matches.forEach(([r, c]) => { g.board[r][c] = null; });
+            match3Collapse(g.board);
+        }
+        if (g.score >= g.target) {
+            g.won = true; g.over = true; recordGameWin('match3');
+        } else if (g.moves >= g.maxMoves || !match3HasMove(g.board)) {
+            g.over = true;
+        }
+    }
+    function renderMatch3(body) {
+        cleanupGame();
+        state.match3 = match3Load() || match3New();
+        match3Save(state.match3);
+        const top = el('div', { class: 'stgc-status-row' });
+        const info = el('div', { class: 'stgc-status-text' });
+        const shuffle = el('button', { class: 'stgc-btn', type: 'button', text: '洗牌' });
+        const reset = el('button', { class: 'stgc-btn', type: 'button', text: '重新开始' });
+        top.append(info, shuffle, reset);
+        const board = el('div', { class: 'match3-board', role: 'grid', 'aria-label': '三消棋盘' });
+        const hint = el('div', { class: 'stgc-game-hint', text: `交换相邻方块，三个以上相同图案连在一起即可消除。目标 ${MATCH3_TARGET} 分。` });
+        const result = el('div', { class: 'match3-result' });
+        body.append(top, board, result, hint);
+        function draw() {
+            const g = state.match3;
+            board.innerHTML = '';
+            info.textContent = g.won ? `通关 · ${g.score} 分` : g.over ? `本局结束 · ${g.score} 分` : `${g.score} / ${MATCH3_TARGET} 分 · 剩余 ${Math.max(0, MATCH3_MOVES - g.moves)} 步`;
+            result.textContent = g.won ? '达成目标！' : g.over ? '可以重新开始或洗牌' : (g.selected ? '再点一个相邻方块交换' : '选择一个方块');
+            for (let r = 0; r < MATCH3_SIZE; r++) for (let c = 0; c < MATCH3_SIZE; c++) {
+                const t = g.board[r][c];
+                const cell = el('button', { class: `match3-cell candy-${t?.type || 'empty'}${g.selected?.r === r && g.selected?.c === c ? ' selected' : ''}`, type: 'button' });
+                if (t) {
+                    cell.dataset.color = t.color;
+                    cell.dataset.type = t.type;
+                    cell.innerHTML = `<i class="fa-solid ${MATCH3_ICONS[t.type]}" aria-hidden="true"></i>`;
+                    cell.addEventListener('click', () => select(r, c));
+                } else cell.disabled = true;
+                board.append(cell);
+            }
+        }
+        function select(r, c) {
+            const g = state.match3;
+            if (g.over || !g.board[r][c]) return;
+            if (!g.selected) { g.selected = { r, c }; draw(); return; }
+            if (g.selected.r === r && g.selected.c === c) { g.selected = null; draw(); return; }
+            const a = g.selected, adjacent = Math.abs(a.r - r) + Math.abs(a.c - c) === 1;
+            if (!adjacent) { g.selected = { r, c }; draw(); return; }
+            const next = match3Clone(g.board);
+            [next[a.r][a.c], next[r][c]] = [next[r][c], next[a.r][a.c]];
+            if (!match3FindMatches(next).length) { g.selected = { r, c }; draw(); return; }
+            g.board = next; g.moves++; g.selected = null; match3Resolve(g); match3Save(g); draw();
+        }
+        shuffle.addEventListener('click', () => {
+            const g = state.match3;
+            const tiles = g.board.flat();
+            for (let i = tiles.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; }
+            let k = 0;
+            for (let r = 0; r < MATCH3_SIZE; r++) for (let c = 0; c < MATCH3_SIZE; c++) g.board[r][c] = tiles[k++];
+            if (match3HasInitialMatch(g.board) || !match3HasMove(g.board)) g.board = match3GenerateBoard();
+            g.selected = null; g.over = false; match3Save(g); draw();
+        });
+        reset.addEventListener('click', () => { state.match3 = match3New(); match3Save(state.match3); draw(); });
+        state.cleanup = () => match3Save(state.match3);
+        draw();
+    }
 
     /* ==================== UNO ==================== */
     const UNO_KEY = 'silly-game:uno:v1';
