@@ -1326,13 +1326,21 @@
         const board=el('div',{class:'match3-board',role:'grid','aria-label':'三消棋盘'});
         const result=el('div',{class:'match3-result'});
         result.append(nextLevel);
+        const winOverlay=el('div',{class:'match3-win-overlay','aria-hidden':'true'});
+        const winPanel=el('div',{class:'match3-win-panel'});
+        const winTitle=el('div',{class:'match3-win-title',text:'恭喜通关！'});
+        const winStars=el('div',{class:'match3-win-stars'});
+        const winScore=el('div',{class:'match3-win-score'});
+        const winNext=el('button',{class:'stgc-btn match3-win-next',type:'button'});
+        winPanel.append(winTitle,winStars,winScore,winNext);
+        winOverlay.append(winPanel);
         const tools=el('div',{class:'match3-tools'});
         const toolDefs=[
             ['hammer','锤子','fa-hammer'],['shuffle','洗牌','fa-shuffle'],['colorClear','清色','fa-wand-magic-sparkles'],['extraMoves','+5 步','fa-plus']
         ];
         const toolButtons={};
         toolDefs.forEach(([id,label,icon])=>{const b=el('button',{class:'stgc-btn match3-tool-btn',type:'button'});b.innerHTML=`<i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span><em></em>`;b.addEventListener('click',()=>selectTool(id));tools.append(b);toolButtons[id]=b;});
-        body.append(top,goals,tools,toolHint,board,result,el('div',{class:'stgc-game-hint',text:'交换相邻软糖：3 个消除；4 个生成横/竖线软糖；T/L 形生成 3×3 炸弹糖；5 个生成彩虹糖。特殊糖互相组合会触发更强的清除。'}));
+        body.append(top,goals,tools,toolHint,board,result,el('div',{class:'stgc-game-hint',text:'交换相邻软糖：3 个消除；4 个生成横/竖线软糖；T/L 形生成 3×3 炸弹糖；5 个生成彩虹糖。特殊糖互相组合会触发更强的清除。'}),winOverlay);
 
         function refreshLevelOptions(){
             levelSelect.innerHTML='';
@@ -1372,12 +1380,26 @@
                 if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';if(t.ice)cell.dataset.ice='1';if(t.vine)cell.dataset.vine='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
                 else cell.disabled=true;board.append(cell);
             }
-            result.firstChild && result.removeChild(result.firstChild);
+            result.innerHTML='';
             const message=document.createElement('span');
-            message.textContent=g.won?`🎉 第 ${g.level} 关通关！获得 ${match3StarFor(g)} 星`:g.over?'本关没有完成目标，可以重开本关':'选择两个相邻软糖交换';
-            result.insertBefore(message,nextLevel);
-            nextLevel.hidden=!(g.won && g.level<MATCH3_LEVELS.length);
-            nextLevel.textContent=g.level<MATCH3_LEVELS.length?`下一关 · 第 ${g.level+1} 关`:'已通关全部关卡';
+            message.textContent=g.over&&!g.won?'本关没有完成目标，可以重开本关':'选择两个相邻软糖交换';
+            result.append(message);
+            // 通关时使用覆盖整个游戏区域的结果弹窗，下一关入口只放在弹窗中央。
+            const won=g.won;
+            winOverlay.classList.toggle('is-show',won);
+            winOverlay.setAttribute('aria-hidden',won?'false':'true');
+            if(won){
+                const stars=match3StarFor(g);
+                winStars.textContent='★'.repeat(stars)+'☆'.repeat(3-stars);
+                winScore.textContent=`第 ${g.level} 关 · ${g.score} 分`;
+                winNext.textContent=g.level<MATCH3_LEVELS.length?`下一关 · 第 ${g.level+1} 关`:'完成全部关卡';
+                winNext.disabled=false;
+            }else{
+                winStars.textContent='';
+                winScore.textContent='';
+                winNext.disabled=true;
+            }
+            nextLevel.hidden=true;
         }
         function select(r,c){
             const g=state.match3;if(g.over||!g.board[r][c])return;
@@ -1402,14 +1424,20 @@
             else if(specialA)create={r:a.r,c:a.c,special:specialA};
             g.board=next;g.moves++;g.selected=null;match3Resolve(g,[a,{r,c}],create);match3Save(g);draw();
         }
-        nextLevel.addEventListener('click',()=>{
+        const goNextLevel=()=>{
             const g=state.match3;
-            if(!g.won || g.level>=MATCH3_LEVELS.length)return;
-            const stars=g.stars?.slice()||[];
-            state.match3=match3New(g.level+1,Math.max(g.unlockedLevel,g.level+1),stars);
+            if(!g.won)return;
+            if(g.level>=MATCH3_LEVELS.length){
+                state.match3=match3New(1,g.unlockedLevel,g.stars?.slice()||[]);
+            }else{
+                const stars=g.stars?.slice()||[];
+                state.match3=match3New(g.level+1,Math.max(g.unlockedLevel,g.level+1),stars);
+            }
             match3Save(state.match3);
             draw();
-        });
+        };
+        winNext.addEventListener('click',goNextLevel);
+        nextLevel.addEventListener('click',goNextLevel);
         levelSelect.addEventListener('change',()=>{
             const id=Number(levelSelect.value);const g=state.match3;const currentStars=g.stars?.slice()||[];state.match3=match3New(id,Math.max(g.unlockedLevel,id),currentStars);match3Save(state.match3);draw();
         });

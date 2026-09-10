@@ -7672,3 +7672,61 @@ n
     font-size: 14px;
     font-weight: 700;
 }
+
+
+/* 三消通关：整个游戏区域由通关弹窗接管，避免把“下一关”挤在棋盘下面。 */
+#st-mini-game-center .match3-win-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    box-sizing: border-box;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, rgba(20,20,20,.96)) 64%, transparent);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .18s ease, visibility .18s ease;
+}
+#st-mini-game-center .match3-win-overlay.is-show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+#st-mini-game-center .match3-win-panel {
+    width: min(360px, 92%);
+    padding: 24px 20px 20px;
+    text-align: center;
+    color: var(--SmartThemeBodyColor, currentColor);
+    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, rgba(30,30,30,.96)));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.35));
+    border-radius: 12px;
+    box-shadow: 0 16px 42px rgba(0,0,0,.25);
+}
+#st-mini-game-center .match3-win-title {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+#st-mini-game-center .match3-win-stars {
+    margin-top: 10px;
+    font-size: 28px;
+    letter-spacing: .14em;
+    color: var(--SmartThemeQuoteColor, var(--SmartThemeUnderlineColor, #d9b45f));
+}
+#st-mini-game-center .match3-win-score {
+    margin-top: 8px;
+    font-size: 13px;
+    opacity: .72;
+}
+#st-mini-game-center .match3-win-next {
+    width: min(250px,100%);
+    min-height: 42px;
+    margin-top: 18px;
+    font-size: 14px;
+    font-weight: 800;
+}
