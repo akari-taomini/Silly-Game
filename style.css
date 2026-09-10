@@ -7217,3 +7217,75 @@ n
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+
+/* ==================== UNO v1.6.8：信息更清楚 ==================== */
+#st-mini-game-center .uno-pile-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+#st-mini-game-center .uno-pile-label {
+    color: var(--SmartThemeBodyColor, inherit);
+    opacity: .72;
+    font-size: 11px;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+#st-mini-game-center .uno-center-notice {
+    position: absolute;
+    left: 50%;
+    bottom: 9%;
+    transform: translateX(-50%);
+    max-width: 80%;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, rgba(40,40,40,.8)) 88%, transparent);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
+    color: var(--SmartThemeBodyColor, inherit);
+    font-size: 11px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    z-index: 7;
+}
+#st-mini-game-center .uno-discard.uno-played {
+    animation: uno-discard-in .22s ease-out;
+}
+@keyframes uno-discard-in {
+    from { transform: translateY(-10px) scale(.96) rotate(-2deg); opacity: .72; }
+    to { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+}
+#st-mini-game-center .uno-table.uno-ai-turn .uno-deck {
+    filter: brightness(.98);
+}
+#st-mini-game-center .uno-table.uno-your-turn .uno-player-hand {
+    border-top-color: var(--SmartThemeQuoteColor, var(--SmartThemeBorderColor));
+}
+/* 选色面板改成轻量浮层，不压住整副牌。 */
+#st-mini-game-center .uno-color-picker {
+    bottom: 18%;
+    padding: 8px;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.2);
+}
+#st-mini-game-center .uno-color-picker::before {
+    content: '选择颜色';
+    grid-column: 1 / -1;
+    color: var(--SmartThemeBodyColor, inherit);
+    font-size: 11px;
+    opacity: .72;
+    text-align: center;
+    margin-bottom: 1px;
+}
+@media (max-width: 700px) {
+    #st-mini-game-center .uno-center-notice {
+        bottom: 5%;
+        max-width: 72%;
+    }
+    #st-mini-game-center .uno-pile-label { font-size: 10px; }
+}

@@ -36,7 +36,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.6.7';
+    const CURRENT_VERSION = '1.6.8';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -987,7 +987,9 @@
         let steps=1;
         if(card.type==='skip')steps=2;
         if(card.type==='draw2'||card.type==='wild4'){const target=unoNextIndex(g,1);unoAddDraw(g,target,card.type==='draw2'?2:4);steps=2;}
-        g.current=unoNextIndex(g,steps);g.message=g.current===0?'你的回合':`AI ${g.current} 回合`;
+        const who = p===0 ? '你' : `AI ${p}`;
+        g.message = `${who}出了 ${card.type==='number'?card.value:card.value}` + (card.color==='wild' ? ` · 颜色 ${UNO_COLOR_NAMES[g.currentColor]}` : '');
+        g.current=unoNextIndex(g,steps);
         return true;
     }
     function unoAiTurn(g,onUpdate){
@@ -1004,25 +1006,27 @@
                 unoAddDraw(g,0,2);g.needsUno=false;g.message='忘记喊 UNO：罚摸 2 张';unoSave(g);onUpdate();state.unoPenaltyTimer=null;
             },1200);
         }
-        if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,onUpdate),360);
+        if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,onUpdate),1300);
     }
     function renderUno(body){
         cleanupGame();state.uno=unoLoad()||unoNew();unoSave();
         const bar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),drawBtn=el('button',{class:'stgc-btn',type:'button',text:'摸牌'}),unoBtn=el('button',{class:'stgc-btn',type:'button',text:'喊 UNO'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
         bar.append(status,drawBtn,unoBtn,reset);
-        const table=el('div',{class:'uno-table'}),topAI=el('div',{class:'uno-ai-hand uno-ai-top'}),leftAI=el('div',{class:'uno-ai-hand uno-ai-left'}),rightAI=el('div',{class:'uno-ai-hand uno-ai-right'}),center=el('div',{class:'uno-center'}),deckBtn=el('button',{class:'uno-deck',type:'button',text:'摸牌堆'}),discard=el('div',{class:'uno-discard'}),hand=el('div',{class:'uno-player-hand'}),hint=el('div',{class:'stgc-game-hint',text:'出牌需与当前颜色、数字或牌型匹配。万能牌可选颜色；剩 1 张牌时可点击“喊 UNO”。'}),colorPicker=el('div',{class:'uno-color-picker',hidden:true});
-        UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);}});colorPicker.append(b);});
-        center.append(deckBtn,discard,colorPicker);table.append(topAI,leftAI,center,rightAI);body.append(bar,table,hand,hint);
+        const table=el('div',{class:'uno-table'}),topAI=el('div',{class:'uno-ai-hand uno-ai-top'}),leftAI=el('div',{class:'uno-ai-hand uno-ai-left'}),rightAI=el('div',{class:'uno-ai-hand uno-ai-right'}),center=el('div',{class:'uno-center'}),deckArea=el('div',{class:'uno-pile-area uno-deck-area'}),discardArea=el('div',{class:'uno-pile-area uno-discard-area'}),deckBtn=el('button',{class:'uno-deck',type:'button'}),discard=el('div',{class:'uno-discard'}),deckLabel=el('span',{class:'uno-pile-label',text:'牌堆 · 点击摸牌'}),discardLabel=el('span',{class:'uno-pile-label',text:'出牌区'}),hand=el('div',{class:'uno-player-hand'}),hint=el('div',{class:'stgc-game-hint',text:'同色、同数字或同牌型可以出牌；万能牌可以改颜色。你的回合会停留一段时间，方便看清 AI 刚出的牌。'}),colorPicker=el('div',{class:'uno-color-picker',hidden:true}),centerNotice=el('div',{class:'uno-center-notice'});
+        deckBtn.innerHTML='<span class="uno-deck-mark">UNO</span>';
+        deckArea.append(deckLabel,deckBtn);discardArea.append(discardLabel,discard);center.append(deckArea,discardArea,centerNotice,colorPicker);table.append(topAI,leftAI,center,rightAI);body.append(bar,table,hand,hint);
+        UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
         function makeCard(card,index,clickable){const node=el(clickable?'button':'div',{class:`uno-card ${card.color}${clickable&&unoPlayable(card,state.uno)?' playable':''}`,type:'button'});node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
-        function drawUno(){const g=state.uno;status.textContent=g.over?(g.winner===0?'你获胜！':'AI 获胜'):(g.current===0?'你的回合':`AI ${g.current} 回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;drawBtn.disabled=g.over||g.current!==0||g.needsUno;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.textContent=`AI 2 · ${g.hands[2].length} 张`;leftAI.textContent=`AI 1 · ${g.hands[1].length} 张`;rightAI.textContent=`AI 3 · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));}
-        function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;const card=g.hands[0][index];if(!unoPlayable(card,g)){status.textContent='这张牌不能出';return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);return;}unoApplyPlay(g,0,index);unoSave();drawUno();if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);}
-        drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;unoAddDraw(g,0,1);g.message='摸到 1 张牌';unoSave();drawUno();});
+        function drawUno(){const g=state.uno;status.textContent=g.over?(g.winner===0?'你获胜！':'AI 获胜'):(g.current===0?'你的回合':`AI ${g.current} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;drawBtn.disabled=g.over||g.current!==0||g.needsUno;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.textContent=`AI 2 · ${g.hands[2].length} 张`;leftAI.textContent=`AI 1 · ${g.hands[1].length} 张`;rightAI.textContent=`AI 3 · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);}
+        function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),1300);}}
+        function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;const card=g.hands[0][index];if(!unoPlayable(card,g)){g.message='这张牌不能出';drawUno();return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
+        drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;unoAddDraw(g,0,1);g.message='你摸了 1 张牌';unoSave();drawUno();});
         deckBtn.addEventListener('click',()=>drawBtn.click());
         unoBtn.addEventListener('click',()=>{const g=state.uno;if(!g.needsUno)return;if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}g.needsUno=false;g.message='你已喊 UNO';unoSave();drawUno();});
         reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}state.uno=unoNew();unoSave();drawUno();});
         state.cleanup=()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}unoSave(state.uno);};
-        drawUno();if(!state.uno.over&&state.uno.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),360);
+        drawUno();scheduleNextAI();
     }
 
     /* ==================== 消灭星星 ==================== */
