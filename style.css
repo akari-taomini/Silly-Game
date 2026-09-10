@@ -6136,10 +6136,11 @@ n
     --board-edge: #5f7466;
 }
 #st-mini-game-center .gomoku-board[data-palette="warmwood"],
-#st-mini-game-center .go-board[data-palette="warmwood"] {
-    --board-surface: #b18f73;
-    --board-line: #5b4637;
-    --board-edge: #9b785d;
+#st-mini-game-center .go-board[data-palette="warmwood"],
+#st-mini-game-center .xiangqi-board[data-palette="warmwood"] {
+    --board-surface: #c9a36a;
+    --board-line: #5f472f;
+    --board-edge: #ab7f4e;
 }
 #st-mini-game-center .gomoku-board[data-palette="inkstone"],
 #st-mini-game-center .go-board[data-palette="inkstone"] {
@@ -6479,16 +6480,31 @@ n
             var(--board-line, #324a49) calc(11.111111% - .55px),
             var(--board-line, #324a49) calc(11.111111% + .55px)
         ),
-        /* 上方九宫斜线 */
-        linear-gradient(45deg, transparent 49.1%, var(--board-line, #324a49) 49.5%, var(--board-line, #324a49) 50.5%, transparent 50.9%),
-        linear-gradient(-45deg, transparent 49.1%, var(--board-line, #324a49) 49.5%, var(--board-line, #324a49) 50.5%, transparent 50.9%),
-        /* 下方九宫斜线 */
-        linear-gradient(45deg, transparent 49.1%, var(--board-line, #324a49) 49.5%, var(--board-line, #324a49) 50.5%, transparent 50.9%),
-        linear-gradient(-45deg, transparent 49.1%, var(--board-line, #324a49) 49.5%, var(--board-line, #324a49) 50.5%, transparent 50.9%);
-    background-size: 100% 100%, 100% 100%, 25% 22.222222%, 25% 22.222222%, 25% 22.222222%, 25% 22.222222%;
-    background-position: 0 0, 0 0, 37.5% 11.111111%, 37.5% 11.111111%, 37.5% 88.888889%, 37.5% 88.888889%;
     background-repeat: no-repeat;
     z-index: 0;
+}
+
+#st-mini-game-center .xiangqi-palace-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+#st-mini-game-center .xiangqi-palace-lines svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+#st-mini-game-center .xiangqi-palace-lines line {
+    vector-effect: non-scaling-stroke;
+    stroke: var(--board-line, #5f472f);
+    stroke-width: 1.5;
+    stroke-linecap: square;
+}
+#st-mini-game-center .xiangqi-cells {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
 }
 
 #st-mini-game-center .xiangqi-board::after {
@@ -6547,14 +6563,14 @@ n
     position: relative;
     z-index: 5;
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.22), transparent 32%), #d7be99;
+    background: radial-gradient(circle at 34% 27%, rgba(255,255,255,.24), transparent 32%), #ead3a6;
     border: 1px solid rgba(68,48,31,.55);
     box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 0 0 2px rgba(255,255,255,.12);
     font-family: "Noto Serif CJK SC", "Songti SC", serif;
     font-size: clamp(18px, 4.6vw, 35px);
     line-height: 1;
 }
-#st-mini-game-center .xiangqi-piece.red { color: #9a403c; }
+#st-mini-game-center .xiangqi-piece.red { color: #a1473f; }
 #st-mini-game-center .xiangqi-piece.black { color: #2f302f; }
 
 @media (max-width: 640px) {

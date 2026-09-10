@@ -4710,9 +4710,9 @@
     function xqApply(b,m){const nb=xqClone(b);nb[m.toY][m.toX]=nb[m.fromY][m.fromX];nb[m.fromY][m.fromX]='';return nb;}
     function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
     function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
-    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',palette:'qingstone'};}
+    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',palette:'warmwood'};}
     function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
-    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'qingstone';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=g.mode==='pvp'?'pvp':'ai';g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
     function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
     function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
     function xqEvalBoard(board){
@@ -4751,18 +4751,23 @@
         const toolbar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),difficulty=el('select',{class:'stgc-select','aria-label':'中国象棋难度'});
         difficulty.append(el('option',{value:'easy',text:'简单'}),el('option',{value:'normal',text:'普通'}),el('option',{value:'hard',text:'困难'}));
         const palette=el('select',{class:'stgc-select','aria-label':'中国象棋棋盘配色'});
-        [['qingstone','青石'],['daigreen','黛绿'],['warmwood','暖木'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
+        [['warmwood','传统木色'],['qingstone','青石'],['daigreen','黛绿'],['inkstone','墨砚'],['ricepaper','米杏']].forEach(([value,text])=>palette.append(el('option',{value,text})));
         const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
         toolbar.append(status,mode,difficulty,palette,undo,reset);
-        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});body.append(toolbar,board);
+        const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});
+        const palaceLines=el('div',{class:'xiangqi-palace-lines','aria-hidden':'true'});
+        palaceLines.innerHTML='<svg viewBox="0 0 1000 1000" preserveAspectRatio="none"><line x1="387.5" y1="50" x2="612.5" y2="250"></line><line x1="612.5" y1="50" x2="387.5" y2="250"></line><line x1="387.5" y1="750" x2="612.5" y2="950"></line><line x1="612.5" y1="750" x2="387.5" y2="950"></line></svg>';
+        const cellsLayer=el('div',{class:'xiangqi-cells'});
+        board.append(palaceLines,cellsLayer);
+        body.append(toolbar,board);
         const draw=()=>{
             const g=state.xiangqi;
-            board.dataset.palette=g.palette||'qingstone';
-            board.innerHTML='';
+            board.dataset.palette=g.palette||'warmwood';
+            cellsLayer.innerHTML='';
             status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':'AI 赢了'):(g.mode==='ai'?'你执红，AI执黑；':'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合');
             mode.textContent=g.mode==='ai'?'人机对战':'双人对战';
             difficulty.value=g.difficulty||'normal';
-            palette.value=g.palette||'qingstone';
+            palette.value=g.palette||'warmwood';
             difficulty.disabled=g.mode!=='ai';
             undo.disabled=g.history.length===0||!!g.aiThinking;
             const legalMoves=g.selected?xqLegal(g,g.selected.x,g.selected.y):[];
@@ -4778,15 +4783,15 @@
                     c.classList.add('legal');
                     c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));
                 }
-                board.append(c);
+                cellsLayer.append(c);
             }
         };
         board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode==='ai'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();if(!g.over&&g.mode==='ai'&&g.turn===2){g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;const am=xqAI(g);g.aiThinking=false;if(am)xqApplyMove(g,am);xqSave();draw();},180);return;}}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
-        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        mode.addEventListener('click',()=>{const mode0=state.xiangqi.mode==='ai'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
         difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();});
         palette.addEventListener('change',()=>{state.xiangqi.palette=palette.value;xqSave();draw();});
         undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='ai'){xqUndo(g);xqUndo(g);}else xqUndo(g);xqSave();draw();});
-        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'qingstone';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
+        reset.addEventListener('click',()=>{const mode0=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';state.xiangqi=xqNew();state.xiangqi.mode=mode0;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;xqSave();draw();});
         state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}xqSave();};draw();
     }
 
@@ -5039,7 +5044,7 @@
         const draw=()=>{
             const g=state.go;
             const size=g.size;
-            board.innerHTML='';
+            cellsLayer.innerHTML='';
             board.style.setProperty('--go-size',String(size));
             board.style.setProperty('--go-step',`calc(100% / ${size - 1})`);
             board.dataset.size=String(size);
@@ -5068,7 +5073,7 @@
                 if(stars.has(i))c.classList.add('star');
                 c.dataset.index=String(i);
                 c.setAttribute('aria-label',`第 ${Math.floor(i/size)+1} 行，第 ${i%size+1} 列`);
-                board.append(c);
+                cellsLayer.append(c);
             }
         };
 
