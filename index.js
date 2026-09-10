@@ -1007,30 +1007,61 @@
         const type = MATCH3_TYPES[Math.floor(Math.random() * MATCH3_TYPES.length)];
         return { type, color: MATCH3_GUMMIES[type].color };
     }
-    function match3FindMatches(board) {
-        const found = new Set();
-        for (let r=0;r<MATCH3_SIZE;r++) {
-            let start=0;
-            while(start<MATCH3_SIZE){
-                const t=board[r][start]; if(!t){start++;continue;}
-                let end=start+1; while(end<MATCH3_SIZE&&board[r][end]&&board[r][end].type===t.type)end++;
-                if(end-start>=3)for(let c=start;c<end;c++)found.add(`${r},${c}`); start=end;
+    function match3FindRuns(board) {
+        const runs = [];
+        for (let r = 0; r < MATCH3_SIZE; r++) {
+            let c = 0;
+            while (c < MATCH3_SIZE) {
+                const tile = board[r][c];
+                if (!tile) { c++; continue; }
+                let end = c + 1;
+                while (end < MATCH3_SIZE && board[r][end] && board[r][end].type === tile.type) end++;
+                if (end - c >= 3) runs.push({ dir: 'row', len: end - c, cells: Array.from({length: end - c}, (_, i) => [r, c + i]), type: tile.type });
+                c = end;
             }
         }
-        for (let c=0;c<MATCH3_SIZE;c++) {
-            let start=0;
-            while(start<MATCH3_SIZE){
-                const t=board[start][c]; if(!t){start++;continue;}
-                let end=start+1; while(end<MATCH3_SIZE&&board[end][c]&&board[end][c].type===t.type)end++;
-                if(end-start>=3)for(let r=start;r<end;r++)found.add(`${r},${c}`); start=end;
+        for (let c = 0; c < MATCH3_SIZE; c++) {
+            let r = 0;
+            while (r < MATCH3_SIZE) {
+                const tile = board[r][c];
+                if (!tile) { r++; continue; }
+                let end = r + 1;
+                while (end < MATCH3_SIZE && board[end][c] && board[end][c].type === tile.type) end++;
+                if (end - r >= 3) runs.push({ dir: 'col', len: end - r, cells: Array.from({length: end - r}, (_, i) => [r + i, c]), type: tile.type });
+                r = end;
             }
         }
-        return [...found].map(key=>key.split(',').map(Number));
+        return runs;
     }
-    function match3HasInitialMatch(board){return match3FindMatches(board).length>0;}
-    function match3HasMove(board){
+
+    function match3FindMatches(board) {
+        const found = new Map();
+        for (const run of match3FindRuns(board)) for (const cell of run.cells) found.set(`${cell[0]},${cell[1]}`, cell);
+        return [...found.values()];
+    }
+    function match3HasInitialMatch(board) { return match3FindMatches(board).length > 0; }
+    function match3SpecialTypeAt(tile) { return tile?.special || null; }
+    function match3RunIncludes(run, r, c) { return run.cells.some(([rr, cc]) => rr === r && cc === c); }
+    function match3SpecialForSwap(board, r, c) {
+        const runs = match3FindRuns(board).filter(run => match3RunIncludes(run, r, c));
+        const row = runs.find(run => run.dir === 'row');
+        const col = runs.find(run => run.dir === 'col');
+        if (row && col) return 'bomb';
+        if (runs.some(run => run.len >= 5)) return 'color';
+        if (runs.some(run => run.len === 4 && run.dir === 'row')) return 'row';
+        if (runs.some(run => run.len === 4 && run.dir === 'col')) return 'col';
+        return null;
+    }
+    function match3CreateSpecial(tile, special) {
+        if (!tile || !special) return tile;
+        return { ...tile, special };
+    }
+    function match3HasMove(board) {
         for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)for(const [dr,dc] of [[0,1],[1,0]]){
             const nr=r+dr,nc=c+dc; if(nr>=MATCH3_SIZE||nc>=MATCH3_SIZE)continue;
+            const a=board[r][c],b=board[nr][nc];
+            if (!a||!b) continue;
+            if (a.special || b.special) return true;
             const next=match3Clone(board); [next[r][c],next[nr][nc]]=[next[nr][nc],next[r][c]];
             if(match3FindMatches(next).length)return true;
         }
@@ -1052,7 +1083,8 @@
     function match3NormalizeTile(tile){
         if(!tile)return null;
         const type=MATCH3_TYPES.includes(tile.type)?tile.type:(MATCH3_TYPE_MIGRATION[tile.type]||MATCH3_TYPES[Math.floor(Math.random()*MATCH3_TYPES.length)]);
-        return {type,color:MATCH3_GUMMIES[type].color};
+        const special=['row','col','bomb','color'].includes(tile.special)?tile.special:null;
+        return {type,color:MATCH3_GUMMIES[type].color,special};
     }
     function match3NormalizeStats(g){
         g.score=Math.max(0,Number(g.score)||0); g.moves=Math.max(0,Number(g.moves)||0);
@@ -1075,7 +1107,6 @@
             if(!g)g=JSON.parse(localStorage.getItem(MATCH3_OLD_KEY)||'null');
             if(!g||!Array.isArray(g.board)||g.board.length!==MATCH3_SIZE||!g.board.every(r=>Array.isArray(r)&&r.length===MATCH3_SIZE))return null;
             g.board=g.board.map(r=>r.map(match3NormalizeTile));
-            // 旧版只有单关卡：平稳迁移成第 1 关，不删除旧成绩。
             if(!g.level)g.level=1;
             if(g.maxMoves&&!g.unlockedLevel)g.unlockedLevel=1;
             g.over=!!g.over; g.won=!!g.won;
@@ -1118,21 +1149,116 @@
             g.won=true;g.over=true;
             const stars=match3StarFor(g);g.stars[g.level-1]=Math.max(Number(g.stars[g.level-1])||0,stars);
             g.unlockedLevel=Math.max(g.unlockedLevel,Math.min(MATCH3_LEVELS.length,g.level+1));
-            recordGameWin('match3');
-            return true;
+            recordGameWin('match3'); return true;
         }
         if(g.moves>=g.maxMoves||!match3HasMove(g.board)){g.over=true;}
         return g.over;
+    }
+    function match3CollectAndClear(g,cells){
+        for(const [r,c] of cells){
+            const tile=g.board[r]?.[c];
+            if(!tile)continue;
+            g.collected[tile.type]=(g.collected[tile.type]||0)+1;
+            if(tile.jelly)g.jellyCleared++;
+            g.board[r][c]=null;
+        }
+    }
+    function match3Activate(g,r,c,clearSet,queue){
+        if(r<0||r>=MATCH3_SIZE||c<0||c>=MATCH3_SIZE)return;
+        const tile=g.board[r][c]; if(!tile)return;
+        const key=`${r},${c}`; if(clearSet.has(key))return;
+        clearSet.add(key);
+        if(tile.special==='row') for(let cc=0;cc<MATCH3_SIZE;cc++)clearSet.add(`${r},${cc}`);
+        else if(tile.special==='col') for(let rr=0;rr<MATCH3_SIZE;rr++)clearSet.add(`${rr},${c}`);
+        else if(tile.special==='bomb') for(let rr=Math.max(0,r-1);rr<=Math.min(MATCH3_SIZE-1,r+1);rr++)for(let cc=Math.max(0,c-1);cc<=Math.min(MATCH3_SIZE-1,c+1);cc++)clearSet.add(`${rr},${cc}`);
+        if(tile.special==='color'){
+            for(let rr=0;rr<MATCH3_SIZE;rr++)for(let cc=0;cc<MATCH3_SIZE;cc++)if(g.board[rr][cc]&&g.board[rr][cc].type===tile.type)clearSet.add(`${rr},${cc}`);
+        }
+        for(const pos of [...clearSet]){
+            const [rr,cc]=pos.split(',').map(Number),t=g.board[rr]?.[cc];
+            if(t?.special&&pos!==key)queue.push([rr,cc]);
+        }
+    }
+    function match3ResolveSpecialQueue(g,queue){
+        const clearSet=new Set();
+        while(queue.length){const [r,c]=queue.shift();match3Activate(g,r,c,clearSet,queue);}
+        const cells=[...clearSet].map(key=>key.split(',').map(Number));
+        match3CollectAndClear(g,cells);
+        g.score += cells.length*cells.length*4 + cells.filter(([r,c])=>g.board[r]?.[c]?.special).length*60;
+        return cells.length;
+    }
+    function match3Resolve(g, seedCells=[], createdSpecial=null){
+        let chain=0;
+        while(true){
+            const matches=match3FindMatches(g.board);
+            if(!matches.length)break;
+            chain++;
+            let clearCells=new Set(matches.map(([r,c])=>`${r},${c}`));
+            if(createdSpecial){
+                const k=`${createdSpecial.r},${createdSpecial.c}`;
+                clearCells.delete(k);
+                g.board[createdSpecial.r][createdSpecial.c]=match3CreateSpecial(g.board[createdSpecial.r][createdSpecial.c],createdSpecial.special);
+                createdSpecial=null;
+            }
+            const cells=[...clearCells].map(key=>key.split(',').map(Number));
+            const gain=cells.length*20*chain + Math.max(0,cells.length-3)*18;
+            g.score+=gain;
+            match3CollectAndClear(g,cells);
+            match3Collapse(g.board);
+        }
+        match3FinishCheck(g);
+    }
+    function match3SwapSpecialCombo(g,a,b){
+        const A=g.board[a.r][a.c],B=g.board[b.r][b.c];
+        if(!A||!B)return false;
+        const clearSet=new Set(),queue=[];
+        const add=(r,c)=>{if(r>=0&&r<MATCH3_SIZE&&c>=0&&c<MATCH3_SIZE)clearSet.add(`${r},${c}`);};
+        const activate=(r,c)=>match3Activate(g,r,c,clearSet,queue);
+        if(A.special==='color'&&B.special==='color'){
+            for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)add(r,c);
+        }else if(A.special==='color'||B.special==='color'){
+            const colorTile=A.special==='color'?B:A;
+            if(!colorTile)return false;
+            for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
+                const t=g.board[r][c];
+                if(t&&t.type===colorTile.type){
+                    if(colorTile.special&&colorTile.special!=='color')t.special=colorTile.special;
+                    add(r,c);
+                    if(t.special)queue.push([r,c]);
+                }
+            }
+        }else if(A.special&&B.special){
+            if((A.special==='row'||A.special==='col')&&(B.special==='row'||B.special==='col')){
+                for(let i=0;i<MATCH3_SIZE;i++){add(a.r,i);add(i,a.c);add(b.r,i);add(i,b.c);}
+            }else if(A.special==='bomb'&&B.special==='bomb'){
+                for(let r=Math.max(0,Math.min(a.r,b.r)-2);r<=Math.min(MATCH3_SIZE-1,Math.max(a.r,b.r)+2);r++)for(let c=Math.max(0,Math.min(a.c,b.c)-2);c<=Math.min(MATCH3_SIZE-1,Math.max(a.c,b.c)+2);c++)add(r,c);
+            }else{
+                const center={r:Math.round((a.r+b.r)/2),c:Math.round((a.c+b.c)/2)};
+                for(let r=center.r-1;r<=center.r+1;r++)for(let c=0;c<MATCH3_SIZE;c++)add(r,c);
+                for(let c=center.c-1;c<=center.c+1;c++)for(let r=0;r<MATCH3_SIZE;r++)add(r,c);
+            }
+        }else if(A.special||B.special){
+            const s=A.special?A:B, p=A.special?a:b; activate(p.r,p.c); if(queue.length)while(queue.length){const [r,c]=queue.shift();match3Activate(g,r,c,clearSet,queue);}
+        }else return false;
+        add(a.r,a.c);add(b.r,b.c);
+        for(const pos of [...clearSet]){const [r,c]=pos.split(',').map(Number),t=g.board[r]?.[c];if(t?.special)queue.push([r,c]);}
+        while(queue.length){const [r,c]=queue.shift();match3Activate(g,r,c,clearSet,queue);}
+        const cells=[...clearSet].map(key=>key.split(',').map(Number));
+        match3CollectAndClear(g,cells);g.score+=cells.length*cells.length*5+120;match3Collapse(g.board);match3Resolve(g);return true;
     }
     function match3RemoveCells(g,cells,scoreMultiplier=1){
         const unique=[...new Map(cells.map(([r,c])=>[`${r},${c}`,[r,c]])).values()];
         for(const [r,c] of unique){const tile=g.board[r][c];if(!tile)continue;g.collected[tile.type]=(g.collected[tile.type]||0)+1;if(tile.jelly)g.jellyCleared++;g.board[r][c]=null;}
         const n=unique.length;g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board);return n;
     }
-    function match3Resolve(g){
-        let chain=0;
-        while(true){const matches=match3FindMatches(g.board);if(!matches.length)break;chain++;const gain=matches.length*20*chain+(matches.length>=4?40:0)+(matches.length>=5?80:0);g.score+=gain;for(const [r,c] of matches){const tile=g.board[r][c];if(tile){g.collected[tile.type]=(g.collected[tile.type]||0)+1;if(tile.jelly)g.jellyCleared++;g.board[r][c]=null;}}match3Collapse(g.board);}
-        match3FinishCheck(g);
+    function match3ShuffleBoard(g){
+        const tiles=g.board.flat();
+        for(let attempt=0;attempt<120;attempt++){
+            for(let i=tiles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}
+            let k=0;for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)g.board[r][c]=tiles[k++];
+            if(!match3HasInitialMatch(g.board)&&match3HasMove(g.board))return;
+        }
+        g.board=match3GenerateBoard();
     }
     function match3ShuffleBoard(g){
         const tiles=g.board.flat();
@@ -1161,7 +1287,7 @@
         ];
         const toolButtons={};
         toolDefs.forEach(([id,label,icon])=>{const b=el('button',{class:'stgc-btn match3-tool-btn',type:'button'});b.innerHTML=`<i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span><em></em>`;b.addEventListener('click',()=>selectTool(id));tools.append(b);toolButtons[id]=b;});
-        body.append(top,goals,tools,toolHint,board,result,el('div',{class:'stgc-game-hint',text:'交换相邻软糖，三个以上相同软糖会消除。不同关卡有不同目标，道具不消耗步数。'}));
+        body.append(top,goals,tools,toolHint,board,result,el('div',{class:'stgc-game-hint',text:'交换相邻软糖：3 个消除；4 个生成横/竖线软糖；T/L 形生成 3×3 炸弹糖；5 个生成彩虹糖。特殊糖互相组合会触发更强的清除。'}));
 
         function refreshLevelOptions(){
             levelSelect.innerHTML='';
@@ -1176,7 +1302,12 @@
             const g=state.match3;if(!g.tool||!(g.tools[g.tool]>0)||!g.board[r][c])return false;
             const tool=g.tool;
             if(tool==='hammer'){
-                match3RemoveCells(g,[[r,c]],1.5);g.tools.hammer--;
+                if(g.board[r][c].special){
+                    const queue=[];const clearSet=new Set();match3Activate(g,r,c,clearSet,queue);while(queue.length){const [rr,cc]=queue.shift();match3Activate(g,rr,cc,clearSet,queue);}match3CollectAndClear(g,[...clearSet].map(k=>k.split(',').map(Number)));match3Collapse(g.board);g.score+=180;
+                }else{
+                    match3RemoveCells(g,[[r,c]],1.5);
+                }
+                g.tools.hammer--;
             }else if(tool==='colorClear'){
                 const type=g.board[r][c].type;const cells=[];for(let rr=0;rr<MATCH3_SIZE;rr++)for(let cc=0;cc<MATCH3_SIZE;cc++)if(g.board[rr][cc]?.type===type)cells.push([rr,cc]);
                 match3RemoveCells(g,cells,1.15);g.tools.colorClear--;
@@ -1193,7 +1324,7 @@
             for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
                 const t=g.board[r][c];
                 const cell=el('button',{class:`match3-cell candy-${t?.type||'empty'}${g.selected?.r===r&&g.selected?.c===c?' selected':''}`,type:'button'});
-                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.jelly)cell.dataset.jelly='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
+                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
                 else cell.disabled=true;board.append(cell);
             }
             result.textContent=g.won?`本关获得 ${match3StarFor(g)} 星 · 下一关已${g.unlockedLevel>g.level?'解锁':'开放'}`:g.over?'本关没有完成目标，可以重开本关或换关':'选择两个相邻软糖交换';
@@ -1208,9 +1339,17 @@
             if(!g.selected){g.selected={r,c};draw();return;}
             if(g.selected.r===r&&g.selected.c===c){g.selected=null;draw();return;}
             const a=g.selected,adjacent=Math.abs(a.r-r)+Math.abs(a.c-c)===1;if(!adjacent){g.selected={r,c};draw();return;}
+            const first=g.board[a.r][a.c],second=g.board[r][c];
+            if(first?.special||second?.special){
+                if(match3SwapSpecialCombo(g,a,{r,c})){g.moves++;g.selected=null;match3FinishCheck(g);match3Save(g);draw();return;}
+            }
             const next=match3Clone(g.board);[next[a.r][a.c],next[r][c]]=[next[r][c],next[a.r][a.c]];
             if(!match3FindMatches(next).length){g.selected={r,c};draw();return;}
-            g.board=next;g.moves++;g.selected=null;match3Resolve(g);match3Save(g);draw();
+            const specialA=match3SpecialForSwap(next,a.r,a.c);const specialB=match3SpecialForSwap(next,r,c);
+            let create=null;
+            if(specialB)create={r,c,special:specialB};
+            else if(specialA)create={r:a.r,c:a.c,special:specialA};
+            g.board=next;g.moves++;g.selected=null;match3Resolve(g,[a,{r,c}],create);match3Save(g);draw();
         }
         levelSelect.addEventListener('change',()=>{
             const id=Number(levelSelect.value);const g=state.match3;const currentStars=g.stars?.slice()||[];state.match3=match3New(id,Math.max(g.unlockedLevel,id),currentStars);match3Save(state.match3);draw();
