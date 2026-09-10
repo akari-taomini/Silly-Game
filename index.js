@@ -1193,7 +1193,18 @@
             g.unlockedLevel=Math.max(g.unlockedLevel,Math.min(MATCH3_LEVELS.length,g.level+1));
             recordGameWin('match3'); return true;
         }
-        if(g.moves>=g.maxMoves||!match3HasMove(g.board)){g.over=true;}
+        if(g.moves>=g.maxMoves){
+            g.over=true;
+            return true;
+        }
+        if(!match3HasMove(g.board)){
+            if(match3ShuffleBoard(g)){
+                g.notice='没有可合成的组合，棋盘已自动刷新';
+                match3Save(g);
+            }else{
+                g.over=true;
+            }
+        }
         return g.over;
     }
     function match3CollectAndClear(g,cells){
@@ -1319,17 +1330,52 @@
         const n=unique.length;g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board, g.level);return n;
     }
     function match3ShuffleBoard(g){
-        const tiles=g.board.flat();
-        for(let attempt=0;attempt<120;attempt++){
-            for(let i=tiles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}
-            let k=0;for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++)g.board[r][c]=tiles[k++];
-            if(!match3HasInitialMatch(g.board)&&match3HasMove(g.board))return;
+        const shape=match3ShapeByLevel(g.level);
+        const positions=[],tiles=[];
+        for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
+            if(shape[r]?.[c]!=='1'){
+                g.board[r][c]=null;
+                continue;
+            }
+            positions.push([r,c]);
+            if(g.board[r][c])tiles.push(g.board[r][c]);
         }
-        g.board=match3GenerateBoard();
+        if(tiles.length<2)return false;
+        // 只在“可用格”之间洗牌，永久挖空的位置永远不参与，不会被填回去。
+        for(let attempt=0;attempt<240;attempt++){
+            const shuffled=tiles.slice();
+            for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+            for(const [r,c] of positions)g.board[r][c]=null;
+            for(let i=0;i<positions.length;i++){
+                const [r,c]=positions[i];
+                g.board[r][c]=shuffled[i]||null;
+            }
+            if(!match3HasInitialMatch(g.board)&&match3HasMove(g.board))return true;
+        }
+        // 极少数布局可能洗不出解；重新生成“可用格”内容，但永久洞结构保持不动。
+        const fresh=match3GenerateBoard(g.level);
+        for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
+            if(shape[r]?.[c]==='1'){
+                const old=g.board[r][c];
+                const next=fresh[r][c];
+                if(next){
+                    if(old?.ice)next.ice=1;
+                    if(old?.vine)next.vine=1;
+                    if(old?.jelly)next.jelly=1;
+                    if(old?.special)next.special=old.special;
+                }
+                g.board[r][c]=next;
+            }else g.board[r][c]=null;
+        }
+        return !match3HasInitialMatch(g.board)&&match3HasMove(g.board);
     }
     function renderMatch3(body){
         cleanupGame();
-        state.match3=match3Load()||match3New(1,1,[]);match3Save(state.match3);
+        state.match3=match3Load()||match3New(1,1,[]);
+        if(!state.match3.won&&!state.match3.over&&!match3HasMove(state.match3.board)){
+            if(match3ShuffleBoard(state.match3)) state.match3.notice='没有可合成的组合，棋盘已自动刷新';
+        }
+        match3Save(state.match3);
         const top=el('div',{class:'stgc-status-row'}),info=el('div',{class:'stgc-status-text'});
         const levelSelect=el('select',{class:'stgc-select match3-level-select','aria-label':'选择三消关卡'});
         const toolHint=el('span',{class:'match3-tool-hint'});
@@ -1391,15 +1437,16 @@
             Object.entries(toolButtons).forEach(([id,b])=>{b.classList.toggle('active',g.tool===id);b.disabled=g.over||g.tools[id]<=0;b.querySelector('em').textContent=String(g.tools[id]||0);});
             refreshLevelOptions();
             for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
-                const t=g.board[r][c];
-                const cell=el('button',{class:`match3-cell candy-${t?.type||'empty'}${g.selected?.r===r&&g.selected?.c===c?' selected':''}`,type:'button'});
+                const t=g.board[r][c], open=match3IsOpen(level.id,r,c);
+                const cell=el('button',{class:`match3-cell ${open?'':'candy-hole '}${t?`candy-${t.type}`:'candy-empty'}${g.selected?.r===r&&g.selected?.c===c?' selected':''}`,type:'button'});
                 if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';if(t.ice)cell.dataset.ice='1';if(t.vine)cell.dataset.vine='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
                 else cell.disabled=true;board.append(cell);
             }
             result.innerHTML='';
             const message=document.createElement('span');
-            message.textContent=g.over&&!g.won?'本关没有完成目标，可以重开本关':'选择两个相邻软糖交换';
+            message.textContent=g.notice||(g.over&&!g.won?'本关没有完成目标，可以重开本关':'选择两个相邻软糖交换');
             result.append(message);
+            g.notice='';
             // 通关时使用覆盖整个游戏区域的结果弹窗，下一关入口只放在弹窗中央。
             const won=g.won;
             winOverlay.classList.toggle('is-show',won);

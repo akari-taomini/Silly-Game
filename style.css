@@ -7309,19 +7309,20 @@ n
 #st-mini-game-center .match3-board {
     width: min(640px, 100%);
     margin: 8px auto 12px;
-    padding: 12px;
+    padding: 10px;
     display: grid;
     grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: clamp(4px, .65vw, 7px);
-    border-radius: 16px;
-    background: var(--tetris-fill, var(--customThemeColor, var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor, currentColor))));
+    gap: 3px;
+    border-radius: 14px;
+    /* 棋盘底层完全透明，让挖空处直接看到 Silly Game 弹窗背景。 */
+    background: transparent;
     border: 1px solid var(--SmartThemeBorderColor, rgba(127,127,127,.25));
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 8%, transparent), 0 10px 30px color-mix(in srgb, var(--SmartThemeBodyColor, #000) 16%, transparent);
+    box-shadow: none;
     touch-action: manipulation;
     user-select: none;
 }
 
-/* 格子本身不再是糖。这里只负责点击区域和选中提示。 */
+/* 每一个实际存在的格子形成清晰的“格子背景”；洞不填色、不占据视觉背景。 */
 #st-mini-game-center .match3-cell {
     aspect-ratio: 1;
     min-width: 0;
@@ -7329,23 +7330,32 @@ n
     position: relative;
     display: grid;
     place-items: center;
-    border: 0;
-    border-radius: 18%;
-    background: transparent;
-    box-shadow: none;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 58%, transparent);
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) 78%, var(--SmartThemeBodyColor, currentColor) 3%);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent);
     color: var(--SmartThemeBodyColor, currentColor);
     cursor: pointer;
     overflow: visible;
-    transition: transform .12s ease, filter .12s ease;
+    transition: transform .12s ease, filter .12s ease, background-color .12s ease;
 }
 
+#st-mini-game-center .match3-cell.candy-hole {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none;
+    cursor: default;
+}
+
+#st-mini-game-center .match3-cell.candy-empty {
+    opacity: .7;
+}
 #st-mini-game-center .match3-cell:hover .match3-candy-art {
     transform: scale(1.045) translateY(-1px);
     filter: brightness(1.04) saturate(1.03);
 }
-#st-mini-game-center .match3-cell:active .match3-candy-art {
-    transform: scale(.95);
-}
+#st-mini-game-center .match3-cell:active .match3-candy-art { transform: scale(.95); }
 
 #st-mini-game-center .match3-candy-art {
     --candy-color-hi: var(--tile-hi);
@@ -7359,15 +7369,9 @@ n
     filter: drop-shadow(0 4px 4px rgba(0,0,0,.18));
 }
 
-/* 所有糖只占一个“糖本体”，不再有彩色方块底。 */
 #st-mini-game-center .match3-candy-art::before,
-#st-mini-game-center .match3-candy-art::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-}
+#st-mini-game-center .match3-candy-art::after { content: ''; position:absolute; }
 
-/* 软糖星星 */
 #st-mini-game-center .candy-star .match3-candy-art::before {
     inset: 2%;
     clip-path: polygon(50% 0%,61% 34%,98% 35%,68% 55%,79% 94%,50% 72%,21% 94%,32% 55%,2% 35%,39% 34%);
@@ -7479,6 +7483,7 @@ n
 @media (max-width:640px) {
     #st-mini-game-center .match3-board { width:min(96vw,560px); padding:6px; gap:3px; border-radius:14px; }
 }
+
 
 
 /* ==================== 三消 1.8.0：关卡 + 道具 ==================== */
@@ -7729,4 +7734,36 @@ n
     margin-top: 18px;
     font-size: 14px;
     font-weight: 800;
+}
+
+/* 三消 1.8.6：棋盘网格背景与自动洗牌 */
+#st-mini-game-center .match3-result { min-height: 24px; }
+
+
+/* 三消 1.8.6：格子背景 + 真实挖空 + 无可合成自动刷新 */
+#st-mini-game-center .match3-board {
+    background: transparent !important;
+    box-shadow: none !important;
+    gap: 3px !important;
+}
+#st-mini-game-center .match3-cell {
+    background: color-mix(
+        in srgb,
+        var(--SmartThemeBlurTintColor, var(--SmartThemeBodyBgColor, transparent)) 76%,
+        var(--SmartThemeBodyColor, currentColor) 3%
+    ) !important;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 58%, transparent) !important;
+    border-radius: 5px !important;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--SmartThemeBodyColor, #fff) 5%, transparent) !important;
+}
+#st-mini-game-center .match3-cell.candy-hole {
+    visibility: visible !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+}
+#st-mini-game-center .match3-cell.candy-hole::before,
+#st-mini-game-center .match3-cell.candy-hole::after {
+    content: none !important;
 }
