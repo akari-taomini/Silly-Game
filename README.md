@@ -1,16 +1,16 @@
 # Silly Game
 
-**当前版本：v1.9.3**
+**当前版本：v1.9.4**
 
 SillyTavern 里的纯前端小游戏集合。
 
 ## 游戏
 角色陪玩、扫雷、2048、推箱子、数独、蜘蛛纸牌、五子棋、数字华容道、俄罗斯方块、围棋、倒水瓶、小农场、叠蛋糕、消灭星星、连连看、数方、国际象棋、中国象棋、UNO。
 
-## v1.9.3｜角色陪玩选择界面与聊天补全预设修复
-- 修复角色陪玩“没有读取到聊天补全预设”的兼容问题：同时从 SillyTavern Chat Completion Preset Manager 与原生 `#settings_preset_openai` 下拉框读取。
-- 聊天补全预设独立于当前 RP 预设；可直接选择酒馆中全部 Chat Completion Preset，陪玩生成结束后恢复原 RP 预设。
-- 新增预设刷新按钮，并在酒馆预设管理器延迟注册时自动再次读取。
+## v1.9.4｜角色陪玩改用 API 连接配置
+- 角色陪玩改为读取 SillyTavern 的 **API 连接配置（Connection Profiles）**，不再读取当前 RP 的 Chat Completion Preset。
+- 使用 `ConnectionManagerRequestService` 直接按所选配置发请求，不切换当前 RP 的全局连接。
+- 下拉项显示“配置名 · 模型”，支持刷新；RP 可以继续使用 Pro，小游戏单独使用轻量模型/中转配置。
 - 角色列表默认折叠，展开后支持搜索；只显示匹配角色，降低大量角色卡时的视觉负担。
 - 保留最多 3 名角色同时陪玩与未选满席位使用本地 AI 补位。
 
