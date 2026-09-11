@@ -8852,3 +8852,10 @@ n
     grid-template-rows: repeat(var(--go-size), minmax(0, 1fr));
     z-index: 1;
 }
+
+
+/* v1.10.11 角色陪玩按钮 */
+.stgc-board-companion-header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;}
+.stgc-board-companion-header-actions{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;justify-content:flex-end;}
+.stgc-board-companion-switcher,.stgc-board-companion-mercy{white-space:nowrap;}
+@media (max-width:560px){.stgc-board-companion-header{align-items:flex-start;flex-direction:column;}.stgc-board-companion-header-actions{width:100%;justify-content:space-between;}}
