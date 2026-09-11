@@ -36,12 +36,13 @@
         characterCompanionTimer: null,
         doudizhu: null,
         doudizhuTimer: null,
+        doudizhuSession: 0,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.10.7';
+    const CURRENT_VERSION = '1.10.8';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -2050,6 +2051,26 @@
         return { deck: [], hands: [ddzSortCards(deck.slice(0,17)), ddzSortCards(deck.slice(17,34)), ddzSortCards(deck.slice(34,51))], bottom: deck.slice(51), current: 0, landlord: null, bids: [null,null,null], highestBid: 0, bidRound: 0, phase: 'bid', lastMove: null, passes: 0, winner: null, over: false, message: '开始叫地主', companion: { enabled: false, settings: getCharacterCompanionSettings() } };
     }
     function ddzSave(g = state.doudizhu) { try { if (g) localStorage.setItem(DOUDIZHU_KEY, JSON.stringify(g)); } catch {} }
+
+    // 斗地主运行会话令牌：关闭窗口、切换游戏或重新开始后，旧的定时器/异步 API
+    // 即使稍后返回，也不得继续修改/保存旧牌局。这样可以彻底避免
+    // “退出后 AI 还在后台替我打牌”以及旧异步请求覆盖新存档的情况。
+    function ddzSessionActive(g, token) {
+        return state.currentGame === 'doudizhu' && state.doudizhu === g && state.doudizhuSession === token;
+    }
+    function ddzInvalidateSession() {
+        state.doudizhuSession = (Number(state.doudizhuSession) || 0) + 1;
+    }
+    function ddzSchedule(g, onUpdate, delay, task) {
+        if (state.doudizhuTimer) clearTimeout(state.doudizhuTimer);
+        const token = state.doudizhuSession;
+        state.doudizhuTimer = setTimeout(() => {
+            state.doudizhuTimer = null;
+            if (!ddzSessionActive(g, token)) return;
+            task(token);
+        }, Math.max(0, Number(delay) || 0));
+    }
+
     function ddzLoad() {
         try {
             const g = JSON.parse(localStorage.getItem(DOUDIZHU_KEY) || 'null');
@@ -2153,16 +2174,18 @@
         return { game:'斗地主', playerIndex:p, playerName:ddzPlayerName(g,p), phase:g.phase, landlord:g.landlord, currentPlayer:g.current, yourHand:g.hands[p], otherHandCounts:g.hands.map((h,i)=>({player:i,name:ddzPlayerName(g,i),count:h.length})), lastMove:g.lastMove?{player:g.lastMove.player,cards:g.lastMove.cards.map(ddzCardLabel),type:g.lastMove.type}:null, legalMoves:legal, bottom:g.landlord===p?g.bottom:[], message:g.message||'' };
     }
     async function ddzCompanionTurn(g,onUpdate){
+        const token = state.doudizhuSession;
+        if(!ddzSessionActive(g, token)) return;
         const p=g.current; const companion=resolveCharacterCompanionForPlayer(g,p); if(!companion){ddzLocalTurn(g,onUpdate);return;} g.companionThinking=true; g.message=`${companion.name} 正在思考 · ${companionRateText('API')}`; onUpdate();
-        try{const action=await generateCharacterDoudizhuAction({gameSnapshot:ddzSnapshot(g,p),companion,settings:g.companion.settings}); if(state.doudizhu!==g)return; const legal=ddzLegalMoves(g,p); let chosen=null; if(action.action==='play'){chosen=legal.find(m=>!m.pass&&m.indices.length===action.cardIndices.length&&m.indices.every(i=>action.cardIndices.includes(i)));}else chosen=legal.find(m=>m.pass);
+        try{const action=await generateCharacterDoudizhuAction({gameSnapshot:ddzSnapshot(g,p),companion,settings:g.companion.settings}); if(!ddzSessionActive(g, token)) return; const legal=ddzLegalMoves(g,p); let chosen=null; if(action.action==='play'){chosen=legal.find(m=>!m.pass&&m.indices.length===action.cardIndices.length&&m.indices.every(i=>action.cardIndices.includes(i)));}else chosen=legal.find(m=>m.pass);
             if(!chosen) throw new Error('角色选择了非法斗地主行动'); ddzApplyMove(g,p,chosen); if(g.companion.settings.speak!==false&&action.speech&&!g.over)g.message=`${companion.name}：“${action.speech}”`; g.companionThinking=false;ddzSave(g);onUpdate();
-        }catch(e){console.warn('[Silly Game] character companion Doudizhu generation failed:',e);g.companionThinking=false;g.message=`${companion.name} 请求失败，改由本地 AI 接管`;ddzLocalTurn(g,onUpdate);}
-        if(!g.over&&g.current!==0){state.doudizhuTimer=setTimeout(()=>{const next= g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null; if(next)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);},1000);}
+        }catch(e){if(!ddzSessionActive(g, token)) return; console.warn('[Silly Game] character companion Doudizhu generation failed:',e);g.companionThinking=false;g.message=`${companion.name} 请求失败，改由本地 AI 接管`;ddzLocalTurn(g,onUpdate);return;}
+        if(!g.over&&g.current!==0){ddzSchedule(g,onUpdate,1000,()=>{const next= g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null; if(next)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);});}
     }
-    function ddzLocalTurn(g,onUpdate){const p=g.current;const move=ddzChooseLocalMove(g,p);ddzApplyMove(g,p,move);ddzSave(g);onUpdate();if(!g.over&&g.current!==0){state.doudizhuTimer=setTimeout(()=>{const next=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(next)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);},1000);}}
+    function ddzLocalTurn(g,onUpdate){const token=state.doudizhuSession;if(!ddzSessionActive(g,token))return;const p=g.current;const move=ddzChooseLocalMove(g,p);ddzApplyMove(g,p,move);ddzSave(g);onUpdate();if(!g.over&&g.current!==0){ddzSchedule(g,onUpdate,1000,()=>{const next=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(next)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);});}}
     function ddzBidLocal(g,p){const hand=g.hands[p]; let score=0; const count=new Map();hand.forEach(c=>count.set(c.rank,(count.get(c.rank)||0)+1));score += Math.max(...count.values())*0.7; score += hand.filter(c=>c.rank>=14).length*0.35; if(count.get(16)&&count.get(17))score+=2; return score>=3.1?3:score>=2.4?2:score>=1.8?1:0;}
-    async function ddzBidCompanion(g,onUpdate){const p=g.current,companion=resolveCharacterCompanionForPlayer(g,p);if(!companion){ddzBidLocal(g,p);ddzAdvanceBid(g,onUpdate);return;}g.companionThinking=true;g.message=`${companion.name} 正在叫地主 · ${companionRateText('API')}`;onUpdate();try{const snap={game:'斗地主',phase:'bid',playerIndex:p,playerName:ddzPlayerName(g,p),hand:g.hands[p],currentPlayer:g.current,highestBid:g.highestBid,legalBids:[0,1,2,3].filter(v=>v===0||v>g.highestBid)};const loaded=await ensureCharacterData(companion.characterIndex);if(loaded)companion.character=loaded;if(companion.source==='character')companion.promptText=characterCompanionText(companion.character);const prompt=['【Silly Game 角色陪玩协议】','你正在参加斗地主叫地主阶段。只参考角色简介；若为世界书条目角色，只参考该条目。','选择一个合法叫分 0/1/2/3。不能修改手牌或规则。只输出 JSON。', '{"bid":0,"speech":"一句很短的台词"}', `【角色】\n${companion.promptText||companion.name}`,`【局面】\n${JSON.stringify(snap)}`].join('\n');const res=await generateCharacterCompanionWithSelectedProfile(g.companion.settings,prompt,140);const o=parseStructuredResult(res);let bid=Math.max(0,Math.min(3,Number(o?.bid)||0));if(bid!==0&&bid<=g.highestBid)bid=0;g.bids[p]=bid;g.highestBid=Math.max(g.highestBid,bid);g.message=`${companion.name} 叫 ${bid} 分`;if(g.companion.settings.speak!==false&&typeof o?.speech==='string'&&o.speech.trim())g.message+=` · “${o.speech.trim().slice(0,120)}”`;g.companionThinking=false;ddzAdvanceBid(g,onUpdate);}catch(e){console.warn('[Silly Game] Doudizhu bidding failed',e);g.companionThinking=false;g.bids[p]=ddzBidLocal(g,p);g.highestBid=Math.max(g.highestBid,g.bids[p]);g.message=`${companion.name} 暂时没叫好，使用本地策略`;ddzAdvanceBid(g,onUpdate);}}
-    function ddzAdvanceBid(g,onUpdate){const bid=g.bids[g.current];if(g.bids.every(v=>v!==null)){let landlord=g.bids.indexOf(Math.max(...g.bids)); if(Math.max(...g.bids)===0) landlord=Math.floor(Math.random()*3);g.landlord=landlord;g.hands[landlord]=ddzSortCards([...g.hands[landlord],...g.bottom]);g.bottom=[];g.phase='play';g.current=landlord;g.lastMove=null;g.passes=0;g.message=`${ddzPlayerName(g,landlord)} 成为地主`;ddzSave(g);onUpdate();if(g.current!==0){state.doudizhuTimer=setTimeout(()=>{const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);},800);}return;}g.current=(g.current+1)%3;ddzSave(g);onUpdate();if(g.current!==0){state.doudizhuTimer=setTimeout(()=>{const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzBidCompanion(g,onUpdate);else {g.bids[g.current]=ddzBidLocal(g,g.current);g.highestBid=Math.max(g.highestBid,g.bids[g.current]);g.message=`${ddzPlayerName(g,g.current)} 叫 ${g.bids[g.current]} 分`;ddzAdvanceBid(g,onUpdate);}},700);}}
+    async function ddzBidCompanion(g,onUpdate){const token=state.doudizhuSession;if(!ddzSessionActive(g,token))return;const p=g.current,companion=resolveCharacterCompanionForPlayer(g,p);if(!companion){ddzBidLocal(g,p);ddzAdvanceBid(g,onUpdate);return;}g.companionThinking=true;g.message=`${companion.name} 正在叫地主 · ${companionRateText('API')}`;onUpdate();try{const snap={game:'斗地主',phase:'bid',playerIndex:p,playerName:ddzPlayerName(g,p),hand:g.hands[p],currentPlayer:g.current,highestBid:g.highestBid,legalBids:[0,1,2,3].filter(v=>v===0||v>g.highestBid)};const loaded=await ensureCharacterData(companion.characterIndex);if(!ddzSessionActive(g,token))return;if(loaded)companion.character=loaded;if(companion.source==='character')companion.promptText=characterCompanionText(companion.character);const prompt=['【Silly Game 角色陪玩协议】','你正在参加斗地主叫地主阶段。只参考角色简介；若为世界书条目角色，只参考该条目。','选择一个合法叫分 0/1/2/3。不能修改手牌或规则。只输出 JSON。', '{"bid":0,"speech":"一句很短的台词"}', `【角色】\n${companion.promptText||companion.name}`,`【局面】\n${JSON.stringify(snap)}`].join('\n');const res=await generateCharacterCompanionWithSelectedProfile(g.companion.settings,prompt,140);if(!ddzSessionActive(g,token))return;const o=parseStructuredResult(res);let bid=Math.max(0,Math.min(3,Number(o?.bid)||0));if(bid!==0&&bid<=g.highestBid)bid=0;g.bids[p]=bid;g.highestBid=Math.max(g.highestBid,bid);g.message=`${companion.name} 叫 ${bid} 分`;if(g.companion.settings.speak!==false&&typeof o?.speech==='string'&&o.speech.trim())g.message+=` · “${o.speech.trim().slice(0,120)}”`;g.companionThinking=false;ddzAdvanceBid(g,onUpdate);}catch(e){if(!ddzSessionActive(g,token))return;console.warn('[Silly Game] Doudizhu bidding failed',e);g.companionThinking=false;g.bids[p]=ddzBidLocal(g,p);g.highestBid=Math.max(g.highestBid,g.bids[p]);g.message=`${companion.name} 暂时没叫好，使用本地策略`;ddzAdvanceBid(g,onUpdate);}}
+    function ddzAdvanceBid(g,onUpdate){if(!ddzSessionActive(g,state.doudizhuSession))return;const bid=g.bids[g.current];if(g.bids.every(v=>v!==null)){let landlord=g.bids.indexOf(Math.max(...g.bids)); if(Math.max(...g.bids)===0) landlord=Math.floor(Math.random()*3);g.landlord=landlord;g.hands[landlord]=ddzSortCards([...g.hands[landlord],...g.bottom]);g.bottom=[];g.phase='play';g.current=landlord;g.lastMove=null;g.passes=0;g.message=`${ddzPlayerName(g,landlord)} 成为地主`;ddzSave(g);onUpdate();if(g.current!==0){ddzSchedule(g,onUpdate,800,()=>{const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);});}return;}g.current=(g.current+1)%3;ddzSave(g);onUpdate();if(g.current!==0){ddzSchedule(g,onUpdate,700,()=>{const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzBidCompanion(g,onUpdate);else {g.bids[g.current]=ddzBidLocal(g,g.current);g.highestBid=Math.max(g.highestBid,g.bids[g.current]);g.message=`${ddzPlayerName(g,g.current)} 叫 ${g.bids[g.current]} 分`;ddzAdvanceBid(g,onUpdate);}});}}
     function renderDoudizhu(body){
         cleanupGame(); state.doudizhu=ddzLoad()||ddzDeal();
         const cs=getCharacterCompanionSettings();
@@ -2271,16 +2294,27 @@
                 });
             } else if(g.phase==='play'&&g.current===0&&!g.over){
                 const play=el('button',{class:'stgc-btn ddz-action-btn ddz-action-primary',type:'button',text:'出牌'}),
+                    reselect=el('button',{class:'stgc-btn ddz-action-btn',type:'button',text:'重选'}),
                     pass=el('button',{class:'stgc-btn ddz-action-btn',type:'button',text:'不出'});
                 play.addEventListener('click',()=>{
-                    const idx=[...selected]; const move=ddzLegalMoves(g,0).find(m=>!m.pass&&m.indices.length===idx.length&&m.indices.every(i=>idx.includes(i)));
-                    if(!move){message.textContent='这手牌不合法，或者压不过上一手'; return;}
+                    const idx=[...selected].sort((a,b)=>a-b);
+                    if(!idx.length){g.message='请先选择要出的牌';draw();return;}
+                    const move=ddzLegalMoves(g,0).find(m=>!m.pass&&m.indices.length===idx.length&&m.indices.every(i=>idx.includes(i)));
+                    if(!move){g.message='这手牌不合法，或者压不过上一手。可以继续改选，不会自动“不出”。';draw();return;}
                     selected.clear(); ddzApplyMove(g,0,move); ddzSave(); draw();
                     if(!g.over&&g.current!==0){const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,draw);else ddzLocalTurn(g,draw);}
                 });
+                reselect.addEventListener('click',()=>{selected.clear();g.message='已清除选牌，请重新选择';draw();});
                 pass.disabled=!g.lastMove;
-                pass.addEventListener('click',()=>{selected.clear();ddzApplyMove(g,0,{pass:true});ddzSave();draw();if(!g.over&&g.current!==0){const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,draw);else ddzLocalTurn(g,draw);}});
-                actions.append(play,pass);
+                pass.addEventListener('click',()=>{
+                    if(!g.lastMove)return;
+                    selected.clear();
+                    const ok=ddzApplyMove(g,0,{pass:true});
+                    if(!ok){g.message='现在不能不出';draw();return;}
+                    ddzSave();draw();
+                    if(!g.over&&g.current!==0){const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,draw);else ddzLocalTurn(g,draw);}
+                });
+                actions.append(play,reselect,pass);
             } else if(g.over){
                 actions.append(el('span',{class:'ddz-result-badge',text:g.winner===0?'本局胜利 🎉':'本局结束'}));
             }
@@ -2291,25 +2325,27 @@
             if(state.doudizhu.companionThinking)return;
             const has=resolveCharacterCompanions(cs,3).length>0;
             if(!has){state.doudizhu.message='请先在角色陪玩中选择角色';draw();return;}
+            if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);
+            ddzInvalidateSession();
             const enabled=!state.doudizhu?.companion?.enabled;
             state.doudizhu=ddzDeal(); state.doudizhu.companion={enabled,settings:state.characterCompanion||cs}; ddzSave(); draw();
             if(enabled&&state.doudizhu.current!==0&&!state.doudizhu.over){
                 if(state.doudizhu.phase==='bid'){
-                    state.doudizhuTimer=setTimeout(()=>{const c=resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current);if(c)ddzBidCompanion(state.doudizhu,draw);else{state.doudizhu.bids[state.doudizhu.current]=ddzBidLocal(state.doudizhu,state.doudizhu.current);state.doudizhu.highestBid=Math.max(state.doudizhu.highestBid,state.doudizhu.bids[state.doudizhu.current]);ddzAdvanceBid(state.doudizhu,draw);}},500);
+                    ddzSchedule(state.doudizhu,draw,500,()=>{const c=resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current);if(c)ddzBidCompanion(state.doudizhu,draw);else{state.doudizhu.bids[state.doudizhu.current]=ddzBidLocal(state.doudizhu,state.doudizhu.current);state.doudizhu.highestBid=Math.max(state.doudizhu.highestBid,state.doudizhu.bids[state.doudizhu.current]);ddzAdvanceBid(state.doudizhu,draw);}});
                 } else {
-                    state.doudizhuTimer=setTimeout(()=>{const c=resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current);if(c)ddzCompanionTurn(state.doudizhu,draw);else ddzLocalTurn(state.doudizhu,draw);},500);
+                    ddzSchedule(state.doudizhu,draw,500,()=>{const c=resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current);if(c)ddzCompanionTurn(state.doudizhu,draw);else ddzLocalTurn(state.doudizhu,draw);});
                 }
             }
         });
-        restart.addEventListener('click',()=>{if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);selected.clear();state.doudizhu=ddzDeal();const st=state.characterCompanion||cs;state.doudizhu.companion={enabled:resolveCharacterCompanions(st,3).length>0,settings:st};ddzSave();draw();});
-        state.cleanup=()=>{if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);state.doudizhuTimer=null;if(state.characterCompanionTimer)clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;state.doudizhu?.companion&&(state.doudizhu.companionThinking=false);ddzSave(state.doudizhu);};
+        restart.addEventListener('click',()=>{if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);ddzInvalidateSession();selected.clear();state.doudizhu=ddzDeal();const st=state.characterCompanion||cs;state.doudizhu.companion={enabled:resolveCharacterCompanions(st,3).length>0,settings:st};ddzSave();draw();});
+        state.cleanup=()=>{ddzInvalidateSession();if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);state.doudizhuTimer=null;if(state.characterCompanionTimer)clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;state.doudizhu?.companion&&(state.doudizhu.companionThinking=false);ddzSave(state.doudizhu);};
         state.characterCompanionTimer=window.setInterval(()=>rate.textContent=companionRateText('AI 请求'),250);
         draw();
         if(state.doudizhu.current!==0&&!state.doudizhu.over){
             if(state.doudizhu.phase==='bid'){
-                state.doudizhuTimer=setTimeout(()=>{const c=state.doudizhu.companion.enabled?resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current):null;if(c)ddzBidCompanion(state.doudizhu,draw);else{state.doudizhu.bids[state.doudizhu.current]=ddzBidLocal(state.doudizhu,state.doudizhu.current);state.doudizhu.highestBid=Math.max(state.doudizhu.highestBid,state.doudizhu.bids[state.doudizhu.current]);ddzAdvanceBid(state.doudizhu,draw);}},700);
+                ddzSchedule(state.doudizhu,draw,700,()=>{const c=state.doudizhu.companion.enabled?resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current):null;if(c)ddzBidCompanion(state.doudizhu,draw);else{state.doudizhu.bids[state.doudizhu.current]=ddzBidLocal(state.doudizhu,state.doudizhu.current);state.doudizhu.highestBid=Math.max(state.doudizhu.highestBid,state.doudizhu.bids[state.doudizhu.current]);ddzAdvanceBid(state.doudizhu,draw);}});
             } else {
-                state.doudizhuTimer=setTimeout(()=>{const c=state.doudizhu.companion.enabled?resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current):null;if(c)ddzCompanionTurn(state.doudizhu,draw);else ddzLocalTurn(state.doudizhu,draw);},700);
+                ddzSchedule(state.doudizhu,draw,700,()=>{const c=state.doudizhu.companion.enabled?resolveCharacterCompanionForPlayer(state.doudizhu,state.doudizhu.current):null;if(c)ddzCompanionTurn(state.doudizhu,draw);else ddzLocalTurn(state.doudizhu,draw);});
             }
         }
     }
