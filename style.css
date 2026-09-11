@@ -8382,3 +8382,162 @@ n
         width: calc(100% - 4px) !important;
     }
 }
+
+
+/* ==================== v1.10.5 斗地主牌桌视觉重制 ==================== */
+#st-mini-game-center .ddz-topbar { flex-wrap: wrap; gap: 8px; }
+#st-mini-game-center .ddz-top-status { min-width: 0; flex: 1 1 220px; }
+#st-mini-game-center .ddz-toolbar-btn { flex: 0 0 auto; }
+#st-mini-game-center .ddz-table {
+    --ddz-border: color-mix(in srgb, var(--SmartThemeBorderColor, #888) 38%, transparent);
+    position: relative;
+    min-height: 370px;
+    margin-top: 4px;
+    overflow: hidden;
+    border: 1px solid var(--ddz-border);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 10%, transparent), transparent 42%),
+        linear-gradient(145deg, color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 72%, transparent), color-mix(in srgb, var(--SmartThemeBlurTintColor, #fff) 58%, transparent));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 10px 30px rgba(0,0,0,.08);
+}
+#st-mini-game-center .ddz-table::before,
+#st-mini-game-center .ddz-table::after {
+    content: ""; position: absolute; pointer-events: none; border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 12%, transparent);
+}
+#st-mini-game-center .ddz-table::before { inset: 11% 16%; }
+#st-mini-game-center .ddz-table::after { inset: 17% 21%; border-style: dashed; opacity: .42; }
+#st-mini-game-center .ddz-seat {
+    position: absolute; z-index: 3;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; min-width: 0; padding: 9px 10px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 22%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 48%, transparent);
+    backdrop-filter: blur(7px);
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+#st-mini-game-center .ddz-seat-left { left: 12px; top: 23%; width: 118px; }
+#st-mini-game-center .ddz-seat-right { right: 12px; top: 23%; width: 118px; }
+#st-mini-game-center .ddz-seat-me { left: 50%; bottom: 12px; width: min(230px, 52%); transform: translateX(-50%); }
+#st-mini-game-center .ddz-seat.is-current {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 62%, var(--SmartThemeBorderColor, #888));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 12%, transparent), 0 8px 22px rgba(0,0,0,.10);
+}
+#st-mini-game-center .ddz-seat-me.is-current { transform: translate(-50%,-2px); }
+#st-mini-game-center .ddz-seat-head { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; }
+#st-mini-game-center .ddz-avatar {
+    display: inline-flex; align-items: center; justify-content: center; width: 31px; height: 31px; flex: 0 0 31px;
+    border-radius: 50%; border: 1px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 44%, var(--SmartThemeBorderColor, #888));
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 12%, var(--SmartThemeBodyBgColor, #fff));
+    color: var(--SmartThemeBodyColor, currentColor); font-size: 13px; font-weight: 800;
+}
+#st-mini-game-center .ddz-seat-meta { min-width: 0; display: flex; flex-direction: column; text-align: left; }
+#st-mini-game-center .ddz-seat-name { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+#st-mini-game-center .ddz-seat-sub { font-size: 10px; opacity: .56; }
+#st-mini-game-center .ddz-seat-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+#st-mini-game-center .ddz-landlord-badge,
+#st-mini-game-center .ddz-turn-badge,
+#st-mini-game-center .ddz-phase-pill {
+    display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 24%, transparent);
+    font-size: 9px; white-space: nowrap;
+}
+#st-mini-game-center .ddz-turn-badge { opacity: .78; }
+#st-mini-game-center .ddz-mini-backs { position: relative; width: 78px; height: 31px; margin-top: 1px; }
+#st-mini-game-center .ddz-mini-back {
+    position: absolute; top: 2px; width: 25px; height: 32px; border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 46%, transparent);
+    background:
+        linear-gradient(135deg, transparent 46%, color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 19%, transparent) 47% 53%, transparent 54%),
+        color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 60%, transparent);
+    box-shadow: 0 2px 5px rgba(0,0,0,.08);
+}
+#st-mini-game-center .ddz-mini-back:nth-child(1){left:0}
+#st-mini-game-center .ddz-mini-back:nth-child(2){left:8px}
+#st-mini-game-center .ddz-mini-back:nth-child(3){left:16px}
+#st-mini-game-center .ddz-mini-back:nth-child(4){left:24px}
+#st-mini-game-center .ddz-mini-back:nth-child(5){left:32px}
+#st-mini-game-center .ddz-center {
+    position: absolute; z-index: 2; left: 50%; top: 48%; transform: translate(-50%,-50%);
+    width: min(330px, 58%); min-height: 166px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 16px 12px; text-align: center;
+}
+#st-mini-game-center .ddz-center-who { font-size: 11px; opacity: .68; }
+#st-mini-game-center .ddz-move-cards { display: flex; align-items: flex-end; justify-content: center; min-height: 91px; padding: 6px 4px; }
+#st-mini-game-center .ddz-move-cards .ddz-card { width: 47px; min-width: 47px; height: 75px; min-height: 75px; margin-left: -13px; cursor: default; transform: none; }
+#st-mini-game-center .ddz-move-cards .ddz-card:first-child { margin-left: 0; }
+#st-mini-game-center .ddz-move-cards .ddz-card-center { font-size: 17px; }
+#st-mini-game-center .ddz-empty-table {
+    width: 68px; height: 88px; border: 1px dashed color-mix(in srgb, var(--SmartThemeBorderColor, #888) 27%, transparent);
+    border-radius: 11px; opacity: .42;
+}
+#st-mini-game-center .ddz-center-tip { font-size: 10px; opacity: .46; }
+#st-mini-game-center .ddz-landlord-note { font-size: 10px; opacity: .5; }
+#st-mini-game-center .ddz-message {
+    min-height: 28px; margin: 10px 4px 4px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 18%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 42%, transparent);
+    font-size: 11px; line-height: 1.5; text-align: center;
+}
+#st-mini-game-center .ddz-hand-wrap { position: relative; margin-top: 9px; padding: 7px 2px 2px; }
+#st-mini-game-center .ddz-hand-title { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 1px; font-size: 10px; opacity: .56; }
+#st-mini-game-center .ddz-player-hand {
+    display: flex; justify-content: center; align-items: flex-end; flex-wrap: nowrap; overflow-x: auto; overflow-y: visible;
+    min-height: 96px; padding: 15px 22px 9px; scrollbar-width: thin;
+}
+#st-mini-game-center .ddz-player-hand::-webkit-scrollbar { height: 5px; }
+#st-mini-game-center .ddz-card {
+    position: relative; width: 54px; min-width: 54px; height: 78px; min-height: 78px; margin-left: -15px; padding: 5px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 40%, transparent); border-radius: 9px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 95%, transparent);
+    color: var(--SmartThemeBodyColor, currentColor); cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,.10);
+    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+#st-mini-game-center .ddz-player-hand .ddz-card:first-child { margin-left: 0; }
+#st-mini-game-center .ddz-card:hover { transform: translateY(-5px); z-index: 4; }
+#st-mini-game-center .ddz-card.selected {
+    transform: translateY(-11px); border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 70%, var(--SmartThemeBorderColor, #888));
+    box-shadow: 0 10px 18px rgba(0,0,0,.14); z-index: 5;
+}
+#st-mini-game-center .ddz-card-red { color: #b74b63; }
+#st-mini-game-center .ddz-card-black { color: var(--SmartThemeBodyColor, #222); }
+#st-mini-game-center .ddz-card-joker { color: var(--SmartThemeQuoteColor, currentColor); }
+#st-mini-game-center .ddz-card-corner { position: absolute; top: 5px; left: 6px; display: flex; flex-direction: column; align-items: flex-start; line-height: .9; }
+#st-mini-game-center .ddz-card-corner b { font-size: 14px; }
+#st-mini-game-center .ddz-card-corner i { font-size: 11px; font-style: normal; }
+#st-mini-game-center .ddz-card-corner-bottom { top: auto; left: auto; right: 6px; bottom: 5px; transform: rotate(180deg); }
+#st-mini-game-center .ddz-card-center { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 18px; font-weight: 800; letter-spacing: -.04em; }
+#st-mini-game-center .ddz-player-hand.hand-disabled .ddz-card { cursor: default; opacity: .86; }
+#st-mini-game-center .ddz-bottom-hint { min-height: 18px; margin-top: 1px; text-align: center; font-size: 10px; opacity: .43; }
+#st-mini-game-center .ddz-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+#st-mini-game-center .ddz-action-btn { min-width: 72px; }
+#st-mini-game-center .ddz-action-primary { font-weight: 800; border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 52%, var(--SmartThemeBorderColor, #888)); }
+#st-mini-game-center .ddz-result-badge {
+    display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 28%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #8c78b5) 10%, transparent); font-size: 11px; font-weight: 700;
+}
+#st-mini-game-center .ddz-info { margin-top: 9px; font-size: 10px; line-height: 1.55; text-align: center; opacity: .42; }
+@media (max-width: 620px) {
+    #st-mini-game-center .ddz-table { min-height: 330px; border-radius: 19px; }
+    #st-mini-game-center .ddz-seat-left { left: 7px; top: 21%; width: 92px; }
+    #st-mini-game-center .ddz-seat-right { right: 7px; top: 21%; width: 92px; }
+    #st-mini-game-center .ddz-seat-me { bottom: 8px; width: 58%; }
+    #st-mini-game-center .ddz-avatar { width: 27px; height: 27px; flex-basis: 27px; font-size: 11px; }
+    #st-mini-game-center .ddz-seat-name { max-width: 58px; font-size: 10px; }
+    #st-mini-game-center .ddz-seat-sub { font-size: 8px; }
+    #st-mini-game-center .ddz-landlord-badge,#st-mini-game-center .ddz-turn-badge { font-size: 8px; padding: 2px 5px; }
+    #st-mini-game-center .ddz-center { width: 60%; min-height: 145px; top: 49%; }
+    #st-mini-game-center .ddz-move-cards .ddz-card { width: 40px; min-width: 40px; height: 64px; min-height: 64px; margin-left: -10px; }
+    #st-mini-game-center .ddz-move-cards .ddz-card-center { font-size: 14px; }
+    #st-mini-game-center .ddz-player-hand { justify-content: flex-start; min-height: 85px; padding-left: 8px; padding-right: 8px; }
+    #st-mini-game-center .ddz-card { width: 46px; min-width: 46px; height: 68px; min-height: 68px; margin-left: -13px; }
+    #st-mini-game-center .ddz-card-center { font-size: 15px; }
+    #st-mini-game-center .ddz-card-corner b { font-size: 12px; }
+    #st-mini-game-center .ddz-card-corner i { font-size: 9px; }
+    #st-mini-game-center .ddz-top-status { flex-basis: 100%; }
+}
