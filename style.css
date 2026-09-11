@@ -8228,3 +8228,68 @@ n
     background: transparent !important;
     border-color: transparent !important;
 }
+
+/* v1.10.3：修复角色陪玩展开后列表不可见的问题。只负责可见性/布局，仍沿用酒馆原生控件颜色。 */
+#st-mini-game-center .stgc-companion-character-picker:not(.collapsed) {
+    display: flex !important;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+#st-mini-game-center .stgc-companion-character-list-status {
+    display: block !important;
+    min-height: 16px;
+    font-size: 11px;
+    line-height: 1.4;
+    opacity: .6;
+}
+#st-mini-game-center .stgc-companion-character-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    max-height: min(50vh, 460px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    visibility: visible !important;
+}
+#st-mini-game-center .stgc-companion-character-group {
+    display: block !important;
+    width: 100%;
+    min-height: 36px;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+#st-mini-game-center .stgc-companion-character-head {
+    width: 100%;
+    min-height: 36px;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+#st-mini-game-center .stgc-companion-character-option {
+    min-height: 36px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: var(--SmartThemeBodyColor) !important;
+}
+#st-mini-game-center .stgc-companion-character-option .checkbox,
+#st-mini-game-center .stgc-companion-character-option-name,
+#st-mini-game-center .stgc-companion-current-badge {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+#st-mini-game-center .stgc-companion-character-option-name {
+    color: var(--SmartThemeBodyColor) !important;
+}
+#st-mini-game-center .stgc-companion-character-option:hover {
+    background: color-mix(in srgb, var(--SmartThemeBodyColor) 7%, transparent);
+}
+#st-mini-game-center .stgc-companion-worldbook-toggle {
+    visibility: visible !important;
+    opacity: 1 !important;
+}

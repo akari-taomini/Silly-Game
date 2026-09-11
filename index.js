@@ -1179,6 +1179,7 @@
         charSearchRow.append(el('i', { class: 'fa-solid fa-magnifying-glass stgc-companion-character-search-icon', 'aria-hidden': 'true' }), charSearch);
         charPicker.append(charSearchRow);
         const charGrid = el('div', { class: 'stgc-companion-character-grid stgc-companion-character-grid-rich' });
+        const charListStatus = el('div', { class: 'stgc-companion-character-list-status', text: '正在读取角色…' });
         let chars = listCharacterCompanionCharacters();
         const characterItems = [];
 
@@ -1198,8 +1199,14 @@
             current = Number.isInteger(activeIndex) ? getCharacterCompanionContext()?.characters?.[activeIndex] : null;
             currentBox.querySelector('.stgc-companion-character-name')?.replaceChildren(document.createTextNode(ctx?.groupId ? '多人聊天环境' : (current?.name || '尚未选择角色')));
             charGrid.replaceChildren();
+            charListStatus.textContent = chars.length ? `已读取 ${chars.length} 张角色卡` : '当前酒馆没有读取到角色卡。请刷新酒馆角色列表后，再点这里重试。';
         }
-        if (!chars.length) charGrid.append(el('div', { class: 'stgc-companion-empty', text: '当前酒馆没有读取到角色卡。请刷新酒馆角色列表后，再点这里重试。' }));
+        if (!chars.length) {
+            charListStatus.textContent = '当前酒馆没有读取到角色卡。请刷新酒馆角色列表后，再点这里重试。';
+            charGrid.append(el('div', { class: 'stgc-companion-empty', text: charListStatus.textContent }));
+        } else {
+            charListStatus.textContent = `已读取 ${chars.length} 张角色卡`;
+        }
 
         function hasSlot(slot) {
             return pickedSlots.some(item => item.source === slot.source
@@ -1241,6 +1248,8 @@
             entryBox.append(el('div', { class: 'stgc-companion-worldbook-loading', text: '点击世界书按钮读取……' }));
             itemWrap.append(entryBox);
             charGrid.append(itemWrap);
+            itemWrap.dataset.characterIndex = String(index);
+            itemWrap.dataset.roleName = name;
             const item = { itemWrap, mainLabel, checkbox, name, index, wbToggle, entryBox, loaded: false, entries: [] };
             characterItems.push(item);
 
@@ -1278,6 +1287,8 @@
                 }
                 item.entries = normalizeCharacterBookEntries(loaded || c);
                 entryBox.replaceChildren();
+                item.itemWrap.style.visibility = 'visible';
+                item.itemWrap.style.opacity = '1';
                 if (!item.entries.length) {
                     entryBox.append(el('div', { class: 'stgc-companion-worldbook-empty', text: '这张角色卡没有可作为陪玩角色的启用世界书条目。' }));
                     return;
@@ -1306,7 +1317,7 @@
                 });
             });
         });
-        charPicker.append(charGrid);
+        charPicker.append(charListStatus, charGrid);
         options.append(charPicker);
 
         const updateCharacterPicker = () => {
