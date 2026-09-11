@@ -39,7 +39,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.9.1';
+    const CURRENT_VERSION = '1.9.2';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -550,47 +550,43 @@
         return resolveCharacterCompanionForPlayer(g, playerIndex)?.name || `AI ${playerIndex}`;
     }
 
+    // SillyTavern 的“聊天补全预设”统一由 openai preset manager 管理，
+    // 不根据用户当前正在使用的 API source 筛选，避免 RP 用高阶模型时陪玩也跟着吃高价模型。
     function getCharacterCompanionPresetOptions() {
         const ctx = getCharacterCompanionContext();
-        const source = String(ctx?.chatCompletionSettings?.chat_completion_source || '').trim();
-        const candidates = [];
-        const managers = [];
-        const seenManager = new Set();
-        const tryManager = (apiId) => {
-            if (!apiId || seenManager.has(apiId)) return;
-            seenManager.add(apiId);
-            try {
-                const manager = ctx?.getPresetManager?.(apiId);
-                if (manager) managers.push({ apiId, manager });
-            } catch { /* ignore */ }
-        };
-        tryManager(source);
-        tryManager(ctx?.mainApi);
-        // 某些 ST 版本不要求显式 apiId，作为兼容兜底。
-        try {
-            if (!managers.length) {
-                const manager = ctx?.getPresetManager?.();
-                if (manager) managers.push({ apiId: manager.apiId || source || 'current', manager });
-            }
-        } catch { /* ignore */ }
+        const manager = (() => {
+            try { return ctx?.getPresetManager?.('openai') || null; } catch { return null; }
+        })();
+        if (!manager) return [];
 
-        for (const { apiId, manager } of managers) {
-            let names = [];
-            try { names = manager.getAllPresets?.() || Object.keys(manager.getPresetList?.()?.preset_names || {}); } catch { /* ignore */ }
-            const selected = (() => { try { return manager.getSelectedPresetName?.() || ''; } catch { return ''; } })();
-            for (const name of names) {
-                if (typeof name !== 'string' || !name.trim()) continue;
-                candidates.push({ value: `${apiId}::${name}`, label: name, apiId, name, selected: name === selected });
+        let names = [];
+        try {
+            names = manager.getAllPresets?.();
+            if (!Array.isArray(names) || !names.length) {
+                const list = manager.getPresetList?.('openai');
+                const raw = list?.preset_names;
+                names = Array.isArray(raw) ? raw : Object.keys(raw || {});
             }
+        } catch {
+            names = [];
         }
-        // 同名预设去重，优先保留当前 chat-completion source 对应的那份。
+
+        const selectedName = (() => {
+            try { return manager.getSelectedPresetName?.() || ''; } catch { return ''; }
+        })();
         const unique = [];
         const seen = new Set();
-        for (const item of candidates) {
-            const key = item.value;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            unique.push(item);
+        for (const rawName of names) {
+            const name = String(rawName || '').trim();
+            if (!name || seen.has(name)) continue;
+            seen.add(name);
+            unique.push({
+                value: `openai::${encodeURIComponent(name)}`,
+                label: name,
+                apiId: 'openai',
+                name,
+                selected: name === selectedName,
+            });
         }
         return unique;
     }
@@ -598,32 +594,45 @@
     function findCompanionPresetEntry(settings = getCharacterCompanionSettings()) {
         const value = typeof settings.apiPreset === 'string' ? settings.apiPreset : '';
         if (!value) return null;
-        const idx = value.indexOf('::');
-        const apiId = idx >= 0 ? value.slice(0, idx) : '';
-        const name = idx >= 0 ? value.slice(idx + 2) : value;
+        const prefix = 'openai::';
+        const encodedName = value.startsWith(prefix) ? value.slice(prefix.length) : value;
+        let name = encodedName;
+        try { name = decodeURIComponent(encodedName); } catch { /* legacy/raw name */ }
         if (!name) return null;
         const options = getCharacterCompanionPresetOptions();
-        return options.find(o => o.value === value) || options.find(o => o.name === name && (!apiId || o.apiId === apiId)) || null;
+        return options.find(o => o.name === name) || null;
     }
 
     async function withCharacterCompanionPreset(settings, task) {
         const preset = findCompanionPresetEntry(settings);
-        if (!preset) return task();
+        // 没有明确选择陪玩预设时，绝不偷偷跟随当前 RP 预设。
+        if (!preset) throw new Error('未选择有效的 Silly Game 陪玩 API 预设');
+
         const ctx = getCharacterCompanionContext();
         const manager = (() => {
-            try { return ctx?.getPresetManager?.(preset.apiId) || ctx?.getPresetManager?.(); } catch { return null; }
+            try { return ctx?.getPresetManager?.('openai') || null; } catch { return null; }
         })();
-        if (!manager?.selectPreset) return task();
+        if (!manager?.selectPreset || !manager?.findPreset) throw new Error('SillyTavern 聊天补全预设管理器不可用');
 
         const run = async () => {
             const previousName = (() => { try { return manager.getSelectedPresetName?.() || ''; } catch { return ''; } })();
+            const previousValue = (() => { try { return manager.getSelectedPreset?.(); } catch { return null; } })();
+            const targetValue = (() => { try { return manager.findPreset(preset.name); } catch { return null; } })();
+            if (targetValue == null) throw new Error(`找不到酒馆预设：${preset.name}`);
+
             const changed = previousName !== preset.name;
             try {
-                if (changed) await manager.selectPreset(preset.name);
+                if (changed) {
+                    // PresetManager.selectPreset 接收的是 option value，不是名称。
+                    await Promise.resolve(manager.selectPreset(targetValue));
+                }
                 return await task();
             } finally {
                 if (changed && previousName) {
-                    try { await manager.selectPreset(previousName); } catch (restoreError) {
+                    try {
+                        const restoreValue = previousValue != null ? previousValue : manager.findPreset(previousName);
+                        if (restoreValue != null) await Promise.resolve(manager.selectPreset(restoreValue));
+                    } catch (restoreError) {
                         console.warn('[Silly Game] failed to restore previous API preset:', restoreError);
                     }
                 }
@@ -650,26 +659,6 @@
         };
     }
 
-    function companionUnoJsonSchema() {
-        return {
-            name: 'SillyGameUnoAction',
-            description: '为角色陪玩 UNO 选择一个合法行动，并可给出一句简短角色台词。',
-            strict: true,
-            value: {
-                $schema: 'http://json-schema.org/draft-04/schema#',
-                type: 'object',
-                properties: {
-                    action: { type: 'string', enum: ['play', 'draw', 'pass'] },
-                    cardIndex: { type: 'integer', minimum: 0, maximum: 30 },
-                    color: { type: 'string', enum: ['red', 'yellow', 'green', 'blue', ''] },
-                    speech: { type: 'string', maxLength: 120 },
-                },
-                required: ['action', 'cardIndex', 'color', 'speech'],
-                additionalProperties: false,
-            },
-        };
-    }
-
     function parseStructuredResult(result) {
         if (!result) return null;
         if (typeof result === 'object') return result;
@@ -680,43 +669,91 @@
         try { return JSON.parse(match[0]); } catch { return null; }
     }
 
+    function normalizeCompanionUnoAction(action) {
+        if (!action || typeof action !== 'object') return null;
+        const normalized = {
+            action: typeof action.action === 'string' ? action.action.trim().toLowerCase() : '',
+            cardIndex: Number.isInteger(Number(action.cardIndex)) ? Number(action.cardIndex) : -1,
+            color: typeof action.color === 'string' ? action.color.trim().toLowerCase() : '',
+            speech: typeof action.speech === 'string' ? action.speech.trim().slice(0, 160) : '',
+        };
+        if (!['play', 'draw', 'pass'].includes(normalized.action)) return null;
+        if (normalized.cardIndex < -1 || normalized.cardIndex > 30) return null;
+        if (normalized.color && !UNO_COLORS.includes(normalized.color)) return null;
+        return normalized;
+    }
+
     async function generateCharacterCompanionAction({ gameSnapshot, companion, settings }) {
         const ctx = getCharacterCompanionContext();
         if (!ctx) throw new Error('无法取得 SillyTavern 上下文');
         const loadedCharacter = await ensureCharacterData(companion.index);
         if (loadedCharacter) companion.character = loadedCharacter;
         const cardText = characterCompanionText(companion.character);
+
+        const top = gameSnapshot.topCard;
+        const hasCurrentColor = gameSnapshot.yourHand.some(card => card?.color === gameSnapshot.currentColor);
+        const legalActions = gameSnapshot.yourHand
+            .map((card, index) => {
+                if (!card) return null;
+                let playable = false;
+                if (card.type === 'wild') playable = true;
+                else if (card.type === 'wild4') playable = !hasCurrentColor;
+                else playable = card.color === gameSnapshot.currentColor
+                    || card.type === top?.type
+                    || (card.type === 'number' && top?.type === 'number' && card.value === top?.value);
+                return playable ? {
+                    action: 'play', cardIndex: index, card: card.type === 'wild' || card.type === 'wild4' ? `${card.type}` : `${card.color}:${card.type}`,
+                } : null;
+            })
+            .filter(Boolean);
+        // 除了可出牌外，当前回合始终至少可以摸牌。
+        legalActions.push({ action: 'draw', cardIndex: -1 });
+        if (gameSnapshot.drawnThisTurn) legalActions.push({ action: 'pass', cardIndex: -1 });
+
         const roleInstruction = [
-            '你正在作为这个角色参加 SillyTavern 的 UNO 游戏。',
-            '必须遵守游戏规则：只从给出的合法行动中选择，不要虚构手牌，不要改变游戏状态。',
-            '只返回结构化 JSON，不要输出额外文字。',
-            `你是：${companion.name}`,
-            cardText,
-            `当前局面：${JSON.stringify(gameSnapshot)}`,
-            '选择原则：优先做合理、符合角色性格的行动。cardIndex 指向 yourHand 的数组下标；只有 action=play 时有意义。wild/wild4 需要选择颜色；普通牌 color 填空字符串。摸牌时 action=draw；摸牌后若新牌不能出可选择 pass。speech 为可选的、自然的短句，像角色本人在桌游中说的一句话。',
-        ].join('\n\n');
+            '【Silly Game 角色陪玩协议】',
+            '你现在正在作为指定角色参加 SillyTavern 的 UNO 游戏。',
+            '你是游戏中的一名玩家，不是裁判，也不是规则制定者。',
+            '游戏规则、手牌、轮次、胜负完全由 Silly Game 决定；你绝不能自行修改它们。',
+            '你只能从系统给出的“允许行动”中选择一个。不得虚构不存在的手牌、牌面、资源或对局状态。',
+            '角色人格只能影响你的策略偏好和说话方式，绝不能突破游戏规则。',
+            '',
+            '【必须遵守的输出格式】',
+            '只输出一个 JSON 对象，不要 Markdown，不要代码围栏，不要解释。',
+            '格式：{"action":"play|draw|pass","cardIndex":数字,"color":"red|yellow|green|blue|","speech":"一句很短的角色台词"}',
+            'play 时 cardIndex 必须是自己手牌数组下标；draw/pass 时 cardIndex 必须为 -1。',
+            '普通牌的 color 必须为空字符串；只有 wild/wild4 才需要选择红/黄/绿/蓝。',
+            'speech 可以为空字符串，最多一句短台词。',
+            '',
+            `【你的角色】\n${companion.name}\n${cardText || '（角色卡没有可读取的人物描述，请保持自然、克制的桌游语气。）'}`,
+            `【当前局面】\n${JSON.stringify(gameSnapshot)}`,
+            `【当前允许行动】\n${JSON.stringify(legalActions)}`,
+            '请选择一个合法行动。优先考虑局面和角色性格，不要为了台词而故意违反规则。',
+        ].join('\n');
 
         return withCharacterCompanionPreset(settings || getCharacterCompanionSettings(), async () => {
-            let result;
-            // 当前正在聊天的角色：优先走 quiet generation，保留当前聊天/角色上下文。
-            if (companion.active && typeof ctx.generateQuietPrompt === 'function') {
-                result = await ctx.generateQuietPrompt({
-                    quietPrompt: roleInstruction,
-                    jsonSchema: companionUnoJsonSchema(),
-                    quietToLoud: false,
+            const generateOnce = async (prompt) => {
+                if (typeof ctx.generateRaw !== 'function') throw new Error('当前 SillyTavern 未提供 generateRaw 后台生成接口');
+                // 这里故意不发送 jsonSchema / response_format：部分 OpenAI 兼容中转端会因此拒绝或卡死。
+                // 我们让模型输出 JSON，再由 Silly Game 自己严格解析、验证和裁判。
+                const result = await ctx.generateRaw({
+                    prompt,
+                    responseLength: 180,
                 });
-            } else if (typeof ctx.generateRaw === 'function') {
-                result = await ctx.generateRaw({
-                    prompt: roleInstruction,
-                    jsonSchema: companionUnoJsonSchema(),
-                    responseLength: 220,
-                });
-            } else {
-                throw new Error('当前 SillyTavern 未提供可用的后台生成接口');
+                const parsed = normalizeCompanionUnoAction(parseStructuredResult(result));
+                if (!parsed) throw new Error('角色返回的 UNO 行动不是有效的 JSON 动作');
+                return parsed;
+            };
+
+            try {
+                return await generateOnce(roleInstruction);
+            } catch (firstError) {
+                // 只有“格式/动作非法”时重试；网络超时等错误直接交给上层本地 AI 回退，避免连续打爆接口。
+                const message = String(firstError?.message || '');
+                if (!/JSON|动作|action/i.test(message)) throw firstError;
+                const retryPrompt = `${roleInstruction}\n\n【纠正】上一次输出没有通过解析。请只输出合法 JSON；不要解释，不要 Markdown。action 必须是 play、draw 或 pass，cardIndex 必须是允许行动里的索引。`;
+                return await generateOnce(retryPrompt);
             }
-            const parsed = parseStructuredResult(result);
-            if (!parsed) throw new Error('角色没有返回可解析的游戏行动');
-            return parsed;
         });
     }
 
@@ -905,17 +942,27 @@
         const presetRow = el('div', { class: 'stgc-companion-row' });
         const presetLabel = el('span', { class: 'stgc-companion-row-label', text: 'AI 生成预设' });
         const presetSelect = el('select', { class: 'stgc-select stgc-companion-preset-select', 'aria-label': 'AI 生成预设' });
-        presetSelect.append(el('option', { value: '', text: '跟随酒馆当前 API 预设' }));
         const presetOptions = getCharacterCompanionPresetOptions();
-        presetOptions.forEach(preset => presetSelect.append(el('option', {
-            value: preset.value,
-            text: preset.selected ? `${preset.label}（当前）` : preset.label,
-        })));
-        presetSelect.value = settings.apiPreset || '';
+        const preferredPreset = settings.apiPreset && presetOptions.some(p => p.value === settings.apiPreset)
+            ? settings.apiPreset
+            : (presetOptions[0]?.value || '');
+        if (preferredPreset && preferredPreset !== settings.apiPreset) {
+            settings.apiPreset = preferredPreset;
+            saveCharacterCompanionSettings({ apiPreset: preferredPreset });
+        }
+        if (!presetOptions.length) {
+            presetSelect.append(el('option', { value: '', text: '没有读取到酒馆聊天补全预设' }));
+        } else {
+            presetOptions.forEach(preset => presetSelect.append(el('option', {
+                value: preset.value,
+                text: preset.selected ? `${preset.label}（酒馆当前，仅供参考）` : preset.label,
+            })));
+        }
+        presetSelect.value = preferredPreset;
         presetRow.append(presetLabel, presetSelect);
         options.append(presetRow);
 
-        const presetHint = el('div', { class: 'stgc-companion-preset-hint', text: presetOptions.length ? '这里读取的是酒馆当前 API 的已保存预设。陪玩调用时临时使用该预设，生成完成后自动恢复你原来的预设。' : '暂时没有读到可用的已保存 API 预设，将使用酒馆当前预设。' });
+        const presetHint = el('div', { class: 'stgc-companion-preset-hint', text: presetOptions.length ? '这里列出酒馆全部“聊天补全预设”，与当前 RP 正在使用哪个预设无关。选择的预设只在角色陪玩生成时临时使用，生成完成后恢复你原来的 RP 预设。' : '没有读取到酒馆聊天补全预设；请确认聊天补全预设管理器已经加载。' });
         options.append(presetHint);
 
         const speakRow = el('label', { class: 'checkbox_label stgc-companion-check' });
@@ -926,27 +973,27 @@
 
         const launchUno = el('button', { class: 'stgc-btn stgc-companion-start', type: 'button' });
         launchUno.innerHTML = '<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>开始 UNO 角色陪玩</span>';
-        launchUno.disabled = selectedIndices.length === 0;
+        launchUno.disabled = selectedIndices.length === 0 || !presetOptions.length;
 
         const refreshState = () => {
             const picked = boxes.filter(box => box.checked).map(box => Number(box.value));
             charTitleRow.querySelector('.stgc-companion-count').textContent = `${picked.length}/3`;
             boxes.forEach(box => { box.disabled = !box.checked && picked.length >= 3; });
-            launchUno.disabled = picked.length === 0;
+            launchUno.disabled = picked.length === 0 || !presetOptions.length;
         };
         boxes.forEach(box => box.addEventListener('change', refreshState));
         presetSelect.addEventListener('change', () => saveCharacterCompanionSettings({ apiPreset: presetSelect.value }));
         speak.addEventListener('change', () => saveCharacterCompanionSettings({ speak: speak.checked }));
         launchUno.addEventListener('click', () => {
             const picked = boxes.filter(box => box.checked).map(box => Number(box.value)).slice(0, 3);
-            if (!picked.length) return;
+            if (!picked.length || !presetSelect.value) return;
             const saved = saveCharacterCompanionSettings({ characterIndices: picked, apiPreset: presetSelect.value, speak: speak.checked });
             state.characterCompanion = saved;
             openGame('uno');
         });
 
         panel.append(hero, currentBox, options, launchUno,
-            el('div', { class: 'stgc-companion-note', html: '<strong>规则：</strong>你最多可以选择 3 名酒馆角色，分别占据 UNO 的 3 个 AI 席位；没选满的席位继续由本地 AI 补位。模型只负责“选择”，不能修改牌局。若返回非法动作，Silly Game 会自动回退到本地 AI，不会让牌局卡住。<br><strong>API 预设：</strong>可以直接使用酒馆里已经保存的 API 预设；陪玩生成期间会临时套用所选预设，结束后恢复你原本正在使用的预设。<br><strong>后续：</strong>斗地主、五子棋、象棋、围棋都将复用这套多角色玩家系统。</strong>' }));
+            el('div', { class: 'stgc-companion-note', html: '<strong>规则：</strong>你最多可以选择 3 名酒馆角色，分别占据 UNO 的 3 个 AI 席位；没选满的席位继续由本地 AI 补位。模型只负责“选择”，不能修改牌局。若返回非法动作，Silly Game 会自动校验、重试一次；仍失败则回退到本地 AI，不会让牌局卡住。<br><strong>API 预设：</strong>这里直接列出酒馆的全部聊天补全预设，<strong>不会跟随你当前 RP 所用的预设</strong>。例如 RP 可以用 Pro，打牌可以选一个更便宜的预设。陪玩生成结束后自动恢复 RP 原来的预设。<br><strong>生成方式：</strong>不再强依赖 OpenAI 的 json_schema / response_format，而是由提示词要求 JSON，再由 Silly Game 自己严格解析和裁判，以兼容更多 OpenAI 兼容中转站。</strong>' }));
         body.append(panel);
     }
 
