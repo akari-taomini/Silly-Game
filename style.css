@@ -8156,3 +8156,75 @@ n
 #st-mini-game-center .stgc-companion-preset-select {
     color: var(--SmartThemeBodyColor);
 }
+
+
+/* v1.10.2：角色陪玩面板不再自绘深色卡片，直接跟随 SillyTavern 当前主题。 */
+#st-mini-game-center .stgc-companion-hero,
+#st-mini-game-center .stgc-companion-current,
+#st-mini-game-center .stgc-companion-options {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+#st-mini-game-center .stgc-companion-icon {
+    background: transparent !important;
+}
+#st-mini-game-center .stgc-companion-character-group,
+#st-mini-game-center .stgc-companion-worldbook-list {
+    background: transparent !important;
+}
+#st-mini-game-center .stgc-companion-character-option,
+#st-mini-game-center .stgc-companion-worldbook-entry {
+    color: var(--SmartThemeBodyColor);
+}
+#st-mini-game-center .stgc-companion-rate-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+#st-mini-game-center .stgc-companion-rate-input {
+    width: 86px;
+    min-width: 86px;
+    margin: 0;
+    text-align: center;
+}
+#st-mini-game-center .stgc-companion-rate-suffix,
+#st-mini-game-center .stgc-companion-rate-setting-hint {
+    opacity: .65;
+    font-size: 11px;
+}
+#st-mini-game-center .stgc-companion-rate-label-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+@media (max-width: 560px) {
+    #st-mini-game-center .stgc-companion-rate-row {
+        align-items: center;
+        flex-direction: row;
+    }
+    #st-mini-game-center .stgc-companion-rate-label-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+}
+
+
+/* v1.10.2：角色陪玩页面直接融入酒馆主题，不使用 Silly Game 自己的深色面板底。 */
+#st-mini-game-center .stgc-panel.stgc-companion-game-panel {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+#st-mini-game-center .stgc-panel.stgc-companion-game-panel .stgc-header {
+    background: transparent !important;
+}
+#st-mini-game-center .stgc-companion-hero,
+#st-mini-game-center .stgc-companion-current,
+#st-mini-game-center .stgc-companion-options,
+#st-mini-game-center .stgc-companion-character-picker {
+    background: transparent !important;
+    border-color: transparent !important;
+}

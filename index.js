@@ -41,7 +41,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.10.1';
+    const CURRENT_VERSION = '1.10.2';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -435,17 +435,18 @@
     const CHARACTER_COMPANION_SETTINGS_KEY = 'silly-game-character-companion-v3';
     const CHARACTER_COMPANION_LEGACY_SETTINGS_KEY = 'silly-game-character-companion-v2';
     const CHARACTER_COMPANION_OLD_SETTINGS_KEY = 'silly-game-character-companion-v1';
+    const COMPANION_RATE_WINDOW_MS = 60_000;
+    const COMPANION_DEFAULT_RATE_LIMIT = 10;
     const CHARACTER_COMPANION_DEFAULTS = Object.freeze({
         companionSlots: null,
         characterIndices: null,
         connectionProfile: '',
         speak: true,
+        rateLimitPerMinute: COMPANION_DEFAULT_RATE_LIMIT,
     });
 
-    // 角色陪玩 API 频率保护：最多 10 次/滚动 60 秒，并保证请求启动间隔至少 6 秒。
-    const COMPANION_RATE_LIMIT = 10;
-    const COMPANION_RATE_WINDOW_MS = 60_000;
-    const COMPANION_MIN_GAP_MS = 6_000;
+    // 角色陪玩 API 频率保护：上限可在界面设置，范围 1~60 次/滚动 60 秒。
+    // 请求最短间隔会自动按所选上限计算，例如 10 次/分钟 ≈ 6 秒一次。
     const companionRateLimiter = {
         timestamps: [],
         lastStartedAt: 0,
@@ -457,18 +458,34 @@
         companionRateLimiter.timestamps = companionRateLimiter.timestamps.filter(ts => ts > cutoff);
     }
 
+    function getCompanionConfiguredRateLimit() {
+        try {
+            const settings = getCharacterCompanionSettings();
+            const value = Number(settings?.rateLimitPerMinute);
+            if (Number.isFinite(value)) return Math.min(60, Math.max(1, Math.round(value)));
+        } catch { /* settings may not be initialized yet */ }
+        return COMPANION_DEFAULT_RATE_LIMIT;
+    }
+
+    function getCompanionMinimumGapMs(limit = getCompanionConfiguredRateLimit()) {
+        return Math.ceil(COMPANION_RATE_WINDOW_MS / Math.max(1, limit));
+    }
+
     function getCompanionRateStatus() {
         pruneCompanionRate();
         const now = Date.now();
+        const limit = getCompanionConfiguredRateLimit();
+        const minGapMs = getCompanionMinimumGapMs(limit);
         const last = companionRateLimiter.lastStartedAt || 0;
-        const gapReadyAt = last ? last + COMPANION_MIN_GAP_MS : now;
-        const windowReadyAt = companionRateLimiter.timestamps.length >= COMPANION_RATE_LIMIT
+        const gapReadyAt = last ? last + minGapMs : now;
+        const windowReadyAt = companionRateLimiter.timestamps.length >= limit
             ? companionRateLimiter.timestamps[0] + COMPANION_RATE_WINDOW_MS
             : now;
         const nextAt = Math.max(now, gapReadyAt, windowReadyAt);
         return {
             used: companionRateLimiter.timestamps.length,
-            limit: COMPANION_RATE_LIMIT,
+            limit,
+            minGapMs,
             waitMs: Math.max(0, nextAt - now),
             nextAt,
         };
@@ -539,6 +556,10 @@
                 .map(slot => slot.characterIndex);
             merged.connectionProfile = typeof merged.connectionProfile === 'string' ? merged.connectionProfile : '';
             merged.speak = merged.speak !== false;
+            const configuredRate = Number(merged.rateLimitPerMinute);
+            merged.rateLimitPerMinute = Number.isFinite(configuredRate)
+                ? Math.min(60, Math.max(1, Math.round(configuredRate)))
+                : COMPANION_DEFAULT_RATE_LIMIT;
             return merged;
         } catch {
             return { ...CHARACTER_COMPANION_DEFAULTS, companionSlots: null, characterIndices: null };
@@ -604,8 +625,8 @@
         let character = ctx.characters[index];
         // 角色陪玩默认只需要角色简介，不读取 personality/scenario/示例对话。
         const hasUsefulText = typeof character.description === 'string' && character.description.trim();
-        const hasBook = !!getCharacterBook(character);
-        if ((!hasUsefulText || !hasBook) && typeof ctx.unshallowCharacter === 'function') {
+        // 普通角色只需要 description。不要因为角色带/不带世界书而主动展开整张卡。
+        if (!hasUsefulText && typeof ctx.unshallowCharacter === 'function') {
             try {
                 await ctx.unshallowCharacter(index);
                 character = getCharacterCompanionContext()?.characters?.[index] || character;
@@ -1115,11 +1136,11 @@
         };
     }
 
-    function renderCharacterCompanion(body) {
+    async function renderCharacterCompanion(body) {
         const ctx = getCharacterCompanionContext();
         const settings = getCharacterCompanionSettings();
         const activeIndex = getActiveCharacterIndex();
-        const current = Number.isInteger(activeIndex) ? ctx?.characters?.[activeIndex] : null;
+        let current = Number.isInteger(activeIndex) ? ctx?.characters?.[activeIndex] : null;
         let pickedSlots = normalizeCompanionSlots(settings.companionSlots)
             || (Array.isArray(settings.characterIndices) ? normalizeCompanionSlots(settings.characterIndices.map(index => ({ source: 'character', characterIndex: index }))) : null)
             || [];
@@ -1158,9 +1179,27 @@
         charSearchRow.append(el('i', { class: 'fa-solid fa-magnifying-glass stgc-companion-character-search-icon', 'aria-hidden': 'true' }), charSearch);
         charPicker.append(charSearchRow);
         const charGrid = el('div', { class: 'stgc-companion-character-grid stgc-companion-character-grid-rich' });
-        const chars = listCharacterCompanionCharacters();
+        let chars = listCharacterCompanionCharacters();
         const characterItems = [];
-        if (!chars.length) charGrid.append(el('div', { class: 'stgc-companion-empty', text: '当前酒馆没有可选角色卡。' }));
+
+        // getContext().characters 在部分酒馆配置/懒加载模式下初始可能为空。
+        // 官方上下文提供 getCharacters()，让 Silly Game 主动同步一次角色列表。
+        if (!chars.length && typeof ctx?.getCharacters === 'function') {
+            charGrid.append(el('div', { class: 'stgc-companion-empty', text: '正在读取酒馆角色列表……' }));
+            body.append(panel);
+            try {
+                await ctx.getCharacters();
+            } catch (error) {
+                console.warn('[Silly Game] failed to load character list:', error);
+            }
+            if (!body.isConnected || state.currentGame !== 'characterCompanion') return;
+            // getCharacters() 完成后重新读取 context；不要递归 openGame，避免重置其他 UI。
+            chars = listCharacterCompanionCharacters();
+            current = Number.isInteger(activeIndex) ? getCharacterCompanionContext()?.characters?.[activeIndex] : null;
+            currentBox.querySelector('.stgc-companion-character-name')?.replaceChildren(document.createTextNode(ctx?.groupId ? '多人聊天环境' : (current?.name || '尚未选择角色')));
+            charGrid.replaceChildren();
+        }
+        if (!chars.length) charGrid.append(el('div', { class: 'stgc-companion-empty', text: '当前酒馆没有读取到角色卡。请刷新酒馆角色列表后，再点这里重试。' }));
 
         function hasSlot(slot) {
             return pickedSlots.some(item => item.source === slot.source
@@ -1227,7 +1266,16 @@
                 if (item.loaded) return;
                 item.loaded = true;
                 entryBox.replaceChildren(el('div', { class: 'stgc-companion-worldbook-loading', text: '正在读取这张角色卡的世界书……' }));
-                const loaded = await ensureCharacterData(index);
+                let loaded = c;
+                try {
+                    const stCtx = getCharacterCompanionContext();
+                    if (typeof stCtx?.unshallowCharacter === 'function') {
+                        await stCtx.unshallowCharacter(index);
+                        loaded = getCharacterCompanionContext()?.characters?.[index] || c;
+                    }
+                } catch (error) {
+                    console.warn('[Silly Game] failed to load character worldbook:', error);
+                }
                 item.entries = normalizeCharacterBookEntries(loaded || c);
                 entryBox.replaceChildren();
                 if (!item.entries.length) {
@@ -1329,6 +1377,27 @@
         presetRow.append(presetLabel, presetControls);
         options.append(presetRow, presetHint);
 
+        const rateRow = el('div', { class: 'stgc-companion-row stgc-companion-rate-row' });
+        const rateLabelWrap = el('div', { class: 'stgc-companion-rate-label-wrap' });
+        rateLabelWrap.append(
+            el('span', { class: 'stgc-companion-row-label', text: 'AI 请求速率上限' }),
+            el('small', { class: 'stgc-companion-rate-setting-hint', text: '仅影响角色陪玩，不影响正常 RP' }),
+        );
+        const rateInput = el('input', {
+            class: 'text_pole stgc-companion-rate-input',
+            type: 'number',
+            min: '1',
+            max: '60',
+            step: '1',
+            value: String(getCompanionConfiguredRateLimit()),
+            'aria-label': '每分钟最多请求次数',
+        });
+        const rateSuffix = el('span', { class: 'stgc-companion-rate-suffix', text: '次/分钟' });
+        const rateControl = el('div', { class: 'stgc-companion-rate-control' });
+        rateControl.append(rateInput, rateSuffix);
+        rateRow.append(rateLabelWrap, rateControl);
+        options.append(rateRow);
+
         const rateHint = el('div', { class: 'stgc-companion-rate-status', text: companionRateText('陪玩 API') });
         options.append(rateHint);
         const unsubscribeRate = subscribeCompanionRateStatus(status => {
@@ -1354,6 +1423,12 @@
         });
         presetSelect.addEventListener('change', () => saveCharacterCompanionSettings({ connectionProfile: presetSelect.value }));
         speak.addEventListener('change', () => saveCharacterCompanionSettings({ speak: speak.checked }));
+        rateInput.addEventListener('change', () => {
+            const value = Math.min(60, Math.max(1, Number(rateInput.value) || COMPANION_DEFAULT_RATE_LIMIT));
+            rateInput.value = String(value);
+            saveCharacterCompanionSettings({ rateLimitPerMinute: value });
+            notifyCompanionRate();
+        });
         launchUno.addEventListener('click', () => {
             const picked = normalizeCompanionSlots(pickedSlots);
             if (!picked?.length || !presetSelect.value) return;
@@ -1370,8 +1445,8 @@
         });
 
         panel.append(hero, currentBox, options, launchUno, launchDdz,
-            el('div', { class: 'stgc-companion-note', html: '<strong>读取规则：</strong>普通角色只读取<strong>角色简介</strong>；不会把 personality、scenario、示例对话或整本世界书塞进提示词。若展开某张卡的“世界书”，你可以单独选择某个启用条目；<strong>一个条目就是一个独立角色</strong>，只发送这个条目的内容。<br><strong>API：</strong>选择的是酒馆保存的 API 连接配置，不跟随当前 RP；RP 用 Pro，打牌可以单独用轻量配置。<br><strong>限流：</strong>角色陪玩统一最多 10 次/滚动 60 秒，并至少间隔 6 秒；倒计时会显示在界面上。非法行动由 Silly Game 规则引擎拦截，失败后自动回退本地 AI。' }));
-        body.append(panel);
+            el('div', { class: 'stgc-companion-note', html: '<strong>读取规则：</strong>普通角色只读取<strong>角色简介</strong>；不会把 personality、scenario、示例对话或整本世界书塞进提示词。若展开某张卡的“世界书”，你可以单独选择某个启用条目；<strong>一个条目就是一个独立角色</strong>，只发送这个条目的内容。<br><strong>API：</strong>选择的是酒馆保存的 API 连接配置，不跟随当前 RP；RP 用 Pro，打牌可以单独用轻量配置。<br><strong>限流：</strong>可自行设置每分钟最多请求次数（1～60）；请求最短间隔会随上限自动计算，倒计时会显示在界面上。非法行动由 Silly Game 规则引擎拦截，失败后自动回退本地 AI。' }));
+        if (!panel.isConnected) body.append(panel);
         state.characterCompanionTimer = window.setInterval(() => notifyCompanionRate(), 250);
         const oldCleanup = state.cleanup;
         state.cleanup = () => {
@@ -1881,7 +1956,7 @@
         const root = ensureRoot();
         root.innerHTML = '';
 
-        const panel = el('section', { class: 'stgc-panel stgc-game-panel' });
+        const panel = el('section', { class: `stgc-panel stgc-game-panel${game === 'characterCompanion' ? ' stgc-companion-game-panel' : ''}` });
         const titles = {
             characterCompanion: '角色陪玩',
             mines: '扫雷',
