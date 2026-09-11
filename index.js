@@ -5291,7 +5291,7 @@
         const row = el('div', { class: 'stgc-board-companion-input-row' });
         const input = el('input', { class: 'text_pole stgc-board-companion-input', type: 'text', placeholder: '比如：别下那么狠，放我一马？' });
         const ask = el('button', { class: 'stgc-btn stgc-board-companion-send', type: 'button', text: '发送' });
-        const mercy = el('button', { class: 'stgc-btn stgc-board-companion-mercy', type: 'button', text: '求放水（做梦中）' });
+        const mercy = el('button', { class: 'stgc-btn stgc-board-companion-mercy', type: 'button', text: '求放水' });
         row.append(input, ask, mercy);
         wrap.append(header, transcript, row);
         body.append(wrap);
