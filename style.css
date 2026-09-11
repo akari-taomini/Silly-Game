@@ -7767,3 +7767,80 @@ n
 #st-mini-game-center .match3-cell.candy-hole::after {
     content: none !important;
 }
+
+/* ==================== v1.9.0 角色陪玩 ==================== */
+#st-mini-game-center .stgc-companion-panel {
+    width: min(760px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+}
+#st-mini-game-center .stgc-companion-hero {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 62%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 74%, transparent);
+}
+#st-mini-game-center .stgc-companion-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 18%, transparent);
+    color: var(--SmartThemeQuoteColor, currentColor);
+    font-size: 21px;
+}
+#st-mini-game-center .stgc-companion-title { font-size: 20px; font-weight: 800; }
+#st-mini-game-center .stgc-companion-subtitle { margin-top: 3px; opacity: .68; font-size: 12px; }
+#st-mini-game-center .stgc-companion-current,
+#st-mini-game-center .stgc-companion-options {
+    padding: 15px 16px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 52%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 58%, transparent);
+}
+#st-mini-game-center .stgc-companion-label,
+#st-mini-game-center .stgc-companion-row-label {
+    font-size: 11px;
+    opacity: .62;
+    letter-spacing: .04em;
+}
+#st-mini-game-center .stgc-companion-character-name {
+    margin-top: 5px;
+    font-size: 17px;
+    font-weight: 800;
+}
+#st-mini-game-center .stgc-companion-desc {
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.55;
+    opacity: .72;
+}
+#st-mini-game-center .stgc-companion-options { display: grid; gap: 12px; }
+#st-mini-game-center .stgc-companion-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+#st-mini-game-center .stgc-companion-row .stgc-select { min-width: 190px; max-width: 68%; }
+#st-mini-game-center .stgc-companion-check { margin: 0; }
+#st-mini-game-center .stgc-companion-start {
+    min-height: 44px;
+    font-weight: 800;
+    justify-content: center;
+}
+#st-mini-game-center .stgc-companion-note {
+    padding: 13px 14px;
+    border-left: 3px solid var(--SmartThemeQuoteColor, currentColor);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 52%, transparent);
+    font-size: 12px;
+    line-height: 1.7;
+    opacity: .82;
+}
+#st-mini-game-center .stgc-game-card .stgc-card-name { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 560px) {
+    #st-mini-game-center .stgc-companion-row { align-items: flex-start; flex-direction: column; }
+    #st-mini-game-center .stgc-companion-row .stgc-select { width: 100%; max-width: none; min-width: 0; }
+}

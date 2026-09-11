@@ -32,12 +32,14 @@
         unoPenaltyTimer: null,
         chessAiTimer: null,
         xiangqiAiTimer: null,
+        characterCompanion: null,
+        characterCompanionTimer: null,
     };
 
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.7.0';
+    const CURRENT_VERSION = '1.9.0';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -426,6 +428,375 @@
         return node;
     }
 
+    /* ==================== 角色陪玩核心 ==================== */
+    const CHARACTER_COMPANION_SETTINGS_KEY = 'silly-game-character-companion-v1';
+    const CHARACTER_COMPANION_DEFAULTS = Object.freeze({
+        mode: 'current',
+        characterIndex: null,
+        speak: true,
+    });
+
+    function getCharacterCompanionSettings() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(CHARACTER_COMPANION_SETTINGS_KEY) || 'null');
+            const merged = { ...CHARACTER_COMPANION_DEFAULTS, ...(raw && typeof raw === 'object' ? raw : {}) };
+            merged.mode = merged.mode === 'selected' ? 'selected' : 'current';
+            merged.characterIndex = Number.isInteger(merged.characterIndex) ? merged.characterIndex : null;
+            merged.speak = merged.speak !== false;
+            return merged;
+        } catch {
+            return { ...CHARACTER_COMPANION_DEFAULTS };
+        }
+    }
+
+    function saveCharacterCompanionSettings(patch = {}) {
+        const next = { ...getCharacterCompanionSettings(), ...patch };
+        try { localStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+    }
+
+    function getCharacterCompanionContext() {
+        return getSTContext();
+    }
+
+    function listCharacterCompanionCharacters() {
+        const ctx = getCharacterCompanionContext();
+        if (!Array.isArray(ctx?.characters)) return [];
+        return ctx.characters.map((c, index) => ({ c, index })).filter(({ c }) => c && typeof c === 'object' && (c.name || c.avatar));
+    }
+
+    function getActiveCharacterIndex() {
+        const ctx = getCharacterCompanionContext();
+        return Number.isInteger(ctx?.characterId) ? ctx.characterId : null;
+    }
+
+    async function ensureCharacterData(index) {
+        const ctx = getCharacterCompanionContext();
+        if (!ctx || !Number.isInteger(index) || !ctx.characters?.[index]) return null;
+        let character = ctx.characters[index];
+        const hasUsefulText = [character.description, character.personality, character.scenario].some(v => typeof v === 'string' && v.trim());
+        if (!hasUsefulText && typeof ctx.unshallowCharacter === 'function') {
+            try {
+                await ctx.unshallowCharacter(index);
+                character = getCharacterCompanionContext()?.characters?.[index] || character;
+            } catch (error) {
+                console.warn('[Silly Game] failed to load character card data:', error);
+            }
+        }
+        return character;
+    }
+
+    function characterCompanionText(character) {
+        if (!character) return '';
+        const parts = [];
+        const push = (label, value, max = 5000) => {
+            if (typeof value !== 'string') return;
+            const text = value.trim();
+            if (text) parts.push(`${label}：${text.slice(0, max)}`);
+        };
+        push('角色名', character.name, 200);
+        push('角色描述', character.description, 4500);
+        push('性格', character.personality, 3000);
+        push('场景', character.scenario, 3000);
+        push('示例对话', character.mes_example, 3500);
+        return parts.join('\n');
+    }
+
+    function resolveCharacterCompanion(settings = getCharacterCompanionSettings()) {
+        const ctx = getCharacterCompanionContext();
+        const activeIndex = Number.isInteger(ctx?.characterId) ? ctx.characterId : null;
+        const selectedIndex = settings.mode === 'selected' && Number.isInteger(settings.characterIndex)
+            ? settings.characterIndex
+            : activeIndex;
+        if (!Number.isInteger(selectedIndex) || !ctx?.characters?.[selectedIndex]) return null;
+        const character = ctx.characters[selectedIndex];
+        return {
+            index: selectedIndex,
+            name: character?.name || `角色 ${selectedIndex + 1}`,
+            active: selectedIndex === activeIndex,
+            character,
+        };
+    }
+
+    function companionGameSnapshot(g, p = 1) {
+        return {
+            game: 'UNO',
+            currentPlayer: g.current,
+            currentColor: g.currentColor,
+            topCard: g.discard.at(-1),
+            direction: g.direction === 1 ? '顺时针' : '逆时针',
+            yourHand: g.hands[p],
+            handCounts: g.hands.map((hand, index) => ({ player: index, count: hand.length })),
+            lastMessage: g.message || '',
+            drawnThisTurn: !!g.drawnThisTurn,
+        };
+    }
+
+    function companionUnoJsonSchema() {
+        return {
+            name: 'SillyGameUnoAction',
+            description: '为角色陪玩 UNO 选择一个合法行动，并可给出一句简短角色台词。',
+            strict: true,
+            value: {
+                $schema: 'http://json-schema.org/draft-04/schema#',
+                type: 'object',
+                properties: {
+                    action: { type: 'string', enum: ['play', 'draw', 'pass'] },
+                    cardIndex: { type: 'integer', minimum: 0, maximum: 30 },
+                    color: { type: 'string', enum: ['red', 'yellow', 'green', 'blue', ''] },
+                    speech: { type: 'string', maxLength: 120 },
+                },
+                required: ['action', 'cardIndex', 'color', 'speech'],
+                additionalProperties: false,
+            },
+        };
+    }
+
+    function parseStructuredResult(result) {
+        if (!result) return null;
+        if (typeof result === 'object') return result;
+        const text = String(result).trim();
+        try { return JSON.parse(text); } catch { /* fall through */ }
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try { return JSON.parse(match[0]); } catch { return null; }
+    }
+
+    async function generateCharacterCompanionAction({ gameSnapshot, companion }) {
+        const ctx = getCharacterCompanionContext();
+        if (!ctx) throw new Error('无法取得 SillyTavern 上下文');
+        const loadedCharacter = await ensureCharacterData(companion.index);
+        if (loadedCharacter) companion.character = loadedCharacter;
+        const cardText = characterCompanionText(companion.character);
+        const roleInstruction = [
+            '你正在作为这个角色参加 SillyTavern 的 UNO 游戏。',
+            '必须遵守游戏规则：只从给出的合法行动中选择，不要虚构手牌，不要改变游戏状态。',
+            '只返回结构化 JSON，不要输出额外文字。',
+            `你是：${companion.name}`,
+            cardText,
+            `当前局面：${JSON.stringify(gameSnapshot)}`,
+            '选择原则：优先做合理、符合角色性格的行动。cardIndex 指向 yourHand 的数组下标；只有 action=play 时有意义。wild/wild4 需要选择颜色；普通牌 color 填空字符串。摸牌时 action=draw；摸牌后若新牌不能出可选择 pass。speech 为可选的、自然的短句，像角色本人在桌游中说的一句话。',
+        ].join('\n\n');
+
+        let result;
+        // 当前正在聊天的角色：优先走 quiet generation，保留当前聊天/角色上下文。
+        if (companion.active && typeof ctx.generateQuietPrompt === 'function') {
+            result = await ctx.generateQuietPrompt({
+                quietPrompt: roleInstruction,
+                jsonSchema: companionUnoJsonSchema(),
+                quietToLoud: false,
+            });
+        } else if (typeof ctx.generateRaw === 'function') {
+            result = await ctx.generateRaw({
+                prompt: roleInstruction,
+                jsonSchema: companionUnoJsonSchema(),
+                responseLength: 220,
+            });
+        } else {
+            throw new Error('当前 SillyTavern 未提供可用的后台生成接口');
+        }
+        const parsed = parseStructuredResult(result);
+        if (!parsed) throw new Error('角色没有返回可解析的游戏行动');
+        return parsed;
+    }
+
+    function applyCompanionSpeech(g, companion, text) {
+        const speech = typeof text === 'string' ? text.trim().slice(0, 160) : '';
+        if (!speech) return;
+        g.message = `${companion.name}：“${speech}”`;
+    }
+
+    async function unoCompanionTurn(g, onUpdate) {
+        if (!g || g.over || g.current !== 1 || !g.companion?.enabled) return;
+        const companion = resolveCharacterCompanion(g.companion.settings || getCharacterCompanionSettings());
+        if (!companion) {
+            g.message = '没有找到可用的酒馆角色，已切回普通 AI';
+            g.companion = { enabled: false, settings: getCharacterCompanionSettings() };
+            unoSave(g);
+            onUpdate();
+            if (!g.over && g.current !== 0) state.unoTimer = setTimeout(() => unoAiTurn(state.uno, onUpdate), 800);
+            return;
+        }
+
+        g.companionThinking = true;
+        g.message = `${companion.name} 正在思考…`;
+        onUpdate();
+        try {
+            const action = await generateCharacterCompanionAction({
+                companion,
+                gameSnapshot: companionGameSnapshot(g, 1),
+            });
+            if (state.uno !== g || state.currentGame !== 'uno') return;
+            const hand = g.hands[1] || [];
+            const validPlayables = hand.map((card, index) => ({ card, index }))
+                .filter(({ card }) => unoPlayable(card, g, 1));
+
+            let didAct = false;
+            if (action.action === 'play') {
+                const index = Number(action.cardIndex);
+                const card = hand[index];
+                if (card && unoPlayable(card, g, 1)) {
+                    const chosenColor = card.color === 'wild' || card.color === 'wild4'
+                        ? (UNO_COLORS.includes(action.color) ? action.color : unoBestWildColor(hand))
+                        : null;
+                    didAct = unoApplyPlay(g, 1, index, chosenColor);
+                }
+            } else if (action.action === 'draw') {
+                unoAddDraw(g, 1, 1);
+                const drawnIndex = g.hands[1].length - 1;
+                const drawn = g.hands[1][drawnIndex];
+                g.message = drawn && unoPlayable(drawn, g, 1) ? `${companion.name} 摸到了一张可以出的牌` : `${companion.name} 摸了 1 张牌`;
+                if (drawn && unoPlayable(drawn, g, 1)) {
+                    // UNO 角色摸到可出的牌后，也给它一次立刻出牌的机会。
+                    const secondAction = await generateCharacterCompanionAction({
+                        companion,
+                        gameSnapshot: companionGameSnapshot(g, 1),
+                    }).catch(() => null);
+                    if (secondAction?.action === 'play' && Number(secondAction.cardIndex) === drawnIndex) {
+                        const chosenColor = drawn.color === 'wild' || drawn.color === 'wild4'
+                            ? (UNO_COLORS.includes(secondAction.color) ? secondAction.color : unoBestWildColor(hand))
+                            : null;
+                        didAct = unoApplyPlay(g, 1, drawnIndex, chosenColor);
+                    }
+                }
+                if (!didAct) {
+                    g.current = unoNextIndex(g);
+                    g.message = `${companion.name} 摸牌后过牌`;
+                    g.drawnThisTurn = false;
+                    g.drawnCardIndex = -1;
+                    didAct = true;
+                }
+            } else if (action.action === 'pass') {
+                g.current = unoNextIndex(g);
+                g.message = `${companion.name} 选择过牌`;
+                g.drawnThisTurn = false;
+                g.drawnCardIndex = -1;
+                didAct = true;
+            }
+
+            if (!didAct && validPlayables.length) {
+                // 模型给出非法动作时，退回原本的本地 AI，保证牌局不会卡死。
+                validPlayables.sort((a, b) => UNO_CARD_WEIGHT[b.card.type] - UNO_CARD_WEIGHT[a.card.type]);
+                const pick = validPlayables[0];
+                const color = pick.card.color === 'wild' || pick.card.color === 'wild4' ? unoBestWildColor(hand) : null;
+                unoApplyPlay(g, 1, pick.index, color);
+                g.message = `${companion.name} 思考了一下，选择了一个稳妥的出法`;
+            }
+
+            if (g.companion.settings?.speak !== false && action.speech && !g.over) {
+                applyCompanionSpeech(g, companion, action.speech);
+            }
+            g.companionThinking = false;
+            unoSave(g);
+            onUpdate();
+        } catch (error) {
+            console.warn('[Silly Game] character companion UNO generation failed:', error);
+            g.companionThinking = false;
+            g.message = `${companion.name} 暂时没想好怎么出，交给本地 AI 帮它完成这一回合`;
+            const hand = g.hands[1] || [];
+            let playable = hand.map((c, i) => ({ c, i })).filter(x => unoPlayable(x.c, g, 1));
+            if (!playable.length) {
+                unoAddDraw(g, 1, 1);
+                const drawn = g.hands[1].at(-1);
+                if (drawn && unoPlayable(drawn, g, 1)) playable = [{ c: drawn, i: g.hands[1].length - 1 }];
+            }
+            if (playable.length) {
+                playable.sort((a, b) => UNO_CARD_WEIGHT[b.c.type] - UNO_CARD_WEIGHT[a.c.type]);
+                const pick = playable[0];
+                unoApplyPlay(g, 1, pick.i, pick.c.color === 'wild' || pick.c.color === 'wild4' ? unoBestWildColor(hand) : null);
+            } else {
+                g.current = unoNextIndex(g);
+            }
+            unoSave(g);
+            onUpdate();
+        }
+
+        if (!g.over && g.current !== 0) {
+            state.unoTimer = setTimeout(() => unoAiTurn(state.uno, onUpdate), 1100);
+        }
+    }
+
+    function buildCharacterCompanionCardInfo() {
+        const activeIndex = getActiveCharacterIndex();
+        const ctx = getCharacterCompanionContext();
+        const active = Number.isInteger(activeIndex) ? ctx?.characters?.[activeIndex] : null;
+        return {
+            name: active?.name || '当前角色',
+            description: active ? '进入 UNO 后，这个角色会真正拥有自己的手牌，并根据角色卡性格选择合法行动。' : '先在酒馆选择一个角色卡，再回来开启角色陪玩。',
+        };
+    }
+
+    function renderCharacterCompanion(body) {
+        const ctx = getCharacterCompanionContext();
+        const settings = getCharacterCompanionSettings();
+        const activeIndex = getActiveCharacterIndex();
+        const current = Number.isInteger(activeIndex) ? ctx?.characters?.[activeIndex] : null;
+        const panel = el('div', { class: 'stgc-companion-panel' });
+        const hero = el('div', { class: 'stgc-companion-hero' });
+        hero.append(
+            el('div', { class: 'stgc-companion-icon', html: '<i class="fa-solid fa-user-group" aria-hidden="true"></i>' }),
+            el('div', {}, [
+                el('div', { class: 'stgc-companion-title', text: '角色陪玩' }),
+                el('div', { class: 'stgc-companion-subtitle', text: '让酒馆里的角色真正成为小游戏玩家。' }),
+            ]),
+        );
+
+        const currentBox = el('div', { class: 'stgc-companion-current' });
+        currentBox.append(
+            el('div', { class: 'stgc-companion-label', text: '当前酒馆角色' }),
+            el('div', { class: 'stgc-companion-character-name', text: current?.name || '尚未选择角色' }),
+            el('div', { class: 'stgc-companion-desc', text: current ? '首发支持 UNO：角色拥有真实手牌，模型只负责选择行动，游戏规则由 Silly Game 执行。' : '需要先在 SillyTavern 中选择一个角色卡。' }),
+        );
+
+        const options = el('div', { class: 'stgc-companion-options' });
+        const modeRow = el('div', { class: 'stgc-companion-row' });
+        const modeLabel = el('span', { class: 'stgc-companion-row-label', text: '角色来源' });
+        const modeSelect = el('select', { class: 'stgc-select', 'aria-label': '角色来源' });
+        modeSelect.append(
+            el('option', { value: 'current', text: '当前酒馆角色' }),
+            el('option', { value: 'selected', text: '从角色列表选择' }),
+        );
+        modeSelect.value = settings.mode;
+        modeRow.append(modeLabel, modeSelect);
+        options.append(modeRow);
+
+        const charRow = el('div', { class: 'stgc-companion-row' });
+        const charLabel = el('span', { class: 'stgc-companion-row-label', text: '参与角色' });
+        const charSelect = el('select', { class: 'stgc-select', 'aria-label': '参与角色' });
+        const chars = listCharacterCompanionCharacters();
+        chars.forEach(({ c, index }) => charSelect.append(el('option', { value: String(index), text: c.name || `角色 ${index + 1}` })));
+        if (Number.isInteger(settings.characterIndex)) charSelect.value = String(settings.characterIndex);
+        else if (Number.isInteger(activeIndex)) charSelect.value = String(activeIndex);
+        charRow.append(charLabel, charSelect);
+        options.append(charRow);
+
+        const speakRow = el('label', { class: 'checkbox_label stgc-companion-check' });
+        const speak = el('input', { type: 'checkbox', class: 'checkbox' });
+        speak.checked = settings.speak !== false;
+        speakRow.append(speak, el('small', { text: '允许角色在游戏界面附带一句简短台词' }));
+        options.append(speakRow);
+
+        const launchUno = el('button', { class: 'stgc-btn stgc-companion-start', type: 'button' });
+        launchUno.innerHTML = '<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>开始 UNO 角色陪玩</span>';
+        launchUno.disabled = !current && settings.mode === 'current' || chars.length === 0;
+        launchUno.addEventListener('click', () => {
+            const chosenMode = modeSelect.value === 'selected' ? 'selected' : 'current';
+            const chosenIndex = Number.isInteger(Number(charSelect.value)) ? Number(charSelect.value) : null;
+            const saved = saveCharacterCompanionSettings({ mode: chosenMode, characterIndex: chosenIndex, speak: speak.checked });
+            state.characterCompanion = saved;
+            openGame('uno');
+        });
+
+        modeSelect.addEventListener('change', () => {
+            charSelect.disabled = modeSelect.value !== 'selected';
+        });
+        charSelect.disabled = modeSelect.value !== 'selected';
+        speak.addEventListener('change', () => saveCharacterCompanionSettings({ speak: speak.checked }));
+        panel.append(hero, currentBox, options, launchUno,
+            el('div', { class: 'stgc-companion-note', html: '<strong>规则：</strong>模型只做“选择”，不能修改牌局。若返回非法动作，Silly Game 会自动回退到本地 AI，不会让牌局卡住。<br><strong>后续：</strong>斗地主、五子棋、象棋、围棋都将复用这套角色玩家系统。' }));
+        body.append(panel);
+    }
+
     function cleanupGame() {
         if (typeof state.cleanup === 'function') state.cleanup();
         state.cleanup = null;
@@ -649,10 +1020,25 @@
         else renderHome();
     }
 
+    function persistCurrentGame() {
+        // 关闭 / 切换界面前，再主动落盘一次当前局面。
+        // 数独尤其需要这一层兜底，避免依赖定时器或 DOM 清理顺序。
+        try {
+            if (state.currentGame === 'sudoku' && state.sudoku) {
+                sudokuSave(state.sudoku);
+            }
+        } catch (error) {
+            console.warn('[Silly Game] failed to persist current game:', error);
+        }
+    }
+
     function closeCenter() {
         if (state.currentGame) state.lastGame = state.currentGame;
         else state.lastGame = null;
+
+        persistCurrentGame();
         cleanupGame();
+
         const root = document.getElementById(APP_ID);
         if (!root) return;
         root.classList.remove('show');
@@ -842,6 +1228,7 @@
 
         const grid = el('div', { class: 'stgc-menu-grid' });
         const games = [
+            { id: 'characterCompanion', icon: 'fa-user-group', name: '角色陪玩', desc: '让酒馆角色真正加入游戏 · 首发支持 UNO' },
             { id: 'mines', icon: 'fa-bomb', name: '扫雷', desc: '经典扫雷 · 7档难度 · 数字点击展开' },
             { id: '2048', icon: 'fa-hashtag', name: '2048', desc: '方向键 / 滑动 · 自动保存' },
             { id: 'sokoban', icon: 'fa-box', name: '推箱子', desc: '11 个关卡 · 方向键 / WASD' },
@@ -905,6 +1292,7 @@
 
         const panel = el('section', { class: 'stgc-panel stgc-game-panel' });
         const titles = {
+            characterCompanion: '角色陪玩',
             mines: '扫雷',
             '2048': '2048',
             sokoban: '推箱子',
@@ -931,7 +1319,8 @@
         panel.append(body);
         root.append(panel);
 
-        if (game === 'mines') renderMinesweeper(body);
+        if (game === 'characterCompanion') renderCharacterCompanion(body);
+        else if (game === 'mines') renderMinesweeper(body);
         else if (game === '2048') render2048(body);
         else if (game === 'sokoban') renderSokoban(body);
         else if (game === 'sudoku') renderSudoku(body);
@@ -1532,10 +1921,10 @@
         for(let i=0;i<7;i++)for(let p=0;p<4;p++)hands[p].push(deck.pop());
         while(deck.length&&deck.at(-1).type!=='number')deck.unshift(deck.pop());
         const first=deck.pop();
-        return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3,drawnThisTurn:false,drawnCardIndex:-1};
+        return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3,drawnThisTurn:false,drawnCardIndex:-1,companion:{enabled:false,settings:getCharacterCompanionSettings()},companionThinking:false};
     }
     function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
-    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;return g;}catch{return null;}}
+    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionThinking=false;return g;}catch{return null;}}
     function unoPlayable(card,g,pIndex=g.current){const top=g.discard.at(-1);if(!card)return false;if(card.type==='wild')return true;if(card.type==='wild4'){const hasColorCard=g.hands[pIndex]?.some(c=>c.color===g.currentColor);return !hasColorCard;}return card.color===g.currentColor||card.type===top.type||(card.type==='number'&&top.type==='number'&&card.value===top.value);}
     function unoNextIndex(g,steps=1){return (g.current+g.direction*steps+8)%4;}
     function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
@@ -1571,9 +1960,13 @@
         if(!g.over&&g.current!==0)state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,onUpdate),1300);
     }
     function renderUno(body){
-        cleanupGame();state.uno=unoLoad()||unoNew();unoSave();
-        const bar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),drawBtn=el('button',{class:'stgc-btn',type:'button',text:'摸牌'}),passBtn=el('button',{class:'stgc-btn',type:'button',text:'过牌'}),unoBtn=el('button',{class:'stgc-btn',type:'button',text:'喊 UNO'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
-        bar.append(status,drawBtn,passBtn,unoBtn,reset);
+        cleanupGame();state.uno=unoLoad()||unoNew();
+        const companionSettings=getCharacterCompanionSettings();
+        if (state.characterCompanion) { state.uno.companion={enabled:true,settings:{...companionSettings,...state.characterCompanion}}; }
+        if (state.uno.companion?.enabled && !resolveCharacterCompanion(state.uno.companion.settings)) { state.uno.companion.enabled=false; }
+        unoSave();
+        const bar=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),modeBtn=el('button',{class:'stgc-btn',type:'button'}),drawBtn=el('button',{class:'stgc-btn',type:'button',text:'摸牌'}),passBtn=el('button',{class:'stgc-btn',type:'button',text:'过牌'}),unoBtn=el('button',{class:'stgc-btn',type:'button',text:'喊 UNO'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});
+        bar.append(status,modeBtn,drawBtn,passBtn,unoBtn,reset);
         const table=el('div',{class:'uno-table'}),topAI=el('div',{class:'uno-ai-hand uno-ai-top'}),leftAI=el('div',{class:'uno-ai-hand uno-ai-left'}),rightAI=el('div',{class:'uno-ai-hand uno-ai-right'}),center=el('div',{class:'uno-center'}),deckArea=el('div',{class:'uno-pile-area uno-deck-area'}),discardArea=el('div',{class:'uno-pile-area uno-discard-area'}),deckBtn=el('button',{class:'uno-deck',type:'button'}),discard=el('div',{class:'uno-discard'}),deckLabel=el('span',{class:'uno-pile-label',text:'牌堆 · 点击摸牌'}),discardLabel=el('span',{class:'uno-pile-label',text:'出牌区'}),hand=el('div',{class:'uno-player-hand'}),hint=el('div',{class:'stgc-game-hint',text:'同色、同数字或同功能牌可以出牌。没有可出的牌就摸 1 张；若摸到的牌能出，可以直接打出，否则点击“过牌”。+4 仅在你手里没有当前颜色的牌时可用。'}),colorPicker=el('div',{class:'uno-color-picker',hidden:true}),centerNotice=el('div',{class:'uno-center-notice'});
         deckBtn.innerHTML='<span class="uno-deck-mark">UNO</span>';
         const topArea=el('div',{class:'uno-top-area'});topArea.append(topAI,colorPicker);
@@ -1581,15 +1974,20 @@
         UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
         function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.disabled=clickable&&!isPlayable;node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
-        function drawUno(){const g=state.uno;const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));status.textContent=g.over?(g.winner===0?'你获胜！':'AI 获胜'):(g.current===0?'你的回合':`AI ${g.current} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.querySelector('.uno-ai-count')?.remove();const aiCount=el('span',{class:'uno-ai-count',text:`AI 2 · ${g.hands[2].length} 张`});topAI.append(aiCount);leftAI.textContent=`AI 1 · ${g.hands[1].length} 张`;rightAI.textContent=`AI 3 · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
-        function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>unoAiTurn(state.uno,drawUno),1300);}}
+        function drawUno(){const g=state.uno;const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companion = g.companion?.enabled ? resolveCharacterCompanion(g.companion.settings) : null; const p1Name = companion?.name || 'AI 1';
+            status.textContent=g.over?(g.winner===0?'你获胜！':g.winner===1?`${p1Name} 获胜`:'AI 获胜'):(g.current===0?'你的回合':g.current===1?`${p1Name} 的回合`:`AI ${g.current} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;
+            modeBtn.textContent=g.companion?.enabled?`角色陪玩 · ${p1Name}`:'普通 AI';
+            modeBtn.classList.toggle('active',!!g.companion?.enabled);
+            modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.querySelector('.uno-ai-count')?.remove();const aiCount=el('span',{class:'uno-ai-count',text:`AI 2 · ${g.hands[2].length} 张`});topAI.append(aiCount);leftAI.textContent=`${p1Name} · ${g.hands[1].length} 张`;rightAI.textContent=`AI 3 · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
+        function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>{if(state.uno!==g||state.currentGame!=='uno')return;if(g.current===1&&g.companion?.enabled)unoCompanionTurn(g,drawUno);else unoAiTurn(g,drawUno);},1300);}}
         function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;if(g.drawnThisTurn&&index!==g.drawnCardIndex)return;const card=g.hands[0][index];if(!unoPlayable(card,g,0)){g.message='这张牌不能出';drawUno();return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
         drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno||g.drawnThisTurn)return;unoAddDraw(g,0,1);g.drawnThisTurn=true;g.drawnCardIndex=g.hands[0].length-1;const drawn=g.hands[0].at(-1);g.message=drawn&&unoPlayable(drawn,g,0)?'你摸了 1 张牌 · 这张牌可以出':'你摸了 1 张牌 · 这回合过牌';unoSave();drawUno();});
         deckBtn.addEventListener('click',()=>drawBtn.click());
         passBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||!g.drawnThisTurn||g.needsUno)return;g.message='你选择过牌';g.current=unoNextIndex(g);g.drawnThisTurn=false;g.drawnCardIndex=-1;unoSave();drawUno();scheduleNextAI();});
         unoBtn.addEventListener('click',()=>{const g=state.uno;if(!g.needsUno)return;if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}g.needsUno=false;g.message='你已喊 UNO';unoSave();drawUno();});
-        reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}state.uno=unoNew();unoSave();drawUno();});
-        state.cleanup=()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}unoSave(state.uno);};
+        modeBtn.addEventListener('click',()=>{const g=state.uno;if(g.companionThinking)return;const settings=getCharacterCompanionSettings();const hasRole=!!resolveCharacterCompanion(settings);if(!hasRole){g.message='当前没有可用的酒馆角色；请先选择角色卡';drawUno();return;}if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}state.uno=unoNew();state.uno.companion={enabled:!g.companion?.enabled,settings};state.characterCompanion=state.uno.companion.settings;unoSave();drawUno();scheduleNextAI();});
+        reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}state.uno=unoNew();state.uno.companion={enabled:!!state.characterCompanion,settings:state.characterCompanion||getCharacterCompanionSettings()};unoSave();drawUno();scheduleNextAI();});
+        state.cleanup=()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}state.uno.companionThinking=false;unoSave(state.uno);};
         drawUno();scheduleNextAI();
     }
 
@@ -6252,6 +6650,22 @@
         return `${mins}:${secs}`;
     }
 
+    // 对未来斗地主 / 五子棋 / 象棋 / 围棋接入保留一个轻量公共接口。
+    // 具体游戏只需要复用角色解析、卡片读取与后台生成能力。
+    window.SillyGameCharacterCompanion = {
+        version: 1,
+        getSettings: () => ({ ...getCharacterCompanionSettings() }),
+        saveSettings: (patch) => saveCharacterCompanionSettings(patch),
+        getActiveCharacterIndex,
+        listCharacters: () => listCharacterCompanionCharacters().map(({ c, index }) => ({
+            index,
+            name: c?.name || `角色 ${index + 1}`,
+        })),
+        resolveCharacter: () => resolveCharacterCompanion(),
+        ensureCharacterData,
+        generateAction: generateCharacterCompanionAction,
+    };
+
     function initExtensionUI() {
         injectLauncher();
         const settings = getExtensionSettings();
@@ -6286,6 +6700,13 @@
             const rect = launcher.getBoundingClientRect();
             setLauncherPosition(rect.left, rect.top, true);
         });
+
+        // 页面切到后台 / 酒馆刷新或关闭时，再保存一次正在进行的数独。
+        window.addEventListener('pagehide', persistCurrentGame);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') persistCurrentGame();
+        });
+
         console.log('[Silly Game] loaded');
     }
 
