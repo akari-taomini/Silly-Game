@@ -7768,7 +7768,7 @@ n
     content: none !important;
 }
 
-/* ==================== v1.9.0 角色陪玩 ==================== */
+/* ==================== v1.9.1 角色陪玩 ==================== */
 #st-mini-game-center .stgc-companion-panel {
     width: min(760px, 100%);
     margin: 0 auto;
@@ -7825,6 +7825,53 @@ n
 #st-mini-game-center .stgc-companion-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 #st-mini-game-center .stgc-companion-row .stgc-select { min-width: 190px; max-width: 68%; }
 #st-mini-game-center .stgc-companion-check { margin: 0; }
+#st-mini-game-center .stgc-companion-row-title { align-items: center; }
+#st-mini-game-center .stgc-companion-count { opacity: .65; font-variant-numeric: tabular-nums; }
+#st-mini-game-center .stgc-companion-character-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+#st-mini-game-center .stgc-companion-character-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 10px 11px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 40%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 42%, transparent);
+    cursor: pointer;
+}
+#st-mini-game-center .stgc-companion-character-option:has(input:checked) {
+    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 70%, transparent);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 10%, transparent);
+}
+#st-mini-game-center .stgc-companion-character-option-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+#st-mini-game-center .stgc-companion-current-badge {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-style: normal;
+    opacity: .7;
+}
+#st-mini-game-center .stgc-companion-empty {
+    padding: 8px 0;
+    font-size: 12px;
+    opacity: .62;
+}
+#st-mini-game-center .stgc-companion-preset-hint {
+    margin-top: -5px;
+    font-size: 11px;
+    line-height: 1.5;
+    opacity: .58;
+}
+
 #st-mini-game-center .stgc-companion-start {
     min-height: 44px;
     font-weight: 800;
@@ -7843,4 +7890,5 @@ n
 @media (max-width: 560px) {
     #st-mini-game-center .stgc-companion-row { align-items: flex-start; flex-direction: column; }
     #st-mini-game-center .stgc-companion-row .stgc-select { width: 100%; max-width: none; min-width: 0; }
+    #st-mini-game-center .stgc-companion-character-grid { grid-template-columns: 1fr; }
 }
