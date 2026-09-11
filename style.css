@@ -7880,18 +7880,10 @@ n
     align-items: center;
     gap: 9px;
     min-width: 0;
-    padding: 9px 10px;
-    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 40%, transparent);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 42%, transparent);
     cursor: pointer;
 }
 #st-mini-game-center .stgc-companion-character-option[hidden] {
     display: none !important;
-}
-#st-mini-game-center .stgc-companion-character-option:has(input:checked) {
-    border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 70%, transparent);
-    background: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 10%, transparent);
 }
 #st-mini-game-center .stgc-companion-character-option-name {
     min-width: 0;
@@ -7974,4 +7966,193 @@ n
     #st-mini-game-center .stgc-companion-preset-select { flex: 1; width: auto; }
     #st-mini-game-center .stgc-companion-character-grid { grid-template-columns: 1fr; max-height: 52vh; }
     #st-mini-game-center .stgc-companion-character-toggle { max-width: 100%; }
+}
+
+/* ==================== v1.10.0 角色陪玩：世界书角色 + 限流 ==================== */
+/* 角色列表尽量沿用 SillyTavern 原生控件样式；这里只负责布局，不重绘背景。 */
+#st-mini-game-center .stgc-companion-character-picker {
+    gap: 8px;
+}
+#st-mini-game-center .stgc-companion-character-group {
+    overflow: hidden;
+}
+#st-mini-game-center .stgc-companion-character-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+#st-mini-game-center .stgc-companion-character-head .stgc-companion-main-option {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+#st-mini-game-center .stgc-companion-character-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    cursor: pointer;
+}
+#st-mini-game-center .stgc-companion-worldbook-toggle {
+    flex: 0 0 auto;
+    min-height: 32px;
+    margin-left: auto;
+    margin-right: 0;
+    padding: 6px 9px;
+    gap: 5px;
+    font-size: 11px;
+}
+#st-mini-game-center .stgc-companion-worldbook-list {
+    display: grid;
+    gap: 4px;
+    margin-left: 24px;
+    padding: 4px 0 7px;
+}
+#st-mini-game-center .stgc-companion-worldbook-list.collapsed { display: none; }
+#st-mini-game-center .stgc-companion-worldbook-loading,
+#st-mini-game-center .stgc-companion-worldbook-empty {
+    padding: 6px 4px 2px;
+    font-size: 11px;
+    opacity: .58;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    cursor: pointer;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry-name {
+    flex: 1;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry small {
+    flex: 0 0 auto;
+    opacity: .5;
+    font-size: 9px;
+}
+#st-mini-game-center .stgc-companion-rate-status,
+#st-mini-game-center .stgc-companion-rate-game {
+    font-size: 11px;
+    line-height: 1.45;
+    opacity: .6;
+    font-variant-numeric: tabular-nums;
+}
+#st-mini-game-center .stgc-companion-rate-game {
+    flex: 0 1 auto;
+    min-width: 120px;
+    text-align: center;
+}
+#st-mini-game-center .stgc-companion-secondary-start {
+    margin-top: -5px;
+}
+
+/* ==================== v1.10.0 斗地主 ==================== */
+#st-mini-game-center .ddz-table {
+    position: relative;
+    display: grid;
+    grid-template-columns: 90px minmax(180px, 1fr) 90px;
+    grid-template-rows: 76px minmax(160px, 1fr);
+    gap: 10px;
+    min-height: 285px;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 40%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 44%, transparent);
+}
+#st-mini-game-center .ddz-seat {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    padding: 10px 7px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 28%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 30%, transparent);
+    font-size: 12px;
+    text-align: center;
+}
+#st-mini-game-center .ddz-seat-top { grid-column: 1 / -1; }
+#st-mini-game-center .ddz-seat-left { grid-column: 1; grid-row: 2; }
+#st-mini-game-center .ddz-seat-right { grid-column: 3; grid-row: 2; }
+#st-mini-game-center .ddz-center {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px dashed color-mix(in srgb, var(--SmartThemeBorderColor, #888) 34%, transparent);
+    text-align: center;
+    line-height: 1.6;
+}
+#st-mini-game-center .ddz-player-hand {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 10px;
+}
+#st-mini-game-center .ddz-card {
+    min-width: 45px;
+    min-height: 62px;
+    padding: 8px 6px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 38%, transparent);
+    border-radius: 8px;
+    background: var(--SmartThemeBodyBgColor, transparent);
+    color: var(--SmartThemeBodyColor, currentColor);
+    cursor: pointer;
+}
+#st-mini-game-center .ddz-card.selected {
+    transform: translateY(-8px);
+    border-color: var(--SmartThemeQuoteColor, currentColor);
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 18%, transparent);
+}
+#st-mini-game-center .ddz-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 2px;
+}
+#st-mini-game-center .ddz-message,
+#st-mini-game-center .ddz-info {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    text-align: center;
+    opacity: .75;
+}
+#st-mini-game-center .ddz-message { min-height: 20px; font-weight: 700; }
+@media (max-width: 560px) {
+    #st-mini-game-center .stgc-companion-rate-game { min-width: 0; width: 100%; text-align: left; }
+    #st-mini-game-center .ddz-table {
+        grid-template-columns: 64px minmax(120px, 1fr) 64px;
+        min-height: 250px;
+        gap: 7px;
+        padding: 7px;
+    }
+    #st-mini-game-center .ddz-seat { font-size: 10px; padding: 7px 4px; }
+    #st-mini-game-center .ddz-card { min-width: 38px; min-height: 55px; font-size: 11px; }
+}
+
+/* v1.10.1：角色陪玩控件跟随酒馆原生外观 */
+#st-mini-game-center .stgc-companion-character-toggle.menu_button,
+#st-mini-game-center .stgc-companion-worldbook-toggle.menu_button {
+    box-sizing: border-box;
+}
+#st-mini-game-center .stgc-companion-character-search.text_pole {
+    width: 100%;
+}
+#st-mini-game-center .stgc-companion-preset-select {
+    color: var(--SmartThemeBodyColor);
 }
