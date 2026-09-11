@@ -7827,21 +7827,67 @@ n
 #st-mini-game-center .stgc-companion-check { margin: 0; }
 #st-mini-game-center .stgc-companion-row-title { align-items: center; }
 #st-mini-game-center .stgc-companion-count { opacity: .65; font-variant-numeric: tabular-nums; }
+#st-mini-game-center .stgc-companion-character-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+#st-mini-game-center .stgc-companion-character-toggle {
+    min-height: 34px;
+    margin-left: auto;
+    padding: 7px 10px;
+    gap: 7px;
+    justify-content: center;
+}
+#st-mini-game-center .stgc-companion-character-toggle i {
+    transition: transform .15s ease;
+}
+#st-mini-game-center .stgc-companion-character-picker {
+    display: grid;
+    gap: 9px;
+}
+#st-mini-game-center .stgc-companion-character-picker.collapsed {
+    display: none;
+}
+#st-mini-game-center .stgc-companion-character-search-row {
+    position: relative;
+}
+#st-mini-game-center .stgc-companion-character-search {
+    width: 100%;
+    min-height: 38px;
+    padding-left: 34px;
+}
+#st-mini-game-center .stgc-companion-character-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: .58;
+    pointer-events: none;
+}
 #st-mini-game-center .stgc-companion-character-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+    max-height: min(46vh, 420px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 2px;
 }
 #st-mini-game-center .stgc-companion-character-option {
     display: flex;
     align-items: center;
     gap: 9px;
     min-width: 0;
-    padding: 10px 11px;
+    padding: 9px 10px;
     border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 40%, transparent);
     border-radius: 10px;
     background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #222) 42%, transparent);
     cursor: pointer;
+}
+#st-mini-game-center .stgc-companion-character-option[hidden] {
+    display: none !important;
 }
 #st-mini-game-center .stgc-companion-character-option:has(input:checked) {
     border-color: color-mix(in srgb, var(--SmartThemeQuoteColor, currentColor) 70%, transparent);
@@ -7859,6 +7905,40 @@ n
     font-size: 10px;
     font-style: normal;
     opacity: .7;
+}
+#st-mini-game-center .stgc-companion-search-empty {
+    grid-column: 1 / -1;
+    padding: 12px 4px;
+    text-align: center;
+    font-size: 12px;
+    opacity: .62;
+}
+#st-mini-game-center .stgc-companion-preset-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+}
+#st-mini-game-center .stgc-companion-preset-select {
+    min-width: 0;
+    width: min(290px, 100%);
+    max-width: 100%;
+}
+#st-mini-game-center .stgc-companion-preset-refresh {
+    flex: 0 0 36px;
+    width: 36px;
+    min-height: 36px;
+    padding: 0;
+    justify-content: center;
+}
+#st-mini-game-center .stgc-companion-preset-refresh.is-loading i {
+    animation: stgc-companion-spin .75s linear infinite;
+}
+@keyframes stgc-companion-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 #st-mini-game-center .stgc-companion-empty {
     padding: 8px 0;
@@ -7890,5 +7970,8 @@ n
 @media (max-width: 560px) {
     #st-mini-game-center .stgc-companion-row { align-items: flex-start; flex-direction: column; }
     #st-mini-game-center .stgc-companion-row .stgc-select { width: 100%; max-width: none; min-width: 0; }
-    #st-mini-game-center .stgc-companion-character-grid { grid-template-columns: 1fr; }
+    #st-mini-game-center .stgc-companion-preset-controls { width: 100%; justify-content: stretch; }
+    #st-mini-game-center .stgc-companion-preset-select { flex: 1; width: auto; }
+    #st-mini-game-center .stgc-companion-character-grid { grid-template-columns: 1fr; max-height: 52vh; }
+    #st-mini-game-center .stgc-companion-character-toggle { max-width: 100%; }
 }

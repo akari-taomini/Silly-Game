@@ -550,30 +550,84 @@
         return resolveCharacterCompanionForPlayer(g, playerIndex)?.name || `AI ${playerIndex}`;
     }
 
-    // SillyTavern 的“聊天补全预设”统一由 openai preset manager 管理，
-    // 不根据用户当前正在使用的 API source 筛选，避免 RP 用高阶模型时陪玩也跟着吃高价模型。
-    function getCharacterCompanionPresetOptions() {
+    // SillyTavern 的 Chat Completion Preset 管理器固定使用 openai 这一组。
+    // 某些版本/加载时序下，扩展刚渲染时 getPresetManager('openai') 还没注册，
+    // 所以这里同时提供“官方管理器 + 原生下拉框 DOM”的双通道兜底。
+    function getCharacterCompanionPresetBridge() {
         const ctx = getCharacterCompanionContext();
-        const manager = (() => {
-            try { return ctx?.getPresetManager?.('openai') || null; } catch { return null; }
-        })();
-        if (!manager) return [];
+        let manager = null;
+        try { manager = ctx?.getPresetManager?.('openai') || null; } catch { manager = null; }
 
-        let names = [];
-        try {
-            names = manager.getAllPresets?.();
-            if (!Array.isArray(names) || !names.length) {
-                const list = manager.getPresetList?.('openai');
-                const raw = list?.preset_names;
-                names = Array.isArray(raw) ? raw : Object.keys(raw || {});
-            }
-        } catch {
-            names = [];
+        const select = document.querySelector('#settings_preset_openai')
+            || document.querySelector('select[data-preset-manager-for~="openai"]');
+
+        if (manager) {
+            return {
+                manager,
+                select,
+                getAllPresets() {
+                    try {
+                        const names = manager.getAllPresets?.();
+                        if (Array.isArray(names) && names.length) return names.map(String);
+                    } catch { /* fallback to DOM */ }
+                    return select ? Array.from(select.options).map(o => String(o.textContent || '').trim()).filter(Boolean) : [];
+                },
+                findPreset(name) {
+                    try {
+                        const value = manager.findPreset?.(name);
+                        if (value != null && value !== '') return value;
+                    } catch { /* fallback to DOM */ }
+                    const option = select && Array.from(select.options).find(o => String(o.textContent || '').trim() === name);
+                    return option ? option.value : null;
+                },
+                getSelectedPresetName() {
+                    try { return manager.getSelectedPresetName?.() || ''; } catch { return select?.selectedOptions?.[0]?.textContent?.trim() || ''; }
+                },
+                getSelectedPreset() {
+                    try { return manager.getSelectedPreset?.() ?? null; } catch { return select?.value ?? null; }
+                },
+                selectPreset(value) {
+                    if (manager.selectPreset) return Promise.resolve(manager.selectPreset(value));
+                    if (select) {
+                        select.value = String(value);
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    return Promise.resolve();
+                },
+            };
         }
 
-        const selectedName = (() => {
-            try { return manager.getSelectedPresetName?.() || ''; } catch { return ''; }
-        })();
+        // 兜底：直接使用酒馆原生的 Chat Completion Preset 下拉框。
+        if (select) {
+            return {
+                manager: null,
+                select,
+                getAllPresets() {
+                    return Array.from(select.options)
+                        .map(o => String(o.textContent || '').trim())
+                        .filter(Boolean);
+                },
+                findPreset(name) {
+                    const option = Array.from(select.options).find(o => String(o.textContent || '').trim() === name);
+                    return option ? option.value : null;
+                },
+                getSelectedPresetName() { return select.selectedOptions?.[0]?.textContent?.trim() || ''; },
+                getSelectedPreset() { return select.value ?? null; },
+                selectPreset(value) {
+                    select.value = String(value);
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    return Promise.resolve();
+                },
+            };
+        }
+        return null;
+    }
+
+    function getCharacterCompanionPresetOptions() {
+        const bridge = getCharacterCompanionPresetBridge();
+        if (!bridge) return [];
+        const names = bridge.getAllPresets();
+        const selectedName = bridge.getSelectedPresetName();
         const unique = [];
         const seen = new Set();
         for (const rawName of names) {
@@ -591,14 +645,23 @@
         return unique;
     }
 
-    function findCompanionPresetEntry(settings = getCharacterCompanionSettings()) {
-        const value = typeof settings.apiPreset === 'string' ? settings.apiPreset : '';
-        if (!value) return null;
+    function normalizeCompanionPresetSetting(value) {
+        if (typeof value !== 'string') return '';
+        const raw = value.trim();
+        if (!raw) return '';
         const prefix = 'openai::';
-        const encodedName = value.startsWith(prefix) ? value.slice(prefix.length) : value;
+        if (raw.startsWith(prefix)) return raw;
+        const options = getCharacterCompanionPresetOptions();
+        const match = options.find(o => o.name === raw);
+        return match?.value || '';
+    }
+
+    function findCompanionPresetEntry(settings = getCharacterCompanionSettings()) {
+        const normalized = normalizeCompanionPresetSetting(settings.apiPreset);
+        if (!normalized) return null;
+        const encodedName = normalized.slice('openai::'.length);
         let name = encodedName;
         try { name = decodeURIComponent(encodedName); } catch { /* legacy/raw name */ }
-        if (!name) return null;
         const options = getCharacterCompanionPresetOptions();
         return options.find(o => o.name === name) || null;
     }
@@ -608,30 +671,26 @@
         // 没有明确选择陪玩预设时，绝不偷偷跟随当前 RP 预设。
         if (!preset) throw new Error('未选择有效的 Silly Game 陪玩 API 预设');
 
-        const ctx = getCharacterCompanionContext();
-        const manager = (() => {
-            try { return ctx?.getPresetManager?.('openai') || null; } catch { return null; }
-        })();
-        if (!manager?.selectPreset || !manager?.findPreset) throw new Error('SillyTavern 聊天补全预设管理器不可用');
+        const bridge = getCharacterCompanionPresetBridge();
+        if (!bridge?.selectPreset) throw new Error('SillyTavern Chat Completion 预设管理器尚未加载');
 
         const run = async () => {
-            const previousName = (() => { try { return manager.getSelectedPresetName?.() || ''; } catch { return ''; } })();
-            const previousValue = (() => { try { return manager.getSelectedPreset?.(); } catch { return null; } })();
-            const targetValue = (() => { try { return manager.findPreset(preset.name); } catch { return null; } })();
-            if (targetValue == null) throw new Error(`找不到酒馆预设：${preset.name}`);
+            const previousName = bridge.getSelectedPresetName();
+            const previousValue = bridge.getSelectedPreset();
+            const targetValue = bridge.findPreset(preset.name);
+            if (targetValue == null) throw new Error(`找不到酒馆聊天补全预设：${preset.name}`);
 
             const changed = previousName !== preset.name;
             try {
                 if (changed) {
-                    // PresetManager.selectPreset 接收的是 option value，不是名称。
-                    await Promise.resolve(manager.selectPreset(targetValue));
+                    await bridge.selectPreset(targetValue);
                 }
                 return await task();
             } finally {
                 if (changed && previousName) {
                     try {
-                        const restoreValue = previousValue != null ? previousValue : manager.findPreset(previousName);
-                        if (restoreValue != null) await Promise.resolve(manager.selectPreset(restoreValue));
+                        const restoreValue = previousValue != null ? previousValue : bridge.findPreset(previousName);
+                        if (restoreValue != null) await bridge.selectPreset(restoreValue);
                     } catch (restoreError) {
                         console.warn('[Silly Game] failed to restore previous API preset:', restoreError);
                     }
@@ -642,6 +701,7 @@
         companionPresetQueue = result.catch(() => undefined);
         return result;
     }
+
 
     function companionGameSnapshot(g, p = 1) {
         return {
@@ -910,59 +970,141 @@
         );
 
         const options = el('div', { class: 'stgc-companion-options' });
+        let pickedIndices = [...selectedIndices];
         const charTitleRow = el('div', { class: 'stgc-companion-row stgc-companion-row-title' });
-        charTitleRow.append(
+        const charTitle = el('div', { class: 'stgc-companion-character-title' });
+        const charToggle = el('button', { class: 'stgc-btn stgc-companion-character-toggle', type: 'button', 'aria-expanded': 'false' });
+        const charCount = el('small', { class: 'stgc-companion-count', text: `${pickedIndices.length}/3` });
+        charToggle.innerHTML = '<i class="fa-solid fa-chevron-down" aria-hidden="true"></i><span>选择陪玩角色</span>';
+        charTitle.append(
             el('span', { class: 'stgc-companion-row-label', text: '参与角色（最多 3 名）' }),
-            el('small', { class: 'stgc-companion-count', text: `${selectedIndices.length}/3` }),
+            charCount,
         );
+        charTitleRow.append(charTitle, charToggle);
         options.append(charTitleRow);
+
+        const charPicker = el('div', { class: 'stgc-companion-character-picker collapsed' });
+        const charSearchRow = el('div', { class: 'stgc-companion-character-search-row' });
+        const charSearch = el('input', {
+            class: 'text_pole stgc-companion-character-search',
+            type: 'search',
+            placeholder: '搜索角色卡名称…',
+            'aria-label': '搜索角色卡名称',
+        });
+        charSearchRow.append(
+            el('i', { class: 'fa-solid fa-magnifying-glass stgc-companion-character-search-icon', 'aria-hidden': 'true' }),
+            charSearch,
+        );
+        charPicker.append(charSearchRow);
 
         const charGrid = el('div', { class: 'stgc-companion-character-grid' });
         const chars = listCharacterCompanionCharacters();
         if (!chars.length) {
             charGrid.append(el('div', { class: 'stgc-companion-empty', text: '当前酒馆没有可选角色卡。' }));
         }
-        const boxes = [];
+        const characterItems = [];
         chars.forEach(({ c, index }) => {
             const label = el('label', { class: 'stgc-companion-character-option' });
             const checkbox = el('input', { type: 'checkbox', class: 'checkbox' });
+            const name = String(c.name || `角色 ${index + 1}`);
             checkbox.value = String(index);
-            checkbox.checked = selectedIndices.includes(index);
-            checkbox.disabled = !checkbox.checked && selectedIndices.length >= 3;
+            checkbox.checked = pickedIndices.includes(index);
             label.append(
                 checkbox,
-                el('span', { class: 'stgc-companion-character-option-name', text: c.name || `角色 ${index + 1}` }),
+                el('span', { class: 'stgc-companion-character-option-name', text: name }),
                 Number.isInteger(activeIndex) && index === activeIndex ? el('em', { class: 'stgc-companion-current-badge', text: '当前' }) : null,
             );
             charGrid.append(label);
-            boxes.push(checkbox);
+            characterItems.push({ label, checkbox, name, index });
         });
-        options.append(charGrid);
+        charPicker.append(charGrid);
+        options.append(charPicker);
 
-        const presetRow = el('div', { class: 'stgc-companion-row' });
+        const updateCharacterPicker = () => {
+            charCount.textContent = `${pickedIndices.length}/3`;
+            characterItems.forEach(({ checkbox }) => {
+                checkbox.disabled = !checkbox.checked && pickedIndices.length >= 3;
+            });
+            const query = charSearch.value.trim().toLocaleLowerCase();
+            characterItems.forEach(({ label, name, checkbox }) => {
+                const matches = !query || name.toLocaleLowerCase().includes(query);
+                label.hidden = !matches;
+                if (!matches && checkbox.checked) label.hidden = false;
+            });
+            const visible = characterItems.some(item => !item.label.hidden);
+            let emptyResult = charGrid.querySelector('.stgc-companion-search-empty');
+            if (!visible && chars.length) {
+                if (!emptyResult) {
+                    emptyResult = el('div', { class: 'stgc-companion-search-empty', text: '没有找到匹配的角色卡。' });
+                    charGrid.append(emptyResult);
+                }
+            } else if (emptyResult) {
+                emptyResult.remove();
+            }
+        };
+        characterItems.forEach(({ checkbox, index }) => checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                if (!pickedIndices.includes(index) && pickedIndices.length < 3) pickedIndices.push(index);
+                else if (pickedIndices.length >= 3) checkbox.checked = false;
+            } else {
+                pickedIndices = pickedIndices.filter(i => i !== index);
+            }
+            updateCharacterPicker();
+        }));
+        charSearch.addEventListener('input', updateCharacterPicker);
+        charToggle.addEventListener('click', () => {
+            const willOpen = charPicker.classList.contains('collapsed');
+            charPicker.classList.toggle('collapsed', !willOpen);
+            charToggle.setAttribute('aria-expanded', String(willOpen));
+            charToggle.classList.toggle('is-open', willOpen);
+            charToggle.querySelector('i')?.classList.toggle('fa-chevron-down', !willOpen);
+            charToggle.querySelector('i')?.classList.toggle('fa-chevron-up', willOpen);
+            if (willOpen) setTimeout(() => charSearch.focus(), 0);
+        });
+        updateCharacterPicker();
+
+        const presetRow = el('div', { class: 'stgc-companion-row stgc-companion-preset-row' });
         const presetLabel = el('span', { class: 'stgc-companion-row-label', text: 'AI 生成预设' });
+        const presetControls = el('div', { class: 'stgc-companion-preset-controls' });
         const presetSelect = el('select', { class: 'stgc-select stgc-companion-preset-select', 'aria-label': 'AI 生成预设' });
-        const presetOptions = getCharacterCompanionPresetOptions();
-        const preferredPreset = settings.apiPreset && presetOptions.some(p => p.value === settings.apiPreset)
-            ? settings.apiPreset
-            : (presetOptions[0]?.value || '');
-        if (preferredPreset && preferredPreset !== settings.apiPreset) {
-            settings.apiPreset = preferredPreset;
-            saveCharacterCompanionSettings({ apiPreset: preferredPreset });
-        }
-        if (!presetOptions.length) {
-            presetSelect.append(el('option', { value: '', text: '没有读取到酒馆聊天补全预设' }));
-        } else {
-            presetOptions.forEach(preset => presetSelect.append(el('option', {
-                value: preset.value,
-                text: preset.selected ? `${preset.label}（酒馆当前，仅供参考）` : preset.label,
-            })));
-        }
-        presetSelect.value = preferredPreset;
-        presetRow.append(presetLabel, presetSelect);
+        const presetRefresh = el('button', { class: 'stgc-btn stgc-companion-preset-refresh', type: 'button', title: '重新读取聊天补全预设', 'aria-label': '重新读取聊天补全预设' });
+        presetRefresh.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i>';
+        let presetOptions = getCharacterCompanionPresetOptions();
+
+        const renderPresetOptions = () => {
+            const current = normalizeCompanionPresetSetting(settings.apiPreset);
+            presetOptions = getCharacterCompanionPresetOptions();
+            presetSelect.replaceChildren();
+            const preferred = current && presetOptions.some(p => p.value === current)
+                ? current
+                : (presetOptions[0]?.value || '');
+            if (!presetOptions.length) {
+                presetSelect.append(el('option', { value: '', text: '没有读取到酒馆聊天补全预设' }));
+            } else {
+                presetOptions.forEach(preset => presetSelect.append(el('option', {
+                    value: preset.value,
+                    text: preset.label,
+                })));
+            }
+            presetSelect.value = preferred;
+            if (preferred && preferred !== settings.apiPreset) {
+                settings.apiPreset = preferred;
+                saveCharacterCompanionSettings({ apiPreset: preferred });
+            }
+            const hasPresets = presetOptions.length > 0;
+            presetRefresh.disabled = !getCharacterCompanionPresetBridge();
+            presetRefresh.classList.toggle('is-loading', false);
+            presetHint.textContent = hasPresets
+                ? `这里直接读取酒馆的全部“聊天补全预设”，与当前 RP 使用的预设无关。选择的预设只在角色陪玩生成时临时使用，完成后恢复原来的 RP 预设。${presetOptions.length > 1 ? ` 共 ${presetOptions.length} 个。` : ''}`
+                : '还没有读取到酒馆聊天补全预设。可以点右侧刷新；酒馆的 Chat Completion 面板加载完成后会自动从原生预设下拉框读取。';
+            launchUno.disabled = pickedIndices.length === 0 || !hasPresets;
+        };
+
+        presetControls.append(presetSelect, presetRefresh);
+        presetRow.append(presetLabel, presetControls);
         options.append(presetRow);
 
-        const presetHint = el('div', { class: 'stgc-companion-preset-hint', text: presetOptions.length ? '这里列出酒馆全部“聊天补全预设”，与当前 RP 正在使用哪个预设无关。选择的预设只在角色陪玩生成时临时使用，生成完成后恢复你原来的 RP 预设。' : '没有读取到酒馆聊天补全预设；请确认聊天补全预设管理器已经加载。' });
+        const presetHint = el('div', { class: 'stgc-companion-preset-hint', text: '正在读取酒馆聊天补全预设…' });
         options.append(presetHint);
 
         const speakRow = el('label', { class: 'checkbox_label stgc-companion-check' });
@@ -973,19 +1115,21 @@
 
         const launchUno = el('button', { class: 'stgc-btn stgc-companion-start', type: 'button' });
         launchUno.innerHTML = '<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>开始 UNO 角色陪玩</span>';
-        launchUno.disabled = selectedIndices.length === 0 || !presetOptions.length;
+
+        presetRefresh.addEventListener('click', () => {
+            presetRefresh.classList.add('is-loading');
+            setTimeout(() => renderPresetOptions(), 50);
+        });
+        renderPresetOptions();
 
         const refreshState = () => {
-            const picked = boxes.filter(box => box.checked).map(box => Number(box.value));
-            charTitleRow.querySelector('.stgc-companion-count').textContent = `${picked.length}/3`;
-            boxes.forEach(box => { box.disabled = !box.checked && picked.length >= 3; });
-            launchUno.disabled = picked.length === 0 || !presetOptions.length;
+            updateCharacterPicker();
+            launchUno.disabled = pickedIndices.length === 0 || !presetOptions.length;
         };
-        boxes.forEach(box => box.addEventListener('change', refreshState));
         presetSelect.addEventListener('change', () => saveCharacterCompanionSettings({ apiPreset: presetSelect.value }));
         speak.addEventListener('change', () => saveCharacterCompanionSettings({ speak: speak.checked }));
         launchUno.addEventListener('click', () => {
-            const picked = boxes.filter(box => box.checked).map(box => Number(box.value)).slice(0, 3);
+            const picked = [...pickedIndices].slice(0, 3);
             if (!picked.length || !presetSelect.value) return;
             const saved = saveCharacterCompanionSettings({ characterIndices: picked, apiPreset: presetSelect.value, speak: speak.checked });
             state.characterCompanion = saved;
@@ -993,8 +1137,11 @@
         });
 
         panel.append(hero, currentBox, options, launchUno,
-            el('div', { class: 'stgc-companion-note', html: '<strong>规则：</strong>你最多可以选择 3 名酒馆角色，分别占据 UNO 的 3 个 AI 席位；没选满的席位继续由本地 AI 补位。模型只负责“选择”，不能修改牌局。若返回非法动作，Silly Game 会自动校验、重试一次；仍失败则回退到本地 AI，不会让牌局卡住。<br><strong>API 预设：</strong>这里直接列出酒馆的全部聊天补全预设，<strong>不会跟随你当前 RP 所用的预设</strong>。例如 RP 可以用 Pro，打牌可以选一个更便宜的预设。陪玩生成结束后自动恢复 RP 原来的预设。<br><strong>生成方式：</strong>不再强依赖 OpenAI 的 json_schema / response_format，而是由提示词要求 JSON，再由 Silly Game 自己严格解析和裁判，以兼容更多 OpenAI 兼容中转站。</strong>' }));
+            el('div', { class: 'stgc-companion-note', html: '<strong>规则：</strong>你最多可以选择 3 名酒馆角色，分别占据 UNO 的 3 个 AI 席位；没选满的席位继续由本地 AI 补位。模型只负责“选择”，不能修改牌局。若返回非法动作，Silly Game 会自动校验、重试一次；仍失败则回退到本地 AI，不会让牌局卡住。<br><strong>API 预设：</strong>这里直接读取酒馆的全部聊天补全预设，不会跟随你当前 RP 所用的预设。RP 可以继续用 Pro，打牌单独选择轻量预设。陪玩生成结束后自动恢复 RP 原来的预设。<br><strong>生成方式：</strong>不强依赖 json_schema / response_format，而是由提示词要求 JSON，再由 Silly Game 自己严格解析和裁判。</strong>' }));
         body.append(panel);
+        // 酒馆预设管理器有可能在扩展 UI 首次打开后才完成注册，延迟再读取两次。
+        setTimeout(renderPresetOptions, 300);
+        setTimeout(renderPresetOptions, 1200);
     }
 
     function cleanupGame() {
