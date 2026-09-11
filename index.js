@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.10.8';
+    const CURRENT_VERSION = '1.10.9';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -2299,8 +2299,15 @@
                 play.addEventListener('click',()=>{
                     const idx=[...selected].sort((a,b)=>a-b);
                     if(!idx.length){g.message='请先选择要出的牌';draw();return;}
-                    const move=ddzLegalMoves(g,0).find(m=>!m.pass&&m.indices.length===idx.length&&m.indices.every(i=>idx.includes(i)));
-                    if(!move){g.message='这手牌不合法，或者压不过上一手。可以继续改选，不会自动“不出”。';draw();return;}
+                    // 人类玩家不应被预生成组合的“代表下标”限制。
+                    // 例如 AI 出 7，玩家手里有多张 K 时，任意一张 K 都应该能作为单牌压住 7。
+                    // 之前这里通过 ddzLegalMoves() 精确匹配 indices，而组合生成器对同点数牌只保留了第一张，
+                    // 因此点第二张/第三张 K 会被误判为“不合法”。人类选牌直接按实际选中牌重新判型。
+                    const chosenCards=idx.map(i=>g.hands[0][i]);
+                    const chosenType=ddzType(chosenCards);
+                    const legal=!!chosenType && ddzCanBeat(chosenType,g.lastMove?.type||null);
+                    if(!legal){g.message='这手牌不合法，或者压不过上一手。可以继续改选，不会自动“不出”。';draw();return;}
+                    const move={indices:idx,cards:chosenCards,type:chosenType};
                     selected.clear(); ddzApplyMove(g,0,move); ddzSave(); draw();
                     if(!g.over&&g.current!==0){const c=g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null;if(c)ddzCompanionTurn(g,draw);else ddzLocalTurn(g,draw);}
                 });
