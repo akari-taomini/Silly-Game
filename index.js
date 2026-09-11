@@ -41,7 +41,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.10.5';
+    const CURRENT_VERSION = '1.10.7';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1231,7 +1231,7 @@
             const head = el('div', { class: 'stgc-companion-character-head' });
             // 不直接让 checkbox_label 与世界书按钮共享一整行的点击区域，避免酒馆原生样式造成覆盖/重叠。
             const mainCell = el('div', { class: 'stgc-companion-character-main-cell' });
-            const mainLabel = el('label', { class: 'checkbox_label stgc-companion-character-option stgc-companion-main-option' });
+            const mainLabel = el('div', { class: 'stgc-companion-character-option stgc-companion-main-option' });
             const checkbox = el('input', { type: 'checkbox', class: 'checkbox' });
             const name = String(c.name || `角色 ${index + 1}`);
             const mainSlot = { source: 'character', characterIndex: index };
@@ -1298,7 +1298,7 @@
                 }
                 item.entries.forEach(entry => {
                     const slot = { source: 'worldbook', characterIndex: index, entryIndex: entry.index, entryId: entry.id };
-                    const row = el('label', { class: 'checkbox_label stgc-companion-worldbook-entry' });
+                    const row = el('div', { class: 'stgc-companion-worldbook-entry' });
                     const cb = el('input', { type: 'checkbox', class: 'checkbox' });
                     cb.checked = hasSlot(slot);
                     row.append(cb, el('span', { class: 'stgc-companion-worldbook-entry-name', text: entry.title }), el('small', { text: '1条目=1角色' }));
