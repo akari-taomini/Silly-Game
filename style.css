@@ -8542,19 +8542,15 @@ n
     #st-mini-game-center .ddz-top-status { flex-basis: 100%; }
 }
 
-/* v1.10.6：角色陪玩选择器最终布局修复
-   不让酒馆主题的 checkbox_label / menu_button 默认布局影响角色行。
-   世界书列表永远作为角色行的下一块独立内容，不覆盖、不叠加。 */
+
+/* v1.10.6：世界书展开使用独立纵向流，彻底隔离角色点击区与世界书按钮。 */
 #st-mini-game-center .stgc-companion-character-group {
     display: block !important;
     position: relative !important;
     width: 100% !important;
     min-width: 0 !important;
     height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
+    box-sizing: border-box !important;
 }
 #st-mini-game-center .stgc-companion-character-head {
     display: flex !important;
@@ -8563,289 +8559,92 @@ n
     min-width: 0 !important;
     min-height: 38px !important;
     height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
+    align-items: center !important;
     gap: 8px !important;
-    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+#st-mini-game-center .stgc-companion-character-main-cell {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    height: auto !important;
+    position: relative !important;
+    z-index: 1 !important;
+    overflow: hidden !important;
 }
 #st-mini-game-center .stgc-companion-character-head .stgc-companion-main-option {
     display: flex !important;
-    position: relative !important;
     flex: 1 1 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    height: auto !important;
-    min-height: 38px !important;
-    margin: 0 !important;
-    padding: 6px 8px !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 8px !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-    float: none !important;
-    clear: none !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-main-option .checkbox {
-    flex: 0 0 auto !important;
-    position: static !important;
-    margin: 0 !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-character-option-name {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    width: auto !important;
-    display: block !important;
-    position: static !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-current-badge {
-    flex: 0 0 auto !important;
-    position: static !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-worldbook-toggle {
-    display: inline-flex !important;
-    position: relative !important;
-    inset: auto !important;
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: max-content !important;
-    max-width: none !important;
-    height: auto !important;
-    min-height: 38px !important;
-    margin: 0 !important;
-    padding: 6px 9px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    align-self: stretch !important;
-    float: none !important;
-    clear: none !important;
-    transform: none !important;
-    z-index: 1 !important;
-    box-sizing: border-box !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-list {
-    display: grid !important;
-    position: relative !important;
-    width: calc(100% - 8px) !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    margin: 5px 0 7px 8px !important;
-    padding: 7px 0 3px 16px !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 4px !important;
-    box-sizing: border-box !important;
-    clear: both !important;
-    float: none !important;
-    transform: none !important;
-    inset: auto !important;
-    z-index: 0 !important;
-    border-left: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 28%, transparent) !important;
-    overflow: visible !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-list.collapsed {
-    display: none !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-entry {
-    display: flex !important;
-    position: relative !important;
-    grid-column: 1 !important;
     width: 100% !important;
+    max-width: 100% !important;
     min-width: 0 !important;
-    min-height: 32px !important;
     height: auto !important;
-    margin: 0 !important;
-    padding: 5px 6px !important;
-    align-items: center !important;
-    gap: 8px !important;
-    float: none !important;
-    clear: both !important;
-    transform: none !important;
-    inset: auto !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-entry .checkbox {
-    flex: 0 0 auto !important;
-    position: static !important;
-    margin: 0 !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-entry-name {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    display: block !important;
-    position: static !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-entry small {
-    flex: 0 0 auto !important;
-    position: static !important;
-    white-space: nowrap !important;
-}
-@media (max-width: 560px) {
-    #st-mini-game-center .stgc-companion-character-head { gap: 5px !important; }
-    #st-mini-game-center .stgc-companion-character-head .stgc-companion-worldbook-toggle {
-        min-width: 38px !important;
-        width: 38px !important;
-        padding: 5px !important;
-    }
-    #st-mini-game-center .stgc-companion-worldbook-list {
-        width: calc(100% - 4px) !important;
-        margin-left: 4px !important;
-        padding-left: 12px !important;
-    }
-}
-
-
-/* v1.10.7：最终隔离角色陪玩列表。不要让酒馆主题/角色卡页面的
-   .checkbox_label、writing-mode、columns、float 等全局规则污染这里。 */
-#st-mini-game-center .stgc-companion-character-picker,
-#st-mini-game-center .stgc-companion-character-picker * {
-    writing-mode: horizontal-tb !important;
-    text-orientation: mixed !important;
-    unicode-bidi: normal !important;
-    direction: ltr !important;
-    text-indent: 0 !important;
-    column-count: initial !important;
-    column-width: auto !important;
-    column-gap: normal !important;
-    columns: initial !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-}
-#st-mini-game-center .stgc-companion-character-option,
-#st-mini-game-center .stgc-companion-worldbook-entry {
-    all: unset !important;
-    box-sizing: border-box !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 34px !important;
-    height: auto !important;
+    min-height: 36px !important;
     margin: 0 !important;
     padding: 5px 8px !important;
-    position: static !important;
-    float: none !important;
-    clear: both !important;
-    transform: none !important;
-    inset: auto !important;
+    box-sizing: border-box !important;
     overflow: hidden !important;
-    color: var(--SmartThemeBodyColor) !important;
-    font-family: inherit !important;
-    font-size: 13px !important;
-    line-height: 1.45 !important;
-    white-space: normal !important;
-    cursor: pointer !important;
-    border-radius: 8px !important;
+    position: relative !important;
 }
-#st-mini-game-center .stgc-companion-character-option:hover,
-#st-mini-game-center .stgc-companion-worldbook-entry:hover {
-    background: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 7%, transparent) !important;
-}
-#st-mini-game-center .stgc-companion-character-option .checkbox,
-#st-mini-game-center .stgc-companion-worldbook-entry .checkbox {
-    appearance: auto !important;
-    -webkit-appearance: auto !important;
+#st-mini-game-center .stgc-companion-worldbook-toggle {
     flex: 0 0 auto !important;
-    position: static !important;
-    display: inline-block !important;
+    position: relative !important;
+    z-index: 2 !important;
     width: auto !important;
-    height: auto !important;
+    max-width: 110px !important;
+    min-width: max-content !important;
     margin: 0 !important;
-    transform: none !important;
-}
-#st-mini-game-center .stgc-companion-character-option-name,
-#st-mini-game-center .stgc-companion-worldbook-entry-name {
-    position: static !important;
-    display: block !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
     white-space: nowrap !important;
-    word-break: normal !important;
-    overflow-wrap: normal !important;
-    transform: none !important;
-    color: var(--SmartThemeBodyColor) !important;
-    line-height: 1.4 !important;
-}
-#st-mini-game-center .stgc-companion-worldbook-entry small {
-    position: static !important;
-    flex: 0 0 auto !important;
-    display: inline-block !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    white-space: nowrap !important;
-    transform: none !important;
-    color: var(--SmartThemeBodyColor) !important;
-    opacity: .5 !important;
-    font-size: 9px !important;
-    line-height: 1.2 !important;
-}
-#st-mini-game-center .stgc-companion-character-head {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    align-items: center !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 38px !important;
-    height: auto !important;
-    gap: 8px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: static !important;
-    float: none !important;
-    transform: none !important;
-    overflow: visible !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-main-option {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-}
-#st-mini-game-center .stgc-companion-character-head .stgc-companion-worldbook-toggle {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    position: static !important;
-    float: none !important;
-    transform: none !important;
-    inset: auto !important;
-    z-index: 1 !important;
 }
 #st-mini-game-center .stgc-companion-worldbook-list {
     display: flex !important;
     flex-direction: column !important;
-    width: calc(100% - 8px) !important;
-    max-width: none !important;
+    position: relative !important;
+    clear: both !important;
+    width: calc(100% - 12px) !important;
+    max-width: calc(100% - 12px) !important;
     min-width: 0 !important;
     height: auto !important;
-    min-height: 0 !important;
-    margin: 5px 0 7px 8px !important;
-    padding: 7px 0 3px 16px !important;
-    gap: 4px !important;
-    position: static !important;
-    float: none !important;
-    clear: both !important;
-    transform: none !important;
-    inset: auto !important;
-    border-left: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 28%, transparent) !important;
+    margin: 3px 0 7px 12px !important;
+    padding: 6px 0 3px 14px !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
+    border-left: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 28%, transparent) !important;
+    overflow: visible !important;
+    z-index: 1 !important;
 }
 #st-mini-game-center .stgc-companion-worldbook-list.collapsed {
     display: none !important;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry,
+#st-mini-game-center .stgc-companion-worldbook-loading,
+#st-mini-game-center .stgc-companion-worldbook-empty {
+    position: relative !important;
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    flex: 0 0 auto !important;
+}
+#st-mini-game-center .stgc-companion-worldbook-entry {
+    min-height: 32px !important;
+    margin: 0 !important;
+    padding: 4px 6px !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+@media (max-width: 560px) {
+    #st-mini-game-center .stgc-companion-worldbook-toggle {
+        max-width: 42px !important;
+        min-width: 42px !important;
+        padding: 6px 7px !important;
+    }
+    #st-mini-game-center .stgc-companion-worldbook-list {
+        width: calc(100% - 6px) !important;
+        max-width: calc(100% - 6px) !important;
+        margin-left: 6px !important;
+        padding-left: 10px !important;
+    }
 }

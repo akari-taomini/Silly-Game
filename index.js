@@ -41,7 +41,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '1.10.6';
+    const CURRENT_VERSION = '1.10.5';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1229,7 +1229,9 @@
         chars.forEach(({ c, index }) => {
             const itemWrap = el('div', { class: 'stgc-companion-character-group' });
             const head = el('div', { class: 'stgc-companion-character-head' });
-            const mainLabel = el('label', { class: 'stgc-companion-character-option stgc-companion-main-option' });
+            // 不直接让 checkbox_label 与世界书按钮共享一整行的点击区域，避免酒馆原生样式造成覆盖/重叠。
+            const mainCell = el('div', { class: 'stgc-companion-character-main-cell' });
+            const mainLabel = el('label', { class: 'checkbox_label stgc-companion-character-option stgc-companion-main-option' });
             const checkbox = el('input', { type: 'checkbox', class: 'checkbox' });
             const name = String(c.name || `角色 ${index + 1}`);
             const mainSlot = { source: 'character', characterIndex: index };
@@ -1241,7 +1243,8 @@
             );
             const wbToggle = el('button', { class: 'menu_button stgc-companion-worldbook-toggle', type: 'button', title: '查看这张卡的世界书条目', 'aria-label': `查看${name}的世界书条目` });
             wbToggle.innerHTML = '<i class="fa-solid fa-book-open" aria-hidden="true"></i><span>世界书</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>';
-            head.append(mainLabel, wbToggle);
+            mainCell.append(mainLabel);
+            head.append(mainCell, wbToggle);
             itemWrap.append(head);
 
             const entryBox = el('div', { class: 'stgc-companion-worldbook-list collapsed' });
@@ -1295,7 +1298,7 @@
                 }
                 item.entries.forEach(entry => {
                     const slot = { source: 'worldbook', characterIndex: index, entryIndex: entry.index, entryId: entry.id };
-                    const row = el('label', { class: 'stgc-companion-worldbook-entry' });
+                    const row = el('label', { class: 'checkbox_label stgc-companion-worldbook-entry' });
                     const cb = el('input', { type: 'checkbox', class: 'checkbox' });
                     cb.checked = hasSlot(slot);
                     row.append(cb, el('span', { class: 'stgc-companion-worldbook-entry-name', text: entry.title }), el('small', { text: '1条目=1角色' }));
@@ -1417,7 +1420,7 @@
                 : `陪玩 API：本分钟 ${status.used}/${status.limit} · 可以请求`;
         });
 
-        const speakRow = el('label', { class: 'stgc-companion-check' });
+        const speakRow = el('label', { class: 'checkbox_label stgc-companion-check' });
         const speak = el('input', { type: 'checkbox', class: 'checkbox' });
         speak.checked = settings.speak !== false;
         speakRow.append(speak, el('small', { text: '允许角色在游戏界面附带一句简短台词' }));
