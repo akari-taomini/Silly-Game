@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.1.6';
+    const CURRENT_VERSION = '2.1.7';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -53,7 +53,7 @@
     let refreshFarmSeedRow = null;
 
     const SILLY_GAME_UI_SETTINGS_KEY = 'silly-game-ui-v1';
-    const SILLY_GAME_UI_DEFAULTS = Object.freeze({ fontFamily: 'system', fontSize: 14, contrast: 'high' });
+    const SILLY_GAME_UI_DEFAULTS = Object.freeze({ fontFamily: 'system', fontSize: 14, themeMode: 'follow' });
     function getSillyGameUiSettings() {
         try {
             const raw = JSON.parse(localStorage.getItem(SILLY_GAME_UI_SETTINGS_KEY) || 'null');
@@ -61,7 +61,7 @@
             merged.fontFamily = ['st', 'system', 'serif'].includes(merged.fontFamily) ? merged.fontFamily : 'system';
             const n = Number(merged.fontSize);
             merged.fontSize = Number.isFinite(n) ? Math.min(20, Math.max(12, Math.round(n))) : 14;
-            merged.contrast = ['normal', 'high'].includes(merged.contrast) ? merged.contrast : 'high';
+            merged.themeMode = ['follow', 'light', 'dark'].includes(merged.themeMode) ? merged.themeMode : 'follow';
             return merged;
         } catch { return { ...SILLY_GAME_UI_DEFAULTS }; }
     }
@@ -69,7 +69,7 @@
         const next = { ...getSillyGameUiSettings(), ...patch };
         next.fontFamily = ['st', 'system', 'serif'].includes(next.fontFamily) ? next.fontFamily : 'system';
         next.fontSize = Math.min(20, Math.max(12, Math.round(Number(next.fontSize) || 14)));
-        next.contrast = ['normal', 'high'].includes(next.contrast) ? next.contrast : 'high';
+        next.themeMode = ['follow', 'light', 'dark'].includes(next.themeMode) ? next.themeMode : 'follow';
         try { localStorage.setItem(SILLY_GAME_UI_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
         applySillyGameUiSettings();
         return next;
@@ -85,7 +85,7 @@
         };
         root.style.setProperty('--stgc-font-family', fontMap[settings.fontFamily] || fontMap.system);
         root.style.setProperty('--stgc-font-size', `${settings.fontSize}px`);
-        root.dataset.stgcContrast = settings.contrast;
+        root.dataset.stgcThemeMode = settings.themeMode;
     }
 
     const FARM_STORAGE_KEY = 'silly-game-farm-v1';
@@ -943,6 +943,7 @@
             handCounts: g.hands.map((hand, index) => ({ player: index, name: unoPlayerName(g, index), count: hand.length })),
             lastMessage: g.message || '',
             drawnThisTurn: !!g.drawnThisTurn,
+            drawnCardIndex: Number.isInteger(g.drawnCardIndex) ? g.drawnCardIndex : -1,
         };
     }
 
@@ -983,16 +984,11 @@
             currentColor:gameSnapshot.currentColor,
             hands:[gameSnapshot.yourHand],
         };
-        const legalActions=gameSnapshot.yourHand
-            .map((card,index)=>unoPlayable(card,legalCheckGame,0)?{
-                action:'play',
-                cardIndex:index,
-                card:card.type==='wild'||card.type==='wild4'?`${card.type}`:`${card.color}:${card.type}`,
-            }:null)
-            .filter(Boolean);
-        // 除了可出牌外，当前回合始终至少可以摸牌。
-        legalActions.push({ action: 'draw', cardIndex: -1 });
-        if (gameSnapshot.drawnThisTurn) legalActions.push({ action: 'pass', cardIndex: -1 });
+        const rawLegalActions=unoLegalActions(legalCheckGame,0,gameSnapshot.drawnThisTurn ? gameSnapshot.drawnCardIndex : -1);
+        const legalActions=rawLegalActions.map(item=>({
+            ...item,
+            card: item.card ? (item.card.type==='wild'||item.card.type==='wild4' ? item.card.type : `${item.card.color}:${item.card.type}`) : undefined,
+        }));
 
         const roleInstruction = [
             '【Silly Game 角色陪玩协议】',
@@ -2089,14 +2085,14 @@
         [['system', '系统无衬线（推荐）'], ['st', '跟随酒馆字体'], ['serif', '宋体衬线']].forEach(([value, label]) => fontSelect.append(el('option', { value, text: label })));
         fontSelect.value = uiSettings.fontFamily;
         const fontSize = el('input', { class: 'text_pole stgc-appearance-size', type: 'number', min: '12', max: '20', step: '1', value: String(uiSettings.fontSize), 'aria-label': 'Silly Game 字号' });
-        const contrastSelect = el('select', { class: 'text_pole stgc-appearance-select' });
-        contrastSelect.append(el('option', { value: 'high', text: '高对比度（推荐）' }), el('option', { value: 'normal', text: '标准对比度' }));
-        contrastSelect.value = uiSettings.contrast;
-        appearanceControls.append(fontSelect, el('span', { class: 'stgc-appearance-inline-label', text: '字号' }), fontSize, contrastSelect);
-        appearanceRow.append(appearanceControls, el('small', { class: 'stgc-game-appearance-note', text: '默认使用稳定的主题自适应表面色，避免背景图/透明主题让文字发糊。' }));
+        const themeSelect = el('select', { class: 'text_pole stgc-appearance-select' });
+        [['follow', '跟随酒馆主题（默认）'], ['light', '强制白天：白底黑字'], ['dark', '强制夜间：黑底白字']].forEach(([value, label]) => themeSelect.append(el('option', { value, text: label })));
+        themeSelect.value = uiSettings.themeMode;
+        appearanceControls.append(themeSelect, fontSelect, el('span', { class: 'stgc-appearance-inline-label', text: '字号' }), fontSize);
+        appearanceRow.append(appearanceControls, el('small', { class: 'stgc-game-appearance-note', text: '文字与面板始终使用高对比度配色；跟随主题只负责随酒馆明暗变化，强制白天/夜间则固定为白底黑字或黑底白字。' }));
+        themeSelect.addEventListener('change', () => saveSillyGameUiSettings({ themeMode: themeSelect.value }));
         fontSelect.addEventListener('change', () => saveSillyGameUiSettings({ fontFamily: fontSelect.value }));
         fontSize.addEventListener('change', () => { const value = Math.min(20, Math.max(12, Number(fontSize.value) || 14)); fontSize.value = String(value); saveSillyGameUiSettings({ fontSize: value }); });
-        contrastSelect.addEventListener('change', () => saveSillyGameUiSettings({ contrast: contrastSelect.value }));
 
         const updateRow = el('div', { class: 'stgc-home-update-row' });
         const updateInfo = el('div', { class: 'stgc-home-update-info' }, [
@@ -3098,29 +3094,51 @@
         return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3,drawnThisTurn:false,drawnCardIndex:-1,companion:{enabled:false,settings:getCharacterCompanionSettings()},companionThinking:false};
     }
     function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
-    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionSpeech=g.companionSpeech&&typeof g.companionSpeech==='object'?g.companionSpeech:null;g.companionThinking=false;return g;}catch{return null;}}
+    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionSpeech=g.companionSpeech&&typeof g.companionSpeech==='object'?g.companionSpeech:null;g.companionThinking=false;unoSyncCurrentColor(g);return g;}catch{return null;}}
+    function unoSyncCurrentColor(g){
+        const top=g?.discard?.at(-1);
+        if(!top)return;
+        // 普通彩色牌决定当前颜色；万能牌则保留玩家选择的颜色。
+        if(UNO_COLORS.includes(top.color)) g.currentColor=top.color;
+    }
     function unoPlayable(card,g,pIndex=g.current){
-        const top=g.discard.at(-1);
+        const top=g?.discard?.at(-1);
         if(!card||!top)return false;
-        // UNO 基础匹配：同色、同数字、同功能牌，或万能牌。
-        // 不能因为两张牌都属于 number 就跨颜色随便出。
+        unoSyncCurrentColor(g);
+        // 标准 UNO 合法条件：同颜色、同数字、同功能，或万能牌。
         if(card.type==='wild')return true;
         if(card.type==='wild4'){
+            // +4 只能在手里没有任何当前颜色的普通牌时使用。
             const hand=g.hands[pIndex]||[];
             const hasCurrentColor=hand.some(c=>c && UNO_COLORS.includes(c.color) && c.color===g.currentColor);
             return !hasCurrentColor;
         }
-        if(card.color===g.currentColor)return true;
-        if(card.type==='number'&&top.type==='number')return card.value===top.value;
-        return card.type!=='number'&&card.type===top.type;
+        // 彩色牌首先必须同当前颜色。
+        if(UNO_COLORS.includes(card.color) && card.color===g.currentColor)return true;
+        // 跨颜色时，数字只能匹配数字；功能牌只能匹配同功能。
+        if(card.type==='number' && top.type==='number')return String(card.value)===String(top.value);
+        if(card.type!=='number' && top.type===card.type)return true;
+        return false;
+    }
+
+    function unoLegalActions(g,pIndex=g.current, drawnOnlyIndex=-1){
+        const hand=g.hands[pIndex]||[];
+        const actions=[];
+        hand.forEach((card,index)=>{
+            if(drawnOnlyIndex>=0 && index!==drawnOnlyIndex) return;
+            if(unoPlayable(card,g,pIndex)) actions.push({action:'play',cardIndex:index,card});
+        });
+        actions.push({action:'draw',cardIndex:-1});
+        if(drawnOnlyIndex>=0) actions.push({action:'pass',cardIndex:-1});
+        return actions;
     }
 
     function unoNextIndex(g,steps=1){return (g.current+g.direction*steps+8)%4;}
     function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
     function unoBestWildColor(hand){const count=Object.fromEntries(UNO_COLORS.map(c=>[c,0]));for(const card of hand)if(UNO_COLORS.includes(card.color))count[card.color]++;return UNO_COLORS.reduce((best,c)=>count[c]>count[best]?c:best,'red');}
     function unoApplyPlay(g,p,index,chosenColor=null){
-        const card=g.hands[p]?.[index];if(!card||!unoPlayable(card,g,p))return false;
-        g.hands[p].splice(index,1);g.discard.push(card);g.currentColor=card.color==='wild'?(chosenColor||'red'):card.color;g.lastPlayedBy=p;g.needsUno=p===0&&g.hands[p].length===1;
+        const card=g.hands[p]?.[index];if(!card||!unoPlayable(card,g,p)){ if(p===0 && card) g.message='这张牌不能出：必须同颜色、同数字或同功能牌'; return false; }
+        g.hands[p].splice(index,1);g.discard.push(card);g.currentColor=(card.type==='wild'||card.type==='wild4')?(chosenColor||'red'):card.color;g.lastPlayedBy=p;g.needsUno=p===0&&g.hands[p].length===1;
         if(g.hands[p].length===0){g.over=true;g.winner=p;g.message=p===0?'你赢了！':'AI 赢了';if(p===0)recordGameWin('uno');return true;}
         if(card.type==='reverse')g.direction*=-1;
         let steps=1;
@@ -3162,7 +3180,7 @@
         deckArea.append(deckLabel,deckBtn);discardArea.append(discardLabel,discard);center.append(deckArea,discardArea,centerNotice);table.append(topArea,leftAI,center,rightAI);body.append(bar,table,hand,hint);
         UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
-        function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.disabled=clickable&&!isPlayable;node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
+        function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable&&isPlayable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.disabled=false;node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
         function drawUnoOpponent(target,p){
             const g=state.uno;
             target.replaceChildren();
@@ -3179,14 +3197,14 @@
             if(speech) card.append(el('div',{class:'uno-opponent-bubble',text:speech}));
             target.append(card);
         }
-        function drawUno(){const g=state.uno;const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
+        function drawUno(){const g=state.uno;unoSyncCurrentColor(g);const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
             rateInfo.textContent=companionRateText('AI 请求');
             status.textContent=g.over?(g.winner===0?'你获胜！':`${unoPlayerName(g,g.winner)} 获胜`):(g.current===0?'你的回合':`${unoPlayerName(g,g.current)} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;
             modeBtn.textContent=g.companion?.enabled?`角色陪玩 · ${companions.map(c=>c.name).join('、') || '未选择角色'}`:'普通 AI';
             modeBtn.classList.toggle('active',!!g.companion?.enabled);
             modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);drawUnoOpponent(topAI,2);drawUnoOpponent(leftAI,1);drawUnoOpponent(rightAI,3);discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
         function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>{if(state.uno!==g||state.currentGame!=='uno')return;if(g.companion?.enabled && resolveCharacterCompanionForPlayer(g, g.current))unoCompanionTurn(g,drawUno);else unoAiTurn(g,drawUno);},1300);}}
-        function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;if(g.drawnThisTurn&&index!==g.drawnCardIndex)return;const card=g.hands[0][index];if(!unoPlayable(card,g,0)){g.message='这张牌不能出';drawUno();return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
+        function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;if(g.drawnThisTurn&&index!==g.drawnCardIndex)return;const card=g.hands[0][index];if(!unoPlayable(card,g,0)){g.message='这张牌不能出';drawUno();return;}if(card.type==='wild'||card.type==='wild4'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
         drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno||g.drawnThisTurn)return;unoAddDraw(g,0,1);g.drawnThisTurn=true;g.drawnCardIndex=g.hands[0].length-1;const drawn=g.hands[0].at(-1);g.message=drawn&&unoPlayable(drawn,g,0)?'你摸了 1 张牌 · 这张牌可以出':'你摸了 1 张牌 · 这回合过牌';unoSave();drawUno();});
         deckBtn.addEventListener('click',()=>drawBtn.click());
         passBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||!g.drawnThisTurn||g.needsUno)return;g.message='你选择过牌';g.current=unoNextIndex(g);g.drawnThisTurn=false;g.drawnCardIndex=-1;unoSave();drawUno();scheduleNextAI();});

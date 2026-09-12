@@ -9091,3 +9091,111 @@ n
     #st-mini-game-center .uno-opponent-meta span { font-size: 9px; }
     #st-mini-game-center .xiangqi-board { min-height: min(76vw, 520px); }
 }
+
+
+/* ==================== v2.1.7 主题可读性重构 ====================
+/* 核心原则：跟随主题也必须保持足够对比度；强制模式则完全固定黑白。 */
+#st-mini-game-center {
+    --stgc-light-bg: #f7f7f7;
+    --stgc-light-surface: #ffffff;
+    --stgc-light-surface-2: #f0f0f0;
+    --stgc-light-text: #111111;
+    --stgc-light-muted: #4b4b4b;
+    --stgc-light-border: #c9c9c9;
+    --stgc-dark-bg: #0b0b0b;
+    --stgc-dark-surface: #151515;
+    --stgc-dark-surface-2: #202020;
+    --stgc-dark-text: #ffffff;
+    --stgc-dark-muted: #d0d0d0;
+    --stgc-dark-border: #5b5b5b;
+}
+
+/* 默认：跟随酒馆，但把酒馆背景/文字变量压成高对比度的安全表面。 */
+#st-mini-game-center[data-stgc-theme-mode="follow"] {
+    --stgc-bg: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f7f7f7) 94%, var(--SmartThemeBodyColor, #111) 6%);
+    --stgc-surface: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f7f7f7) 92%, var(--SmartThemeBodyColor, #111) 8%);
+    --stgc-surface-2: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f7f7f7) 84%, var(--SmartThemeBodyColor, #111) 16%);
+    --stgc-text: var(--SmartThemeBodyColor, #111111);
+    --stgc-muted: color-mix(in srgb, var(--SmartThemeBodyColor, #111) 68%, transparent);
+    --stgc-border: color-mix(in srgb, var(--SmartThemeBodyColor, #111) 28%, transparent);
+}
+
+#st-mini-game-center[data-stgc-theme-mode="light"] {
+    --stgc-bg: var(--stgc-light-bg);
+    --stgc-surface: var(--stgc-light-surface);
+    --stgc-surface-2: var(--stgc-light-surface-2);
+    --stgc-text: var(--stgc-light-text);
+    --stgc-muted: var(--stgc-light-muted);
+    --stgc-border: var(--stgc-light-border);
+}
+
+#st-mini-game-center[data-stgc-theme-mode="dark"] {
+    --stgc-bg: var(--stgc-dark-bg);
+    --stgc-surface: var(--stgc-dark-surface);
+    --stgc-surface-2: var(--stgc-dark-surface-2);
+    --stgc-text: var(--stgc-dark-text);
+    --stgc-muted: var(--stgc-dark-muted);
+    --stgc-border: var(--stgc-dark-border);
+}
+
+#st-mini-game-center .stgc-panel,
+#st-mini-game-center .stgc-game-panel,
+#st-mini-game-center .stgc-companion-game-panel {
+    background: var(--stgc-surface) !important;
+    background-color: var(--stgc-surface) !important;
+    color: var(--stgc-text) !important;
+    border-color: var(--stgc-border) !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+#st-mini-game-center .stgc-panel::before,
+#st-mini-game-center .stgc-panel::after { opacity: 0 !important; }
+#st-mini-game-center .stgc-panel * { text-shadow: none !important; }
+#st-mini-game-center .stgc-title,
+#st-mini-game-center .stgc-card-name,
+#st-mini-game-center .stgc-game-card,
+#st-mini-game-center .stgc-game-appearance-title,
+#st-mini-game-center .stgc-header,
+#st-mini-game-center .stgc-subtitle,
+#st-mini-game-center .stgc-game-hint,
+#st-mini-game-center .stgc-home-update-text,
+#st-mini-game-center .stgc-extension-note,
+#st-mini-game-center .stgc-game-appearance-note,
+#st-mini-game-center .stgc-appearance-inline-label,
+#st-mini-game-center label,
+#st-mini-game-center p,
+#st-mini-game-center small,
+#st-mini-game-center span,
+#st-mini-game-center strong,
+#st-mini-game-center b,
+#st-mini-game-center h1,
+#st-mini-game-center h2,
+#st-mini-game-center h3,
+#st-mini-game-center h4 { color: var(--stgc-text) !important; }
+#st-mini-game-center .stgc-card-desc,
+#st-mini-game-center .stgc-game-hint,
+#st-mini-game-center .stgc-game-appearance-note,
+#st-mini-game-center .stgc-subtitle { color: var(--stgc-muted) !important; opacity: 1 !important; }
+#st-mini-game-center .stgc-btn,
+#st-mini-game-center input,
+#st-mini-game-center select,
+#st-mini-game-center textarea {
+    color: var(--stgc-text) !important;
+    background: var(--stgc-surface-2) !important;
+    border-color: var(--stgc-border) !important;
+}
+#st-mini-game-center .stgc-btn:hover,
+#st-mini-game-center .stgc-btn:focus-visible { filter: brightness(1.08); }
+#st-mini-game-center .stgc-game-card,
+#st-mini-game-center .stgc-game-appearance-settings,
+#st-mini-game-center .stgc-home-update-row { background: var(--stgc-surface-2) !important; border-color: var(--stgc-border) !important; }
+#st-mini-game-center[data-stgc-theme-mode="light"] { color-scheme: light; }
+#st-mini-game-center[data-stgc-theme-mode="dark"] { color-scheme: dark; }
+
+/* UNO：牌面之外的规则/按钮文字也不再继承透明主题导致的低对比度。 */
+#st-mini-game-center .uno-table,
+#st-mini-game-center .uno-center,
+#st-mini-game-center .uno-opponent-meta,
+#st-mini-game-center .uno-status,
+#st-mini-game-center .uno-message { color: var(--stgc-text) !important; }
