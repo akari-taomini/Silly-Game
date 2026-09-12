@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.1.3';
+    const CURRENT_VERSION = '2.1.5';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -978,21 +978,17 @@
         if (companion.source === 'character') companion.promptText = characterCompanionText(companion.character);
         const cardText = companion.promptText || '';
 
-        const top = gameSnapshot.topCard;
-        const hasCurrentColor = gameSnapshot.yourHand.some(card => card?.color === gameSnapshot.currentColor);
-        const legalActions = gameSnapshot.yourHand
-            .map((card, index) => {
-                if (!card) return null;
-                let playable = false;
-                if (card.type === 'wild') playable = true;
-                else if (card.type === 'wild4') playable = !hasCurrentColor;
-                else playable = card.color === gameSnapshot.currentColor
-                    || card.type === top?.type
-                    || (card.type === 'number' && top?.type === 'number' && card.value === top?.value);
-                return playable ? {
-                    action: 'play', cardIndex: index, card: card.type === 'wild' || card.type === 'wild4' ? `${card.type}` : `${card.color}:${card.type}`,
-                } : null;
-            })
+        const legalCheckGame={
+            discard:[gameSnapshot.topCard],
+            currentColor:gameSnapshot.currentColor,
+            hands:[gameSnapshot.yourHand],
+        };
+        const legalActions=gameSnapshot.yourHand
+            .map((card,index)=>unoPlayable(card,legalCheckGame,0)?{
+                action:'play',
+                cardIndex:index,
+                card:card.type==='wild'||card.type==='wild4'?`${card.type}`:`${card.color}:${card.type}`,
+            }:null)
             .filter(Boolean);
         // 除了可出牌外，当前回合始终至少可以摸牌。
         legalActions.push({ action: 'draw', cardIndex: -1 });
@@ -1120,6 +1116,7 @@
                 g.message = `${companion.name} 思考了一下，选择了一个稳妥的出法`;
             }
 
+            g.companionSpeech = settings.speak !== false && action.speech ? { player: p, text: action.speech } : null;
             if (settings.speak !== false && action.speech && !g.over) {
                 applyCompanionSpeech(g, companion, action.speech);
             }
@@ -2202,7 +2199,7 @@
 
     function ddzDeal() {
         const deck = ddzShuffle(ddzBuildDeck());
-        return { deck: [], hands: [ddzSortCards(deck.slice(0,17)), ddzSortCards(deck.slice(17,34)), ddzSortCards(deck.slice(34,51))], bottom: deck.slice(51), current: 0, landlord: null, bids: [null,null,null], highestBid: 0, bidRound: 0, phase: 'bid', lastMove: null, passes: 0, winner: null, over: false, message: '开始叫地主', companion: { enabled: false, settings: getCharacterCompanionSettings() } };
+        return { deck: [], hands: [ddzSortCards(deck.slice(0,17)), ddzSortCards(deck.slice(17,34)), ddzSortCards(deck.slice(34,51))], bottom: deck.slice(51), current: 0, landlord: null, bids: [null,null,null], highestBid: 0, bidRound: 0, phase: 'bid', lastMove: null, passes: 0, winner: null, over: false, message: '开始叫地主', companion: { enabled: false, settings: getCharacterCompanionSettings() }, companionSpeech:null };
     }
     function ddzSave(g = state.doudizhu) { try { if (g) localStorage.setItem(DOUDIZHU_KEY, JSON.stringify(g)); } catch {} }
 
@@ -2332,7 +2329,7 @@
         if(!ddzSessionActive(g, token)) return;
         const p=g.current; const companion=resolveCharacterCompanionForPlayer(g,p); if(!companion){ddzLocalTurn(g,onUpdate);return;} g.companionThinking=true; g.message=`${companion.name} 正在思考 · ${companionRateText('API')}`; onUpdate();
         try{const action=await generateCharacterDoudizhuAction({gameSnapshot:ddzSnapshot(g,p),companion,settings:getLiveCompanionSettings(g)}); if(!ddzSessionActive(g, token)) return; const legal=ddzLegalMoves(g,p); let chosen=null; if(action.action==='play'){chosen=legal.find(m=>!m.pass&&m.indices.length===action.cardIndices.length&&m.indices.every(i=>action.cardIndices.includes(i)));}else chosen=legal.find(m=>m.pass);
-            if(!chosen) throw new Error('角色选择了非法斗地主行动'); ddzApplyMove(g,p,chosen); if(getLiveCompanionSettings(g).speak!==false&&action.speech&&!g.over)g.message=`${companion.name}：“${action.speech}”`; g.companionThinking=false;ddzSave(g);onUpdate();
+            if(!chosen) throw new Error('角色选择了非法斗地主行动'); ddzApplyMove(g,p,chosen); g.companionSpeech=getLiveCompanionSettings(g).speak!==false&&action.speech?{player:p,text:action.speech}:null; if(getLiveCompanionSettings(g).speak!==false&&action.speech&&!g.over)g.message=`${companion.name}：“${action.speech}”`; g.companionThinking=false;ddzSave(g);onUpdate();
         }catch(e){if(!ddzSessionActive(g, token)) return; console.warn('[Silly Game] character companion Doudizhu generation failed:',e);g.companionThinking=false;g.message=`${companion.name} 请求失败，改由本地 AI 接管`;ddzLocalTurn(g,onUpdate);return;}
         if(!g.over&&g.current!==0){ddzSchedule(g,onUpdate,1000,()=>{const next= g.companion.enabled?resolveCharacterCompanionForPlayer(g,g.current):null; if(next)ddzCompanionTurn(g,onUpdate);else ddzLocalTurn(g,onUpdate);});}
     }
@@ -2402,6 +2399,8 @@
             if(g.current===p&&!g.over) tags.append(el('span',{class:'ddz-turn-badge',text:g.phase==='bid'?'叫地主':'出牌'}));
             if(tags.childElementCount) target.append(tags);
             if(p!==0) target.append(makeMiniBacks(count));
+            const speech=g.companionSpeech?.player===p?String(g.companionSpeech.text||'').trim():'';
+            if(p!==0&&speech) target.append(el('div',{class:'ddz-seat-speech',text:speech}));
         }
         function makeCard(card,index,clickable=true){
             const g=state.doudizhu, rank=rankText(card), suit=card.suit||'';
@@ -3099,8 +3098,23 @@
         return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3,drawnThisTurn:false,drawnCardIndex:-1,companion:{enabled:false,settings:getCharacterCompanionSettings()},companionThinking:false};
     }
     function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
-    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionThinking=false;return g;}catch{return null;}}
-    function unoPlayable(card,g,pIndex=g.current){const top=g.discard.at(-1);if(!card||!top)return false;if(card.type==='wild')return true;if(card.type==='wild4'){const hasColorCard=g.hands[pIndex]?.some(c=>c.color===g.currentColor);return !hasColorCard;}const sameColor=card.color===g.currentColor;const sameNumber=card.type==='number'&&top.type==='number'&&card.value===top.value;const sameAction=card.type!=='number'&&card.type===top.type;return sameColor||sameNumber||sameAction;}
+    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionSpeech=g.companionSpeech&&typeof g.companionSpeech==='object'?g.companionSpeech:null;g.companionThinking=false;return g;}catch{return null;}}
+    function unoPlayable(card,g,pIndex=g.current){
+        const top=g.discard.at(-1);
+        if(!card||!top)return false;
+        // UNO 基础匹配：同色、同数字、同功能牌，或万能牌。
+        // 不能因为两张牌都属于 number 就跨颜色随便出。
+        if(card.type==='wild')return true;
+        if(card.type==='wild4'){
+            const hand=g.hands[pIndex]||[];
+            const hasCurrentColor=hand.some(c=>c && UNO_COLORS.includes(c.color) && c.color===g.currentColor);
+            return !hasCurrentColor;
+        }
+        if(card.color===g.currentColor)return true;
+        if(card.type==='number'&&top.type==='number')return card.value===top.value;
+        return card.type!=='number'&&card.type===top.type;
+    }
+
     function unoNextIndex(g,steps=1){return (g.current+g.direction*steps+8)%4;}
     function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
     function unoBestWildColor(hand){const count=Object.fromEntries(UNO_COLORS.map(c=>[c,0]));for(const card of hand)if(UNO_COLORS.includes(card.color))count[card.color]++;return UNO_COLORS.reduce((best,c)=>count[c]>count[best]?c:best,'red');}
@@ -3149,12 +3163,28 @@
         UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
         function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.disabled=clickable&&!isPlayable;node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
-        function drawUno(){const g=state.uno;const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : []; const p1Name = unoPlayerName(g, 1);
+        function drawUnoOpponent(target,p){
+            const g=state.uno;
+            target.replaceChildren();
+            const companion=g.companion?.enabled?resolveCharacterCompanionForPlayer(g,p):null;
+            const name=unoPlayerName(g,p);
+            const card=el('div',{class:'uno-opponent-player'});
+            const avatar=el('div',{class:'uno-opponent-avatar'});
+            const src=companion?getCompanionAvatarSource(companion,getLiveCompanionSettings(g)):'';
+            if(src) avatar.append(el('img',{class:'uno-opponent-avatar-img',src,alt:''})); else avatar.textContent=String(name||'AI').trim().slice(0,1)||'A';
+            const meta=el('div',{class:'uno-opponent-meta'});
+            meta.append(el('strong',{text:name}),el('span',{text:`${g.hands[p]?.length||0} 张`}));
+            card.append(avatar,meta);
+            const speech=g.companionSpeech?.player===p?String(g.companionSpeech.text||'').trim():'';
+            if(speech) card.append(el('div',{class:'uno-opponent-bubble',text:speech}));
+            target.append(card);
+        }
+        function drawUno(){const g=state.uno;const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
             rateInfo.textContent=companionRateText('AI 请求');
             status.textContent=g.over?(g.winner===0?'你获胜！':`${unoPlayerName(g,g.winner)} 获胜`):(g.current===0?'你的回合':`${unoPlayerName(g,g.current)} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;
             modeBtn.textContent=g.companion?.enabled?`角色陪玩 · ${companions.map(c=>c.name).join('、') || '未选择角色'}`:'普通 AI';
             modeBtn.classList.toggle('active',!!g.companion?.enabled);
-            modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);topAI.querySelector('.uno-ai-count')?.remove();const aiCount=el('span',{class:'uno-ai-count',text:`${unoPlayerName(g,2)} · ${g.hands[2].length} 张`});topAI.append(aiCount);leftAI.textContent=`${p1Name} · ${g.hands[1].length} 张`;rightAI.textContent=`${unoPlayerName(g,3)} · ${g.hands[3].length} 张`;discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
+            modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);drawUnoOpponent(topAI,2);drawUnoOpponent(leftAI,1);drawUnoOpponent(rightAI,3);discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
         function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>{if(state.uno!==g||state.currentGame!=='uno')return;if(g.companion?.enabled && resolveCharacterCompanionForPlayer(g, g.current))unoCompanionTurn(g,drawUno);else unoAiTurn(g,drawUno);},1300);}}
         function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;if(g.drawnThisTurn&&index!==g.drawnCardIndex)return;const card=g.hands[0][index];if(!unoPlayable(card,g,0)){g.message='这张牌不能出';drawUno();return;}if(card.color==='wild'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
         drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno||g.drawnThisTurn)return;unoAddDraw(g,0,1);g.drawnThisTurn=true;g.drawnCardIndex=g.hands[0].length-1;const drawn=g.hands[0].at(-1);g.message=drawn&&unoPlayable(drawn,g,0)?'你摸了 1 张牌 · 这张牌可以出':'你摸了 1 张牌 · 这回合过牌';unoSave();drawUno();});
@@ -5490,12 +5520,12 @@
             '你不能修改棋盘、虚构棋子、跳过规则，也不能替自己执行系统没有列出的走法。',
             '系统已经生成了合法候选走法，你只能从“允许走法”中选择一个。候选列表优先包含关键防守点与高质量进攻点。',
             '对于五子棋，列表中的 x/y 是从左上角开始、从 1 计数的坐标；winNow=true 表示这一步立即获胜，blockNow=true 表示必须优先考虑堵住对手。',
-            '角色人格只能影响你的策略偏好和台词，不能突破规则。',
+            '角色人格只能影响你的策略偏好和台词，不能突破规则；台词可以自然地挑衅、得意、安慰、鼓励或嘴硬，但不要恶意辱骂玩家。',
             '',
             '【输出要求】',
             '只输出一个 JSON 对象，不要 Markdown，不要解释。',
             '{"moveIndex":数字,"speech":"一句很短的角色台词"}',
-            'moveIndex 必须是允许走法数组中的编号。speech 可以为空字符串。',
+            'moveIndex 必须是允许走法数组中的编号。speech 可以为空字符串；若填写，可自然表现得意、挑衅、嘴硬、安慰或鼓励，但不要恶意辱骂。',
             '',
             `【你的角色】\n${roleText}`,
             `【当前局面】\n${JSON.stringify(gameSnapshot)}`,
@@ -5522,7 +5552,7 @@
         const prompt = [
             '【Silly Game 棋类陪玩对话】',
             `你正在和玩家一起进行${gameType}。`,
-            '请保持角色人格，用角色本人的口吻自然回复玩家。',
+            '请保持角色人格，用角色本人的口吻自然回复玩家。可以自然挑衅、得意、嘲笑、安慰、鼓励或嘴硬，但不要恶意辱骂玩家。',
             '这只是对话，不执行任何游戏操作，不修改棋盘、不改变胜负，也不能因为玩家求情就凭空改变规则。',
             '玩家可能会撒娇、求饶、嘴硬、抱怨，请像真正的对手一样回应；可以嘴硬拒绝，也可以角色化地表示“考虑一下”，但最终棋局仍由规则决定。',
             '回复控制在 1～3 句，避免长篇解释。',
@@ -5540,11 +5570,14 @@
         const wrap = el('div', { class: 'stgc-board-companion-wrap' });
         const header = el('div', { class: 'stgc-board-companion-header' });
         const identity = el('div', { class: 'stgc-board-companion-identity' });
+        const identityAvatarWrap = el('div', { class: 'stgc-board-companion-avatar-wrap' });
         const identityAvatar = el('img', { class: 'stgc-board-companion-avatar', alt: '' });
         const identityFallback = el('span', { class: 'stgc-board-companion-avatar-fallback', text: '陪' });
-        identity.append(identityAvatar, identityFallback);
+        const speechBubble = el('div', { class: 'stgc-companion-speech-bubble' });
+        speechBubble.hidden = true;
+        identityAvatarWrap.append(identityAvatar, identityFallback, speechBubble);
         const title = el('span', { class: 'stgc-board-companion-title', text: options.title || '和陪玩说两句' });
-        identity.append(title);
+        identity.append(identityAvatarWrap, title);
         const headerActions = el('div', { class: 'stgc-board-companion-header-actions' });
         const switcher = el('button', { class: 'stgc-btn stgc-board-companion-switcher', type: 'button', text: '换陪玩' });
         const rate = el('span', { class: 'stgc-board-companion-rate', text: companionRateText('AI 请求') });
@@ -5559,73 +5592,72 @@
         wrap.append(header, transcript, row);
         body.append(wrap);
 
-        let unsubscribe = subscribeCompanionRateStatus(status => {
-            rate.textContent = companionRateText('AI 请求');
-        });
+        let unsubscribe = subscribeCompanionRateStatus(() => { rate.textContent = companionRateText('AI 请求'); });
         let busy = false;
+        let bubbleTimer = null;
+        const showBubble = text => {
+            const message = String(text || '').trim().slice(0, 260);
+            if (!message) { speechBubble.hidden = true; speechBubble.textContent = ''; return; }
+            speechBubble.hidden = false;
+            speechBubble.textContent = message;
+            if (bubbleTimer) clearTimeout(bubbleTimer);
+            bubbleTimer = setTimeout(() => { speechBubble.hidden = true; }, 9000);
+        };
         const speak = async text => {
             const message = String(text || '').trim();
             if (!message || busy) return;
             const game = getGame();
             const { settings, companion } = getBoardCompanionSelection(game);
-            const enabled = game?.companion?.enabled;
-            if (!enabled || !companion) {
+            if (!game?.companion?.enabled || !companion) {
                 transcript.textContent = '先切换到“角色陪玩”，并在角色陪玩页面选一个角色。';
                 return;
             }
-            busy = true;
-            ask.disabled = true;
-            mercy.disabled = true;
-            input.disabled = true;
+            busy = true; ask.disabled = true; mercy.disabled = true; input.disabled = true;
             transcript.textContent = `${companion.name} 正在回复…`;
             try {
                 const reply = await generateBoardCompanionDialogue({
                     gameType: options.gameType || '棋局',
                     gameSnapshot: options.getSnapshot ? options.getSnapshot(game) : game,
-                    companion,
-                    settings,
-                    message,
+                    companion, settings, message,
                 });
                 if (game !== getGame()) return;
                 transcript.textContent = reply || `${companion.name} 没有说话。`;
+                game.companionSpeech = reply ? { player: 2, text: reply } : null;
+                showBubble(reply);
             } catch (error) {
                 console.warn('[Silly Game] board companion dialogue failed:', error);
                 transcript.textContent = `${companion.name} 暂时没回你（API 请求失败）。`;
+                showBubble('……');
             } finally {
-                busy = false;
-                ask.disabled = false;
-                mercy.disabled = false;
-                input.disabled = false;
-                input.focus();
+                busy = false; ask.disabled = false; mercy.disabled = false; input.disabled = false; input.focus();
                 rate.textContent = companionRateText('AI 请求');
             }
         };
         const syncSwitcher = () => {
             const game = getGame();
-            const { companion, companions } = getBoardCompanionSelection(game);
+            const { settings, companion, companions } = getBoardCompanionSelection(game);
             switcher.disabled = companions.length <= 1 || !!game?.aiThinking;
             switcher.textContent = companions.length > 1 ? `换陪玩 · ${companion?.name || '当前'}` : '换陪玩';
             mercy.disabled = !game?.companion?.enabled || !companion || game?.over || !!game?.aiThinking;
             const avatarSrc = companion ? getCompanionAvatarSource(companion, settings) : '';
             identityAvatar.hidden = !avatarSrc; identityFallback.hidden = !!avatarSrc;
-            if (avatarSrc) identityAvatar.src = avatarSrc;
+            if (avatarSrc) identityAvatar.src = avatarSrc; else identityAvatar.removeAttribute('src');
             identityFallback.textContent = companion?.name?.slice(0, 1) || '陪';
+            const liveSpeech = game?.companionSpeech?.text || '';
+            if (liveSpeech) showBubble(liveSpeech);
         };
         switcher.addEventListener('click', () => {
-            const game = getGame();
-            if (!game?.companion?.enabled) return;
+            const game = getGame(); if (!game?.companion?.enabled) return;
             const next = cycleBoardCompanion(game, 1);
-            syncSwitcher();
+            game.companionSpeech = null; showBubble(''); syncSwitcher();
             transcript.textContent = next ? `已切换到 ${next.name}。` : '没有其他已选择的陪玩角色。';
         });
         ask.addEventListener('click', () => { const text = input.value; input.value = ''; speak(text); });
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); const text = input.value; input.value = ''; speak(text); }
-        });
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const text = input.value; input.value = ''; speak(text); } });
         mercy.addEventListener('click', () => {
-            const game = getGame();
-            if (!game?.companion?.enabled) return;
+            const game = getGame(); if (!game?.companion?.enabled) return;
             game.mercyTurns = Math.max(1, Number(game.mercyTurns) || 0);
+            game.companionSpeech = null; showBubble('');
             try {
                 if (game === state.chess) chessSave();
                 else if (game === state.xiangqi) xqSave();
@@ -5636,7 +5668,9 @@
             speak('我真的打不过了……求你放我一马。');
         });
         syncSwitcher();
-        return () => { unsubscribe?.(); };
+        const cleanup = () => { if (bubbleTimer) clearTimeout(bubbleTimer); unsubscribe?.(); };
+        cleanup.refresh = syncSwitcher;
+        return cleanup;
     }
 
     /* ==================== Gomoku ==================== */
@@ -5660,6 +5694,7 @@
             companion: { enabled: mode === 'role', settings: getCharacterCompanionSettings() },
             companionSlot: 0,
             mercyTurns: 0,
+            companionSpeech: null,
             moves: 0,
             aiThinking: false,
             history: [],
@@ -5911,7 +5946,7 @@
                                 return { index: item.index, x: x + 1, y: y + 1, winNow: item.win, blockNow: item.block, scoreHint: Math.round(item.score) };
                             });
                             const result = await generateBoardCompanionMove({ gameType:'五子棋', gameSnapshot:{ board:game.board, current:game.current, moves:game.moves }, legalMoves:legal, companion:selectedCompanion, settings:getLiveCompanionSettings(game) });
-                            move = Number(result.move.index); speech = result.speech;
+                            move = Number(result.move.index); speech = result.speech; game.companionSpeech = speech ? { player:2, text:speech } : null;
                             // 角色可以决定风格，但不能把明显的必胜/必防战术丢掉。若有立即获胜点或必须堵的点，以规则引擎的战术判断为最高优先级。
                             const forcedWin = legal.find(item => item.winNow)?.index;
                             const forcedBlock = legal.find(item => item.blockNow)?.index;
@@ -7119,7 +7154,7 @@
         return list.filter(m=>{ const mm={...m,fromX:x,fromY:y,toX:m.x,toY:m.y}; if(type==='p'&&m.y===0||type==='p'&&m.y===7) mm.promotion=color===1?'Q':'q'; return !chessInCheck(chessApply(board,mm),color); });
     }
     function chessAllMoves(game,color){ const old=game.turn; game.turn=color; const out=[]; for(let y=0;y<8;y++)for(let x=0;x<8;x++){ if(chessColor(game.board[y][x])!==color)continue; for(const m of chessLegalMoves(game,x,y))out.push({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}); } game.turn=old; return out; }
-    function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
+    function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,companionSpeech:null,castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
     function chessSave(){ try{localStorage.setItem(CHESS_KEY,JSON.stringify(state.chess));}catch{} }
     function chessLoad(){ try{const g=JSON.parse(localStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai'; g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()}; g.companion.enabled=!!g.companion.enabled; g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})}; g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
     function chessApplyMove(game,m){
@@ -7195,7 +7230,7 @@
         const board=el('div',{class:'chess-board',role:'grid','aria-label':'国际象棋棋盘'}); body.append(toolbar,board);
         const chatCleanup=createBoardCompanionChat(body,()=>state.chess,{gameType:'国际象棋',getSnapshot:g=>({board:g.board,turn:g.turn,selected:g.selected||null,moveCount:g.history.length})});
         const draw=()=>{const g=state.chess;board.dataset.turn=String(g.turn);board.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':`${boardCompanionModeLabel(g,'AI')} 赢了`):((g.mode==='ai'?'你执白，AI执黑；':g.mode==='role'?`你执白，${boardCompanionModeLabel(g)}执黑；`:'双人对战 · ')+(g.turn===1?'白方回合':'黑方回合'));mode.textContent=g.mode==='ai'?'本地 AI':g.mode==='role'?boardCompanionModeLabel(g):'双人对战';difficulty.value=g.difficulty||'normal';difficulty.disabled=g.mode==='pvp';undo.disabled=g.history.length===0||!!g.aiThinking;for(let y=0;y<8;y++)for(let x=0;x<8;x++){const c=el('div',{class:'chess-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);if((x+y)%2)c.classList.add('dark');const p=g.board[y][x];if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(p)c.append(el('span',{class:`chess-piece ${chessColor(p)===1?'light':'dark-piece'}`,text:CHESS_GLYPH[p]}));if(g.selected&&chessLegalMoves(g,g.selected.x,g.selected.y).some(m=>m.x===x&&m.y===y))c.classList.add('legal');board.append(c);}};
-        const playAI=async()=>{const g=state.chess;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();state.chessAiTimer=setTimeout(async()=>{if(state.currentGame!=='chess'||state.chess!==g)return;try{let aiMove,speech='';if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){aiMove=chessPickMercyAI(g);if(!aiMove)throw new Error('放水策略没有找到合法棋步');chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const legal=chessAllMoves(g,2);const result=await generateBoardCompanionMove({gameType:'国际象棋',gameSnapshot:{board:g.board,turn:g.turn,moveCount:g.history.length},legalMoves:legal.map(m=>({fromX:m.fromX,fromY:m.fromY,toX:m.toX,toY:m.toY,capture:!!g.board[m.toY][m.toX]})),companion:selectedCompanion,settings:getLiveCompanionSettings(g)});aiMove=result.move;speech=result.speech;chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});if(speech)g.message=`${selectedCompanion?.name||'对手'}：“${speech}”`;}}else{aiMove=chessPickAI(g);if(aiMove)chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});}chessSave();}catch(error){console.warn('[Silly Game] Chess companion failed:',error);const aiMove=g.mode==='role'&&g.mercyTurns>0?chessPickMercyAI(g):chessPickAI(g);if(aiMove){chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);}chessSave();}finally{if(state.chess===g){g.aiThinking=false;draw();}}},220);};
+        const playAI=async()=>{const g=state.chess;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();state.chessAiTimer=setTimeout(async()=>{if(state.currentGame!=='chess'||state.chess!==g)return;try{let aiMove,speech='';if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){aiMove=chessPickMercyAI(g);if(!aiMove)throw new Error('放水策略没有找到合法棋步');chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const legal=chessAllMoves(g,2);const result=await generateBoardCompanionMove({gameType:'国际象棋',gameSnapshot:{board:g.board,turn:g.turn,moveCount:g.history.length},legalMoves:legal.map(m=>({fromX:m.fromX,fromY:m.fromY,toX:m.toX,toY:m.toY,capture:!!g.board[m.toY][m.toX]})),companion:selectedCompanion,settings:getLiveCompanionSettings(g)});aiMove=result.move;speech=result.speech;g.companionSpeech=speech?{player:2,text:speech}:null;chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});if(speech)g.message=`${selectedCompanion?.name||'对手'}：“${speech}”`;}}else{aiMove=chessPickAI(g);if(aiMove)chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});}chessSave();}catch(error){console.warn('[Silly Game] Chess companion failed:',error);const aiMove=g.mode==='role'&&g.mercyTurns>0?chessPickMercyAI(g):chessPickAI(g);if(aiMove){chessApplyMove(g,{...aiMove,fromX:aiMove.fromX,toX:aiMove.x,toY:aiMove.y});if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);}chessSave();}finally{if(state.chess===g){g.aiThinking=false;draw();chatCleanup?.refresh?.();}}},220);};
         board.addEventListener('click',e=>{const c=e.target.closest('.chess-cell');if(!c)return;const g=state.chess;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode!=='pvp'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&chessColor(p)===g.turn)g.selected={x,y};}else{const m=chessLegalMoves(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){chessApplyMove(g,{...m,fromX:g.selected.x,fromY:g.selected.y,toX:x,toY:y});g.selected=null;chessSave();draw();playAI();return;}else if(p&&chessColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
         mode.addEventListener('click',()=>{if(state.chessAiTimer)clearTimeout(state.chessAiTimer);const next=state.chess.mode==='ai'?'role':state.chess.mode==='role'?'pvp':'ai';const st=getCharacterCompanionSettings();state.chess=chessNew();state.chess.mode=next;state.chess.difficulty=difficulty.value||'normal';state.chess.companion={enabled:next==='role',settings:st};chessSave();draw();playAI();});
         difficulty.addEventListener('change',()=>{state.chess.difficulty=difficulty.value;chessSave();});
@@ -7232,9 +7267,9 @@
     function xqApply(b,m){const nb=xqClone(b);nb[m.toY][m.toX]=nb[m.fromY][m.fromX];nb[m.fromY][m.fromX]='';return nb;}
     function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
     function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
-    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,palette:'warmwood'};}
+    function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,companionSpeech:null,palette:'warmwood'};}
     function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
-    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10)return null;g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai';g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10||g.board.some(row=>!Array.isArray(row)||row.length!==9))return null;g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai';g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
     function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
     function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
     function xqEvalBoard(board){
@@ -7278,7 +7313,7 @@
         const undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});toolbar.append(status,mode,difficulty,palette,undo,reset);
         const board=el('div',{class:'xiangqi-board',role:'grid','aria-label':'中国象棋棋盘'});const boardLines=el('div',{class:'xiangqi-board-lines','aria-hidden':'true'});boardLines.innerHTML=`<svg viewBox="0 0 800 900" preserveAspectRatio="none"><g class="xq-grid-lines"><line x1="0" y1="0" x2="800" y2="0"></line><line x1="0" y1="100" x2="800" y2="100"></line><line x1="0" y1="200" x2="800" y2="200"></line><line x1="0" y1="300" x2="800" y2="300"></line><line x1="0" y1="400" x2="800" y2="400"></line><line x1="0" y1="500" x2="800" y2="500"></line><line x1="0" y1="600" x2="800" y2="600"></line><line x1="0" y1="700" x2="800" y2="700"></line><line x1="0" y1="800" x2="800" y2="800"></line><line x1="0" y1="900" x2="800" y2="900"></line><line x1="0" y1="0" x2="0" y2="900"></line><line x1="100" y1="0" x2="100" y2="400"></line><line x1="100" y1="500" x2="100" y2="900"></line><line x1="200" y1="0" x2="200" y2="400"></line><line x1="200" y1="500" x2="200" y2="900"></line><line x1="300" y1="0" x2="300" y2="400"></line><line x1="300" y1="500" x2="300" y2="900"></line><line x1="400" y1="0" x2="400" y2="400"></line><line x1="400" y1="500" x2="400" y2="900"></line><line x1="500" y1="0" x2="500" y2="400"></line><line x1="500" y1="500" x2="500" y2="900"></line><line x1="600" y1="0" x2="600" y2="400"></line><line x1="600" y1="500" x2="600" y2="900"></line><line x1="700" y1="0" x2="700" y2="400"></line><line x1="700" y1="500" x2="700" y2="900"></line><line x1="800" y1="0" x2="800" y2="900"></line></g><g class="xq-palace-lines"><line x1="300" y1="0" x2="500" y2="200"></line><line x1="500" y1="0" x2="300" y2="200"></line><line x1="300" y1="700" x2="500" y2="900"></line><line x1="500" y1="700" x2="300" y2="900"></line></g></svg>`;const cellsLayer=el('div',{class:'xiangqi-cells'});board.append(boardLines,cellsLayer);body.append(toolbar,board);const chatCleanup=createBoardCompanionChat(body,()=>state.xiangqi,{gameType:'中国象棋',getSnapshot:g=>({board:g.board,turn:g.turn,moveCount:g.history.length})});
         const draw=()=>{const g=state.xiangqi;board.dataset.palette=g.palette||'warmwood';cellsLayer.innerHTML='';status.textContent=g.over?(g.winner===3?'和棋':g.winner===1?'你赢了':`${boardCompanionModeLabel(g,'AI')} 赢了`):((g.mode==='ai'?'你执红，AI执黑；':g.mode==='role'?`你执红，${boardCompanionModeLabel(g)}执黑；`:'双人对战 · ')+(g.turn===1?'红方回合':'黑方回合'));mode.textContent=g.mode==='ai'?'本地 AI':g.mode==='role'?boardCompanionModeLabel(g):'双人对战';difficulty.value=g.difficulty||'normal';palette.value=g.palette||'warmwood';difficulty.disabled=g.mode==='pvp';undo.disabled=g.history.length===0||!!g.aiThinking;const legalMoves=g.selected?xqLegal(g,g.selected.x,g.selected.y):[];for(let y=0;y<10;y++)for(let x=0;x<9;x++){const c=el('div',{class:'xiangqi-cell',role:'gridcell'});c.dataset.x=String(x);c.dataset.y=String(y);c.style.left=`${5+x*11.25}%`;c.style.top=`${5+y*10}%`;const p=g.board[y][x];if(p)c.append(el('span',{class:`xiangqi-piece ${xqColor(p)===1?'red':'black'}`,text:XQ_GLYPH[p]}));if(g.selected&&g.selected.x===x&&g.selected.y===y)c.classList.add('selected');if(legalMoves.some(m=>m.x===x&&m.y===y)){c.classList.add('legal');c.append(el('span',{class:'xiangqi-legal-dot','aria-hidden':'true'}));}cellsLayer.append(c);}};
-        const playAI=async()=>{const g=state.xiangqi;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(async()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;try{let am;if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){am=xqPickMercyAI(g);if(!am)throw new Error('放水策略没有找到合法棋步');xqApplyMove(g,am);g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const legal=xqAll(g,2);const result=await generateBoardCompanionMove({gameType:'中国象棋',gameSnapshot:{board:g.board,turn:g.turn,moveCount:g.history.length},legalMoves:legal.map(m=>({fromX:m.fromX,fromY:m.fromY,toX:m.toX,toY:m.toY,capture:!!g.board[m.toY][m.toX]})),companion:selectedCompanion,settings:getLiveCompanionSettings(g)});am=result.move;xqApplyMove(g,am);}}else{am=xqAI(g);if(am)xqApplyMove(g,am);}xqSave();}catch(error){console.warn('[Silly Game] Xiangqi companion failed:',error);const am=g.mode==='role'&&g.mercyTurns>0?xqPickMercyAI(g):xqAI(g);if(am)xqApplyMove(g,am);if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);xqSave();}finally{if(state.xiangqi===g){g.aiThinking=false;draw();}}},220);};
+        const playAI=async()=>{const g=state.xiangqi;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();state.xiangqiAiTimer=setTimeout(async()=>{if(state.currentGame!=='xiangqi'||state.xiangqi!==g)return;try{let am;if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){am=xqPickMercyAI(g);if(!am)throw new Error('放水策略没有找到合法棋步');xqApplyMove(g,am);g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const legal=xqAll(g,2);const result=await generateBoardCompanionMove({gameType:'中国象棋',gameSnapshot:{board:g.board,turn:g.turn,moveCount:g.history.length},legalMoves:legal.map(m=>({fromX:m.fromX,fromY:m.fromY,toX:m.toX,toY:m.toY,capture:!!g.board[m.toY][m.toX]})),companion:selectedCompanion,settings:getLiveCompanionSettings(g)});am=result.move;g.companionSpeech=result.speech?{player:2,text:result.speech}:null;xqApplyMove(g,am);}}else{am=xqAI(g);if(am)xqApplyMove(g,am);}xqSave();}catch(error){console.warn('[Silly Game] Xiangqi companion failed:',error);const am=g.mode==='role'&&g.mercyTurns>0?xqPickMercyAI(g):xqAI(g);if(am)xqApplyMove(g,am);if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);xqSave();}finally{if(state.xiangqi===g){g.aiThinking=false;draw();chatCleanup?.refresh?.();}}},220);};
         board.addEventListener('click',e=>{const c=e.target.closest('.xiangqi-cell');if(!c)return;const g=state.xiangqi;if(g.over||g.aiThinking)return;const x=+c.dataset.x,y=+c.dataset.y;if(g.mode!=='pvp'&&g.turn!==1)return;const p=g.board[y][x];if(!g.selected){if(p&&xqColor(p)===g.turn)g.selected={x,y};}else{const m=xqLegal(g,g.selected.x,g.selected.y).find(mm=>mm.x===x&&mm.y===y);if(m){xqApplyMove(g,m);g.selected=null;xqSave();draw();playAI();return;}else if(p&&xqColor(p)===g.turn)g.selected={x,y};else g.selected=null;}draw();});
         mode.addEventListener('click',()=>{const next=state.xiangqi.mode==='ai'?'role':state.xiangqi.mode==='role'?'pvp':'ai',diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';if(state.xiangqiAiTimer)clearTimeout(state.xiangqiAiTimer);state.xiangqi=xqNew();state.xiangqi.mode=next;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;state.xiangqi.companion={enabled:next==='role',settings:getCharacterCompanionSettings()};xqSave();draw();playAI();});
         difficulty.addEventListener('change',()=>{state.xiangqi.difficulty=difficulty.value;xqSave();});palette.addEventListener('change',()=>{state.xiangqi.palette=palette.value;xqSave();draw();});undo.addEventListener('click',()=>{const g=state.xiangqi;if(g.aiThinking)return;if(g.mode==='pvp')xqUndo(g);else{xqUndo(g);xqUndo(g);}xqSave();draw();});reset.addEventListener('click',()=>{const next=state.xiangqi.mode,diff=state.xiangqi.difficulty||'normal',pal=state.xiangqi.palette||'warmwood';if(state.xiangqiAiTimer)clearTimeout(state.xiangqiAiTimer);state.xiangqi=xqNew();state.xiangqi.mode=next;state.xiangqi.difficulty=diff;state.xiangqi.palette=pal;state.xiangqi.companion={enabled:next==='role',settings:getCharacterCompanionSettings()};xqSave();draw();playAI();});state.cleanup=()=>{if(state.xiangqiAiTimer){clearTimeout(state.xiangqiAiTimer);state.xiangqiAiTimer=null;}chatCleanup?.();xqSave();};draw();playAI();
@@ -7474,7 +7509,7 @@
             mode,
             aiThinking: false,
             companion:{enabled:false,settings:getCharacterCompanionSettings()},
-            companionSlot:0, mercyTurns:0,
+            companionSlot:0, mercyTurns:0, companionSpeech:null,
             boardPalette: Object.hasOwn(BOARD_PALETTES, boardPalette) ? boardPalette : 'qingstone',
         };
     }
@@ -7510,7 +7545,7 @@
         const top=el('div',{class:'stgc-status-row'}),status=el('div',{class:'stgc-status-text'}),mode=el('button',{class:'stgc-btn',type:'button'}),undo=el('button',{class:'stgc-btn',type:'button',text:'悔棋'}),pass=el('button',{class:'stgc-btn',type:'button',text:'停一手'}),reset=el('button',{class:'stgc-btn',type:'button',text:'重新开始'});top.append(status,mode,undo,pass,reset);const board=el('div',{class:'go-board'});const hint=el('div',{class:'stgc-game-hint',text:'围棋 · 9×9 / 13×13 / 19×19 · 本地 AI / 角色陪玩 / 双人'});body.append(sizeRow,top,board,hint);
         const cellsLayer=el('div',{class:'go-cells-layer'});board.append(cellsLayer);const chatCleanup=createBoardCompanionChat(body,()=>state.go,{gameType:'围棋',getSnapshot:g=>({size:g.size,board:g.board,turn:g.turn,captured:g.captured,passes:g.passes})});
         const draw=()=>{const g=state.go,size=g.size;cellsLayer.innerHTML='';board.style.setProperty('--go-size',String(size));board.style.setProperty('--go-step',`calc(100% / ${size-1})`);board.dataset.size=String(size);board.dataset.palette=g.boardPalette;paletteSelect.value=g.boardPalette;sizeButtons.forEach((btn,s)=>btn.classList.toggle('is-selected',s===size));mode.textContent=g.mode==='ai'?'本地 AI':g.mode==='role'?boardCompanionModeLabel(g):'双人对战';undo.disabled=g.history.length===0||g.aiThinking;pass.disabled=g.over||g.aiThinking;reset.disabled=g.aiThinking;if(g.over){const sc=goCountScore(g);status.textContent=`结束 · 黑 ${sc.black.toFixed(1)} · 白 ${sc.white.toFixed(1)}`;}else if(g.aiThinking)status.textContent=g.mode==='role'?`${boardCompanionModeLabel(g)} 思考中…`:'AI 思考中…';else status.textContent=`${g.turn===1?'黑棋':'白棋'} · 提子 ${g.captured[0]} / ${g.captured[1]}`;const stars=new Set(goStarPoints(size).map(([x,y])=>goIndex(size,x,y)));for(let i=0;i<size*size;i++){const c=el('div',{class:'go-cell',role:'button',tabindex:'0'});if(g.board[i]===1)c.classList.add('black');if(g.board[i]===2)c.classList.add('white');if(stars.has(i))c.classList.add('star');c.dataset.index=String(i);c.setAttribute('aria-label',`第 ${Math.floor(i/size)+1} 行，第 ${i%size+1} 列`);cellsLayer.append(c);}};
-        const ai=async()=>{const g=state.go;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();const timer=window.setTimeout(async()=>{if(state.currentGame!=='go'||state.go!==g)return;try{let move=null;if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){move=goPickMercyAI(g);if(move==null){g.passes++;g.turn=1;}else if(!goMove(g,move,2))throw new Error('放水策略没有找到合法棋步');g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const candidates=goCandidates(g).filter(i=>{const tmp={size:g.size,board:g.board.slice(),history:[],captured:g.captured.slice(),turn:2,ko:g.ko,passes:g.passes,over:false,aiThinking:false};return goMove(tmp,i,2);});const legal=candidates.map(index=>({index}));legal.push({index:-1,action:'pass'});const result=await generateBoardCompanionMove({gameType:'围棋',gameSnapshot:{size:g.size,board:g.board,turn:g.turn,captured:g.captured,passes:g.passes},legalMoves:legal,companion:selectedCompanion,settings:getLiveCompanionSettings(g)});move=Number(result.move.index);if(move===-1){g.passes++;g.turn=1;if(g.passes>=2)g.over=true;}else if(!goMove(g,move,2))throw new Error('非法棋步');}}else{move=goSimpleAI(g);if(move==null){g.passes++;g.turn=1;}else goMove(g,move,2);if(g.passes>=2)g.over=true;}saveGo();}catch(error){console.warn('[Silly Game] Go companion failed:',error);const move=g.mode==='role'&&g.mercyTurns>0?goPickMercyAI(g):goSimpleAI(g);if(move==null){g.passes++;g.turn=1;}else goMove(g,move,2);if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);if(g.passes>=2)g.over=true;saveGo();}finally{if(state.go===g){g.aiThinking=false;draw();}}},180);state.goAiTimer=timer;};
+        const ai=async()=>{const g=state.go;if(g.mode==='pvp'||g.over||g.turn!==2||g.aiThinking)return;const {settings,companion}=getBoardCompanionSelection(g);if(g.mode==='role'&&(!companion||!settings.connectionProfile)){status.textContent='请先在“角色陪玩”中选择一个角色和 API 连接配置。';return;}if(g.mode==='role')g.companion={enabled:true,settings};g.aiThinking=true;draw();const timer=window.setTimeout(async()=>{if(state.currentGame!=='go'||state.go!==g)return;try{let move=null;if(g.mode==='role'){const selectedCompanion=getBoardCompanionSelection(g).companion;if(g.mercyTurns>0){move=goPickMercyAI(g);if(move==null){g.passes++;g.turn=1;}else if(!goMove(g,move,2))throw new Error('放水策略没有找到合法棋步');g.mercyTurns=Math.max(0,g.mercyTurns-1);g.message=`${selectedCompanion?.name||'对手'} 放了点水。`;}else{const candidates=goCandidates(g).filter(i=>{const tmp={size:g.size,board:g.board.slice(),history:[],captured:g.captured.slice(),turn:2,ko:g.ko,passes:g.passes,over:false,aiThinking:false};return goMove(tmp,i,2);});const legal=candidates.map(index=>({index}));legal.push({index:-1,action:'pass'});const result=await generateBoardCompanionMove({gameType:'围棋',gameSnapshot:{size:g.size,board:g.board,turn:g.turn,captured:g.captured,passes:g.passes},legalMoves:legal,companion:selectedCompanion,settings:getLiveCompanionSettings(g)});g.companionSpeech=result.speech?{player:2,text:result.speech}:null;move=Number(result.move.index);if(move===-1){g.passes++;g.turn=1;if(g.passes>=2)g.over=true;}else if(!goMove(g,move,2))throw new Error('非法棋步');}}else{move=goSimpleAI(g);if(move==null){g.passes++;g.turn=1;}else goMove(g,move,2);if(g.passes>=2)g.over=true;}saveGo();}catch(error){console.warn('[Silly Game] Go companion failed:',error);const move=g.mode==='role'&&g.mercyTurns>0?goPickMercyAI(g):goSimpleAI(g);if(move==null){g.passes++;g.turn=1;}else goMove(g,move,2);if(g.mode==='role'&&g.mercyTurns>0)g.mercyTurns=Math.max(0,g.mercyTurns-1);if(g.passes>=2)g.over=true;saveGo();}finally{if(state.go===g){g.aiThinking=false;draw();chatCleanup?.refresh?.();}}},180);state.goAiTimer=timer;};
         const playIndex=index=>{const g=state.go;if(g.over||g.aiThinking)return;if(g.mode!=='pvp'&&g.turn!==1)return;if(goMove(g,index,g.turn)){saveGo();draw();ai();}};board.addEventListener('click',e=>{const c=e.target.closest?.('.go-cell');if(!c)return;playIndex(Number(c.dataset.index));});board.addEventListener('keydown',e=>{const c=e.target.closest?.('.go-cell');if(!c||(e.key!=='Enter'&&e.key!==' '))return;e.preventDefault();playIndex(Number(c.dataset.index));});paletteSelect.addEventListener('change',()=>{state.go.boardPalette=Object.hasOwn(BOARD_PALETTES,paletteSelect.value)?paletteSelect.value:'qingstone';saveGo();draw();});mode.addEventListener('click',()=>{const next=state.go.mode==='ai'?'role':state.go.mode==='role'?'pvp':'ai';state.go=newGo(state.go.size,next,state.go.boardPalette);state.go.companion={enabled:next==='role',settings:getCharacterCompanionSettings()};saveGo();draw();ai();});undo.addEventListener('click',()=>{const g=state.go;if(g.aiThinking)return;if(g.mode==='pvp')goUndo(g);else if(g.history.length>=2){goUndo(g);goUndo(g);}else goUndo(g);saveGo();draw();});pass.addEventListener('click',()=>{const g=state.go;if(g.over||g.aiThinking)return;g.history.push({board:g.board.slice(),turn:g.turn,ko:g.ko,captured:g.captured.slice(),passes:g.passes});g.passes++;g.turn=g.turn===1?2:1;if(g.passes>=2)g.over=true;saveGo();draw();ai();});reset.addEventListener('click',()=>{const next=state.go.mode,size=state.go.size;state.go=newGo(size,next,state.go.boardPalette);state.go.companion={enabled:next==='role',settings:getCharacterCompanionSettings()};saveGo();draw();ai();});state.cleanup=()=>{if(state.goAiTimer){window.clearTimeout(state.goAiTimer);state.goAiTimer=null;}chatCleanup?.();saveGo();};draw();ai();
     }
 

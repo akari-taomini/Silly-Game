@@ -8973,3 +8973,121 @@ n
     #st-mini-game-center .stgc-companion-avatar-button { width: 27px; height: 43px; }
     #st-mini-game-center .stgc-companion-entry-avatar-button { width: 20px; height: 36px; }
 }
+
+
+/* ==================== v2.1.5 角色气泡 + 多人陪玩头像 ==================== */
+#st-mini-game-center .stgc-board-companion-identity { position: relative; }
+#st-mini-game-center .stgc-board-companion-avatar-wrap {
+    position: relative;
+    width: 34px;
+    height: 68px;
+    flex: 0 0 34px;
+}
+#st-mini-game-center .stgc-board-companion-avatar,
+#st-mini-game-center .stgc-board-companion-avatar-fallback {
+    width: 34px !important;
+    height: 68px !important;
+    border-radius: 7px !important;
+}
+#st-mini-game-center .stgc-companion-speech-bubble,
+#st-mini-game-center .uno-opponent-bubble,
+#st-mini-game-center .ddz-seat-speech {
+    position: absolute;
+    z-index: 30;
+    max-width: 220px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 42%, transparent);
+    border-radius: 12px 12px 12px 4px;
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #fff) 94%, var(--SmartThemeBodyColor, #000) 6%);
+    color: var(--SmartThemeBodyColor, currentColor);
+    box-shadow: 0 7px 18px color-mix(in srgb, #000 15%, transparent);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: stgc-companion-bubble-in .18s ease-out;
+}
+#st-mini-game-center .stgc-companion-speech-bubble {
+    left: -6px;
+    bottom: calc(100% + 9px);
+    width: max-content;
+}
+#st-mini-game-center .stgc-companion-speech-bubble::after,
+#st-mini-game-center .uno-opponent-bubble::after,
+#st-mini-game-center .ddz-seat-speech::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    bottom: -6px;
+    width: 10px;
+    height: 10px;
+    transform: rotate(45deg);
+    background: var(--SmartThemeBodyBgColor, #fff);
+    border-right: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 42%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #888) 42%, transparent);
+}
+#st-mini-game-center .uno-opponent-player {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+}
+#st-mini-game-center .uno-opponent-avatar {
+    width: 28px;
+    height: 56px;
+    flex: 0 0 28px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid var(--stgc-safe-border, rgba(127,127,127,.3));
+    border-radius: 6px;
+    background: var(--stgc-safe-surface-strong, rgba(127,127,127,.12));
+    color: var(--SmartThemeBodyColor, currentColor);
+    font-weight: 800;
+}
+#st-mini-game-center .uno-opponent-avatar-img { width: 100%; height: 100%; display: block; object-fit: cover; }
+#st-mini-game-center .uno-opponent-meta { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+#st-mini-game-center .uno-opponent-meta strong { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+#st-mini-game-center .uno-opponent-meta span { font-size: 10px; opacity: .6; }
+#st-mini-game-center .uno-opponent-bubble {
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    width: max-content;
+}
+#st-mini-game-center .uno-opponent-bubble::after { left: 50%; margin-left: -5px; }
+#st-mini-game-center .ddz-seat { overflow: visible !important; }
+#st-mini-game-center .ddz-seat-speech {
+    left: 50%;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 190px;
+    text-align: center;
+}
+#st-mini-game-center .ddz-seat-speech::after { left: 50%; margin-left: -5px; }
+@keyframes stgc-companion-bubble-in {
+    from { opacity: 0; transform: translateY(4px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+#st-mini-game-center .xiangqi-board {
+    flex: 0 0 auto;
+    min-height: min(66vh, 600px);
+}
+#st-mini-game-center .xiangqi-cells { min-height: 0; }
+@media (max-width: 700px) {
+    #st-mini-game-center .stgc-board-companion-avatar-wrap { width: 29px; height: 58px; flex-basis: 29px; }
+    #st-mini-game-center .stgc-board-companion-avatar,
+    #st-mini-game-center .stgc-board-companion-avatar-fallback { width: 29px !important; height: 58px !important; }
+    #st-mini-game-center .stgc-companion-speech-bubble,
+    #st-mini-game-center .uno-opponent-bubble,
+    #st-mini-game-center .ddz-seat-speech { max-width: 170px; font-size: 11px; }
+    #st-mini-game-center .uno-opponent-avatar { width: 23px; height: 46px; flex-basis: 23px; }
+    #st-mini-game-center .uno-opponent-meta strong { max-width: 78px; font-size: 10px; }
+    #st-mini-game-center .uno-opponent-meta span { font-size: 9px; }
+    #st-mini-game-center .xiangqi-board { min-height: min(76vw, 520px); }
+}
