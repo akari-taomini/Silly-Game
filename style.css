@@ -8859,3 +8859,117 @@ n
 .stgc-board-companion-header-actions{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;justify-content:flex-end;}
 .stgc-board-companion-switcher,.stgc-board-companion-mercy{white-space:nowrap;}
 @media (max-width:560px){.stgc-board-companion-header{align-items:flex-start;flex-direction:column;}.stgc-board-companion-header-actions{width:100%;justify-content:space-between;}}
+
+/* ==================== v2.1.3 可读性与陪玩头像 ==================== */
+#st-mini-game-center {
+    --stgc-safe-surface: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4f5f7) 93%, var(--SmartThemeBodyColor, #1f2328) 7%);
+    --stgc-safe-surface-strong: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4f5f7) 87%, var(--SmartThemeBodyColor, #1f2328) 13%);
+    --stgc-safe-border: color-mix(in srgb, var(--SmartThemeBodyColor, #1f2328) 18%, transparent);
+    --stgc-safe-muted: color-mix(in srgb, var(--SmartThemeBodyColor, #1f2328) 62%, transparent);
+    font-family: var(--stgc-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif) !important;
+    font-size: var(--stgc-font-size, 15px) !important;
+}
+#st-mini-game-center[data-stgc-contrast="high"] .stgc-panel,
+#st-mini-game-center[data-stgc-contrast="high"] .stgc-game-panel,
+#st-mini-game-center[data-stgc-contrast="high"] .stgc-companion-game-panel {
+    background: var(--stgc-safe-surface) !important;
+    background-color: var(--stgc-safe-surface) !important;
+    color: var(--SmartThemeBodyColor, #202124) !important;
+    border-color: var(--stgc-safe-border) !important;
+    box-shadow: 0 12px 34px color-mix(in srgb, #000 16%, transparent) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+#st-mini-game-center[data-stgc-contrast="normal"] .stgc-panel,
+#st-mini-game-center[data-stgc-contrast="normal"] .stgc-game-panel,
+#st-mini-game-center[data-stgc-contrast="normal"] .stgc-companion-game-panel {
+    background: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4f5f7) 96%, var(--SmartThemeBodyColor, #1f2328) 4%) !important;
+    background-color: color-mix(in srgb, var(--SmartThemeBodyBgColor, #f4f5f7) 96%, var(--SmartThemeBodyColor, #1f2328) 4%) !important;
+}
+#st-mini-game-center .stgc-panel {
+    font-size: var(--stgc-font-size, 15px);
+}
+#st-mini-game-center .stgc-title { font-size: 1.28em; }
+#st-mini-game-center .stgc-subtitle,
+#st-mini-game-center .stgc-game-hint,
+#st-mini-game-center .stgc-home-update-text,
+#st-mini-game-center .stgc-extension-note,
+#st-mini-game-center .stgc-game-appearance-note { color: var(--SmartThemeBodyColor) !important; opacity: .82; }
+#st-mini-game-center .stgc-btn,
+#st-mini-game-center input,
+#st-mini-game-center select,
+#st-mini-game-center textarea { font-family: inherit !important; }
+#st-mini-game-center .stgc-btn { font-size: .92em; }
+#st-mini-game-center .stgc-game-appearance-settings {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--stgc-safe-border);
+    border-radius: 12px;
+    background: var(--stgc-safe-surface-strong);
+}
+#st-mini-game-center .stgc-game-appearance-title { font-weight: 750; margin-bottom: 7px; }
+#st-mini-game-center .stgc-game-appearance-controls {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+#st-mini-game-center .stgc-appearance-select { min-width: 150px; }
+#st-mini-game-center .stgc-appearance-size { width: 70px; min-width: 70px; text-align: center; }
+#st-mini-game-center .stgc-appearance-inline-label { opacity: .72; }
+#st-mini-game-center .stgc-game-appearance-note { display: block; margin-top: 6px; font-size: .78em; line-height: 1.45; }
+
+/* 角色/世界书头像：默认采用酒馆头像；自定义图片只保存在 Silly Game 自己的配置里。 */
+#st-mini-game-center .stgc-companion-avatar-button,
+#st-mini-game-center .stgc-companion-entry-avatar-button {
+    flex: 0 0 auto;
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 !important;
+    border: 1px solid var(--stgc-safe-border);
+    background: var(--stgc-safe-surface-strong);
+    overflow: hidden;
+    cursor: pointer;
+}
+#st-mini-game-center .stgc-companion-avatar-button {
+    width: 30px;
+    height: 48px;
+    border-radius: 7px;
+}
+#st-mini-game-center .stgc-companion-avatar-img,
+#st-mini-game-center .stgc-companion-entry-avatar-img {
+    width: 100%; height: 100%; display: block; object-fit: cover;
+}
+#st-mini-game-center .stgc-companion-avatar-fallback,
+#st-mini-game-center .stgc-companion-entry-avatar-fallback {
+    display: grid; place-items: center; width: 100%; height: 100%;
+    color: var(--SmartThemeBodyColor); font-weight: 800;
+}
+#st-mini-game-center .stgc-companion-avatar-input { display: none !important; }
+#st-mini-game-center .stgc-companion-entry-avatar-button {
+    width: 22px;
+    height: 40px;
+    border-radius: 6px;
+}
+#st-mini-game-center .stgc-companion-entry-avatar-button + input + .stgc-companion-worldbook-entry-name { min-width: 0; }
+
+/* 棋类对话框显示当前陪玩头像 */
+#st-mini-game-center .stgc-board-companion-identity {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 0;
+}
+#st-mini-game-center .stgc-board-companion-avatar,
+#st-mini-game-center .stgc-board-companion-avatar-fallback {
+    width: 25px; height: 38px; border-radius: 6px;
+    border: 1px solid var(--stgc-safe-border);
+    object-fit: cover; flex: 0 0 auto;
+}
+#st-mini-game-center .stgc-board-companion-avatar-fallback { display: grid; place-items: center; background: var(--stgc-safe-surface-strong); color: var(--SmartThemeBodyColor); font-weight: 800; }
+
+/* 斗地主头像沿用同一套竖向比例 */
+#st-mini-game-center .ddz-avatar.has-image { overflow: hidden; padding: 0; }
+#st-mini-game-center .ddz-avatar-img { display:block; width:100%; height:100%; object-fit:cover; }
+
+@media (max-width: 560px) {
+    #st-mini-game-center .stgc-game-appearance-controls { align-items: stretch; }
+    #st-mini-game-center .stgc-appearance-select { min-width: 0; flex: 1 1 150px; }
+    #st-mini-game-center .stgc-companion-avatar-button { width: 27px; height: 43px; }
+    #st-mini-game-center .stgc-companion-entry-avatar-button { width: 20px; height: 36px; }
+}

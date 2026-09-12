@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.1.2';
+    const CURRENT_VERSION = '2.1.3';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -51,6 +51,42 @@
     });
     let updateCheckPromise = null;
     let refreshFarmSeedRow = null;
+
+    const SILLY_GAME_UI_SETTINGS_KEY = 'silly-game-ui-v1';
+    const SILLY_GAME_UI_DEFAULTS = Object.freeze({ fontFamily: 'system', fontSize: 14, contrast: 'high' });
+    function getSillyGameUiSettings() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(SILLY_GAME_UI_SETTINGS_KEY) || 'null');
+            const merged = { ...SILLY_GAME_UI_DEFAULTS, ...(raw && typeof raw === 'object' ? raw : {}) };
+            merged.fontFamily = ['st', 'system', 'serif'].includes(merged.fontFamily) ? merged.fontFamily : 'system';
+            const n = Number(merged.fontSize);
+            merged.fontSize = Number.isFinite(n) ? Math.min(20, Math.max(12, Math.round(n))) : 14;
+            merged.contrast = ['normal', 'high'].includes(merged.contrast) ? merged.contrast : 'high';
+            return merged;
+        } catch { return { ...SILLY_GAME_UI_DEFAULTS }; }
+    }
+    function saveSillyGameUiSettings(patch = {}) {
+        const next = { ...getSillyGameUiSettings(), ...patch };
+        next.fontFamily = ['st', 'system', 'serif'].includes(next.fontFamily) ? next.fontFamily : 'system';
+        next.fontSize = Math.min(20, Math.max(12, Math.round(Number(next.fontSize) || 14)));
+        next.contrast = ['normal', 'high'].includes(next.contrast) ? next.contrast : 'high';
+        try { localStorage.setItem(SILLY_GAME_UI_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        applySillyGameUiSettings();
+        return next;
+    }
+    function applySillyGameUiSettings() {
+        const root = document.getElementById(APP_ID);
+        if (!root) return;
+        const settings = getSillyGameUiSettings();
+        const fontMap = {
+            st: 'inherit',
+            system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+            serif: 'ui-serif, "Songti SC", "SimSun", serif',
+        };
+        root.style.setProperty('--stgc-font-family', fontMap[settings.fontFamily] || fontMap.system);
+        root.style.setProperty('--stgc-font-size', `${settings.fontSize}px`);
+        root.dataset.stgcContrast = settings.contrast;
+    }
 
     const FARM_STORAGE_KEY = 'silly-game-farm-v1';
     const GAME_WINS_STORAGE_KEY = 'silly-game-wins-v1';
@@ -444,6 +480,7 @@
         connectionProfile: '',
         speak: true,
         rateLimitPerMinute: COMPANION_DEFAULT_RATE_LIMIT,
+        avatarOverrides: {},
     });
 
     // 角色陪玩 API 频率保护：上限可在界面设置，范围 1~60 次/滚动 60 秒。
@@ -557,6 +594,7 @@
                 .map(slot => slot.characterIndex);
             merged.connectionProfile = typeof merged.connectionProfile === 'string' ? merged.connectionProfile : '';
             merged.speak = merged.speak !== false;
+            merged.avatarOverrides = merged.avatarOverrides && typeof merged.avatarOverrides === 'object' ? merged.avatarOverrides : {};
             const configuredRate = Number(merged.rateLimitPerMinute);
             merged.rateLimitPerMinute = Number.isFinite(configuredRate)
                 ? Math.min(60, Math.max(1, Math.round(configuredRate)))
@@ -600,13 +638,58 @@
             : null;
         next.connectionProfile = typeof next.connectionProfile === 'string' ? next.connectionProfile : '';
         next.speak = next.speak !== false;
+        next.avatarOverrides = next.avatarOverrides && typeof next.avatarOverrides === 'object' ? next.avatarOverrides : {};
         try { localStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
         return next;
     }
 
-    function getCharacterCompanionContext() {
-        return getSTContext();
+    function companionSlotIdentityKey(slot) {
+        if (!slot || typeof slot !== 'object') return '';
+        if (slot.source === 'worldbook') return `worldbook:${Number(slot.characterIndex)}:${Number(slot.entryIndex)}:${String(slot.entryId || '')}`;
+        return `character:${Number(slot.characterIndex)}`;
     }
+    function getCharacterAvatarSource(character) {
+        if (!character) return '';
+        const raw = typeof character.avatar === 'string' ? character.avatar.trim() : '';
+        if (!raw) return '';
+        if (/^(data:|blob:|https?:\/\/|\/)/i.test(raw)) return raw;
+        const ctx = getCharacterCompanionContext();
+        try { return typeof ctx?.getThumbnailUrl === 'function' ? (ctx.getThumbnailUrl('avatar', raw) || '') : ''; } catch { return ''; }
+    }
+    function getCompanionAvatarSource(companion, settings = getCharacterCompanionSettings()) {
+        if (!companion) return '';
+        const key = companion.identityKey || companionSlotIdentityKey(companion);
+        const custom = settings?.avatarOverrides?.[key];
+        return typeof custom === 'string' && custom ? custom : getCharacterAvatarSource(companion.character);
+    }
+    function getCompanionAvatarSourceBySlot(slot, character, settings = getCharacterCompanionSettings()) {
+        const custom = settings?.avatarOverrides?.[companionSlotIdentityKey(slot)];
+        return typeof custom === 'string' && custom ? custom : getCharacterAvatarSource(character);
+    }
+    function fileToCompressedDataUrl(file, maxW = 300, maxH = 600) {
+        return new Promise((resolve, reject) => {
+            if (!file || !String(file.type || '').startsWith('image/')) { reject(new Error('请选择图片文件')); return; }
+            const reader = new FileReader();
+            reader.onerror = () => reject(reader.error || new Error('图片读取失败'));
+            reader.onload = () => {
+                const image = new Image();
+                image.onerror = () => reject(new Error('图片解析失败'));
+                image.onload = () => {
+                    const scale = Math.min(1, maxW / image.naturalWidth, maxH / image.naturalHeight);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+                    const c = canvas.getContext('2d');
+                    if (!c) { reject(new Error('浏览器不支持图片处理')); return; }
+                    c.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    try { resolve(canvas.toDataURL('image/webp', 0.82)); } catch { resolve(canvas.toDataURL('image/jpeg', 0.82)); }
+                };
+                image.src = String(reader.result || '');
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    function getCharacterCompanionContext() { return getSTContext(); }
 
     function listCharacterCompanionCharacters() {
         const ctx = getCharacterCompanionContext();
@@ -717,6 +800,8 @@
                     active: slot.characterIndex === activeIndex,
                     character: base,
                     entry,
+                    identityKey: companionSlotIdentityKey(slot),
+                    avatar: getCompanionAvatarSourceBySlot(slot, base, settings),
                     promptText: `角色名：${entry.title}\n角色设定：${entry.content.slice(0, 6000)}`,
                 };
             }
@@ -728,6 +813,8 @@
                 name: character.name || `角色 ${slot.characterIndex + 1}`,
                 active: slot.characterIndex === activeIndex,
                 character,
+                identityKey: companionSlotIdentityKey(slot),
+                avatar: getCompanionAvatarSourceBySlot(slot, character, settings),
                 promptText: characterCompanionText(character),
             };
         }).filter(Boolean);
@@ -1238,11 +1325,18 @@
             const name = String(c.name || `角色 ${index + 1}`);
             const mainSlot = { source: 'character', characterIndex: index };
             checkbox.checked = hasSlot(mainSlot);
-            mainLabel.append(
-                checkbox,
-                el('span', { class: 'stgc-companion-character-option-name', text: name }),
-                Number.isInteger(activeIndex) && index === activeIndex ? el('em', { class: 'stgc-companion-current-badge', text: '当前' }) : null,
-            );
+            const mainSlotKey = companionSlotIdentityKey(mainSlot);
+            const avatarButton = el('button', { class: 'stgc-companion-avatar-button', type: 'button', title: '点击选择陪玩头像', 'aria-label': `为${name}选择陪玩头像` });
+            const avatarImg = el('img', { class: 'stgc-companion-avatar-img', alt: '' });
+            const avatarFallback = el('span', { class: 'stgc-companion-avatar-fallback', text: name.slice(0, 1) || '？' });
+            avatarButton.append(avatarImg, avatarFallback);
+            const syncMainAvatar = () => { const src = getCompanionAvatarSourceBySlot(mainSlot, c, getCharacterCompanionSettings()); avatarImg.hidden = !src; avatarFallback.hidden = !!src; if (src) avatarImg.src = src; else avatarImg.removeAttribute('src'); };
+            syncMainAvatar();
+            mainLabel.append(checkbox, avatarButton, el('span', { class: 'stgc-companion-character-option-name', text: name }), Number.isInteger(activeIndex) && index === activeIndex ? el('em', { class: 'stgc-companion-current-badge', text: '当前' }) : null);
+            const avatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
+            avatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); avatarInput.click(); });
+            avatarInput.addEventListener('change', async () => { const file = avatarInput.files?.[0]; avatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [mainSlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncMainAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
+            mainCell.append(avatarInput);
             const wbToggle = el('button', { class: 'menu_button stgc-companion-worldbook-toggle', type: 'button', title: '查看这张卡的世界书条目', 'aria-label': `查看${name}的世界书条目` });
             wbToggle.innerHTML = '<i class="fa-solid fa-book-open" aria-hidden="true"></i><span>世界书</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>';
             mainCell.append(mainLabel);
@@ -1303,7 +1397,17 @@
                     const row = el('div', { class: 'stgc-companion-worldbook-entry' });
                     const cb = el('input', { type: 'checkbox', class: 'checkbox' });
                     cb.checked = hasSlot(slot);
-                    row.append(cb, el('span', { class: 'stgc-companion-worldbook-entry-name', text: entry.title }), el('small', { text: '1条目=1角色' }));
+                    const entryAvatarButton = el('button', { class: 'stgc-companion-entry-avatar-button', type: 'button', title: '点击设置这个世界书角色的头像', 'aria-label': `为${entry.title}选择头像` });
+                    const entryAvatarImg = el('img', { class: 'stgc-companion-entry-avatar-img', alt: '' });
+                    const entryAvatarFallback = el('span', { class: 'stgc-companion-entry-avatar-fallback', text: entry.title.slice(0, 1) || '？' });
+                    entryAvatarButton.append(entryAvatarImg, entryAvatarFallback);
+                    const entrySlotKey = companionSlotIdentityKey(slot);
+                    const syncEntryAvatar = () => { const src = getCompanionAvatarSourceBySlot(slot, loaded || c, getCharacterCompanionSettings()); entryAvatarImg.hidden = !src; entryAvatarFallback.hidden = !!src; if (src) entryAvatarImg.src = src; else entryAvatarImg.removeAttribute('src'); };
+                    syncEntryAvatar();
+                    const entryAvatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
+                    entryAvatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); entryAvatarInput.click(); });
+                    entryAvatarInput.addEventListener('change', async () => { const file = entryAvatarInput.files?.[0]; entryAvatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [entrySlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncEntryAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
+                    row.append(cb, entryAvatarButton, entryAvatarInput, el('span', { class: 'stgc-companion-worldbook-entry-name', text: entry.title }), el('small', { text: '1条目=1角色' }));
                     entryBox.append(row);
                     const matchesQuery = () => {
                         const query = charSearch.value.trim().toLocaleLowerCase();
@@ -1718,12 +1822,14 @@
         });
 
         document.body.append(root);
+        applySillyGameUiSettings();
         return root;
     }
 
     function openCenter() {
         cleanupGame();
         const root = ensureRoot();
+        applySillyGameUiSettings();
         document.getElementById(`${APP_ID}-launcher`)?.classList.add('in-use');
         root.classList.add('show');
         root.setAttribute('aria-hidden', 'false');
@@ -1978,6 +2084,23 @@
             grid.append(card);
         }
 
+        const appearanceRow = el('div', { class: 'stgc-game-appearance-settings' });
+        appearanceRow.append(el('div', { class: 'stgc-game-appearance-title', text: '字体与可读性' }));
+        const appearanceControls = el('div', { class: 'stgc-game-appearance-controls' });
+        const uiSettings = getSillyGameUiSettings();
+        const fontSelect = el('select', { class: 'text_pole stgc-appearance-select' });
+        [['system', '系统无衬线（推荐）'], ['st', '跟随酒馆字体'], ['serif', '宋体衬线']].forEach(([value, label]) => fontSelect.append(el('option', { value, text: label })));
+        fontSelect.value = uiSettings.fontFamily;
+        const fontSize = el('input', { class: 'text_pole stgc-appearance-size', type: 'number', min: '12', max: '20', step: '1', value: String(uiSettings.fontSize), 'aria-label': 'Silly Game 字号' });
+        const contrastSelect = el('select', { class: 'text_pole stgc-appearance-select' });
+        contrastSelect.append(el('option', { value: 'high', text: '高对比度（推荐）' }), el('option', { value: 'normal', text: '标准对比度' }));
+        contrastSelect.value = uiSettings.contrast;
+        appearanceControls.append(fontSelect, el('span', { class: 'stgc-appearance-inline-label', text: '字号' }), fontSize, contrastSelect);
+        appearanceRow.append(appearanceControls, el('small', { class: 'stgc-game-appearance-note', text: '默认使用稳定的主题自适应表面色，避免背景图/透明主题让文字发糊。' }));
+        fontSelect.addEventListener('change', () => saveSillyGameUiSettings({ fontFamily: fontSelect.value }));
+        fontSize.addEventListener('change', () => { const value = Math.min(20, Math.max(12, Number(fontSize.value) || 14)); fontSize.value = String(value); saveSillyGameUiSettings({ fontSize: value }); });
+        contrastSelect.addEventListener('change', () => saveSillyGameUiSettings({ contrast: contrastSelect.value }));
+
         const updateRow = el('div', { class: 'stgc-home-update-row' });
         const updateInfo = el('div', { class: 'stgc-home-update-info' }, [
             el('span', { class: 'stgc-home-update-version', text: `v${CURRENT_VERSION}` }),
@@ -1990,7 +2113,7 @@
         updateRow.append(updateInfo, updateBtn);
         updateButtonText(getExtensionSettings()?.updateAvailable ? '有新版本' : '检查更新');
 
-        panel.append(header, intro, grid, updateRow);
+        panel.append(header, intro, grid, appearanceRow, updateRow);
         root.append(panel);
     }
 
@@ -2266,6 +2389,13 @@
                 meta=el('div',{class:'ddz-seat-meta'}),
                 nameNode=el('strong',{class:'ddz-seat-name',text:name}),
                 sub=el('span',{class:'ddz-seat-sub',text:p===0?`${count} 张 · 你的手牌`:`剩 ${count} 张`});
+            const seatCompanion = p > 0 ? resolveCharacterCompanionForPlayer(g, p) : null;
+            const seatAvatarSrc = seatCompanion ? getCompanionAvatarSource(seatCompanion, getLiveCompanionSettings(g)) : '';
+            if (seatAvatarSrc) {
+                avatar.innerHTML = '';
+                avatar.append(el('img', { class: 'ddz-avatar-img', src: seatAvatarSrc, alt: '' }));
+                avatar.classList.add('has-image');
+            }
             meta.append(nameNode,sub); head.append(avatar,meta); target.append(head);
             const tags=el('div',{class:'ddz-seat-tags'});
             if(g.landlord===p) tags.append(el('span',{class:'ddz-landlord-badge',text:'♛ 地主'}));
@@ -2970,7 +3100,7 @@
     }
     function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
     function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionThinking=false;return g;}catch{return null;}}
-    function unoPlayable(card,g,pIndex=g.current){const top=g.discard.at(-1);if(!card)return false;if(card.type==='wild')return true;if(card.type==='wild4'){const hasColorCard=g.hands[pIndex]?.some(c=>c.color===g.currentColor);return !hasColorCard;}return card.color===g.currentColor||card.type===top.type||(card.type==='number'&&top.type==='number'&&card.value===top.value);}
+    function unoPlayable(card,g,pIndex=g.current){const top=g.discard.at(-1);if(!card||!top)return false;if(card.type==='wild')return true;if(card.type==='wild4'){const hasColorCard=g.hands[pIndex]?.some(c=>c.color===g.currentColor);return !hasColorCard;}const sameColor=card.color===g.currentColor;const sameNumber=card.type==='number'&&top.type==='number'&&card.value===top.value;const sameAction=card.type!=='number'&&card.type===top.type;return sameColor||sameNumber||sameAction;}
     function unoNextIndex(g,steps=1){return (g.current+g.direction*steps+8)%4;}
     function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
     function unoBestWildColor(hand){const count=Object.fromEntries(UNO_COLORS.map(c=>[c,0]));for(const card of hand)if(UNO_COLORS.includes(card.color))count[card.color]++;return UNO_COLORS.reduce((best,c)=>count[c]>count[best]?c:best,'red');}
@@ -5409,12 +5539,17 @@
     function createBoardCompanionChat(body, getGame, options = {}) {
         const wrap = el('div', { class: 'stgc-board-companion-wrap' });
         const header = el('div', { class: 'stgc-board-companion-header' });
+        const identity = el('div', { class: 'stgc-board-companion-identity' });
+        const identityAvatar = el('img', { class: 'stgc-board-companion-avatar', alt: '' });
+        const identityFallback = el('span', { class: 'stgc-board-companion-avatar-fallback', text: '陪' });
+        identity.append(identityAvatar, identityFallback);
         const title = el('span', { class: 'stgc-board-companion-title', text: options.title || '和陪玩说两句' });
+        identity.append(title);
         const headerActions = el('div', { class: 'stgc-board-companion-header-actions' });
         const switcher = el('button', { class: 'stgc-btn stgc-board-companion-switcher', type: 'button', text: '换陪玩' });
         const rate = el('span', { class: 'stgc-board-companion-rate', text: companionRateText('AI 请求') });
         headerActions.append(switcher, rate);
-        header.append(title, headerActions);
+        header.append(identity, headerActions);
         const transcript = el('div', { class: 'stgc-board-companion-transcript', text: '对局中可以直接和对手说话。' });
         const row = el('div', { class: 'stgc-board-companion-input-row' });
         const input = el('input', { class: 'text_pole stgc-board-companion-input', type: 'text', placeholder: '比如：别下那么狠，放我一马？' });
@@ -5471,6 +5606,10 @@
             switcher.disabled = companions.length <= 1 || !!game?.aiThinking;
             switcher.textContent = companions.length > 1 ? `换陪玩 · ${companion?.name || '当前'}` : '换陪玩';
             mercy.disabled = !game?.companion?.enabled || !companion || game?.over || !!game?.aiThinking;
+            const avatarSrc = companion ? getCompanionAvatarSource(companion, settings) : '';
+            identityAvatar.hidden = !avatarSrc; identityFallback.hidden = !!avatarSrc;
+            if (avatarSrc) identityAvatar.src = avatarSrc;
+            identityFallback.textContent = companion?.name?.slice(0, 1) || '陪';
         };
         switcher.addEventListener('click', () => {
             const game = getGame();
