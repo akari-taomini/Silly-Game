@@ -177,3 +177,6 @@
 - 版本号继续采用三段十进制递增，本版为 1.10.11。
 
 
+
+
+Version 2.1.6: fixed Shikaku initial blank screen caused by loading clue grid from an incorrect nested property.

@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.1.5';
+    const CURRENT_VERSION = '2.1.6';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -6889,7 +6889,7 @@
             const clues = list[puzzleIndex];
             if (!Array.isArray(clues) || clues.length !== size) return null;
             const regions = raw.regions.filter(r => Number.isInteger(r.r0) && Number.isInteger(r.c0) && Number.isInteger(r.r1) && Number.isInteger(r.c1));
-            return { size, puzzleIndex, clues: clues.clues, regions, seconds: Math.max(0, Number(raw.seconds) || 0), solved: !!raw.solved };
+            return { size, puzzleIndex, clues, regions, seconds: Math.max(0, Number(raw.seconds) || 0), solved: !!raw.solved };
         } catch { return null; }
     }
 
