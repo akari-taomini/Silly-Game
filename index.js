@@ -42,7 +42,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.1.9';
+    const CURRENT_VERSION = '2.2.0';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1421,24 +1421,56 @@
 
         const updateCharacterPicker = () => {
             charCount.textContent = `${pickedSlots.length}/3`;
+            const query = charSearch.value.trim().toLocaleLowerCase();
+            const selectedRank = new Map();
+
             characterItems.forEach(item => {
-                item.checkbox.checked = hasSlot({ source: 'character', characterIndex: item.index });
+                const mainPicked = hasSlot({ source: 'character', characterIndex: item.index });
+                const worldbookPickedCount = pickedSlots.filter(slot =>
+                    slot.source === 'worldbook' && slot.characterIndex === item.index
+                ).length;
+                const pinned = mainPicked || worldbookPickedCount > 0;
+                selectedRank.set(item.index, pinned ? 0 : 1);
+
+                item.checkbox.checked = mainPicked;
                 item.checkbox.disabled = !item.checkbox.checked && pickedSlots.length >= 3;
-                const query = charSearch.value.trim().toLocaleLowerCase();
+                item.pinned = pinned;
+                item.itemWrap.classList.toggle('is-pinned', pinned);
+
+                let badge = item.itemWrap.querySelector('.stgc-companion-pinned-badge');
+                if (!badge) {
+                    badge = el('em', { class: 'stgc-companion-pinned-badge' });
+                    item.mainLabel.append(badge);
+                }
+                if (mainPicked) {
+                    badge.textContent = '已选';
+                    badge.hidden = false;
+                } else if (worldbookPickedCount > 0) {
+                    badge.textContent = `已选条目 ${worldbookPickedCount}`;
+                    badge.hidden = false;
+                } else {
+                    badge.hidden = true;
+                }
+
                 const ownMatch = !query || item.name.toLocaleLowerCase().includes(query);
                 let anyEntryMatch = false;
                 item.entryBox.querySelectorAll('.stgc-companion-worldbook-entry').forEach(row => {
-                    const slot = row.dataset.slot || '';
                     const label = row.querySelector('.stgc-companion-worldbook-entry-name')?.textContent?.toLocaleLowerCase() || '';
                     const match = !query || ownMatch || label.includes(query);
                     row.hidden = !match;
                     if (match) anyEntryMatch = true;
                 });
-                item.itemWrap.hidden = !!query && !ownMatch && !anyEntryMatch;
+                // 已选角色始终置顶且保留可见，哪怕当前搜索词与它不匹配，方便随时取消。
+                item.itemWrap.hidden = !!query && !ownMatch && !anyEntryMatch && !pinned;
                 item.entryBox.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.disabled = !cb.checked && pickedSlots.length >= 3;
                 });
             });
+
+            const visibleItems = characterItems.slice().sort((a, b) =>
+                (selectedRank.get(a.index) - selectedRank.get(b.index)) || (a.index - b.index)
+            );
+            visibleItems.forEach(item => charGrid.append(item.itemWrap));
         };
         charSearch.addEventListener('input', updateCharacterPicker);
         charToggle.addEventListener('click', () => {
@@ -1779,11 +1811,13 @@
             'aria-label': '显示 Silly Game 悬浮按钮',
             text: 'S',
         });
-        restore.addEventListener('click', () => setLauncherHidden(false));
+        // 收纳状态本身是持久设置：点小把手只打开 Silly Game，不自动把小把手恢复成悬浮球。
+        // 只有在酒馆扩展设置里重新勾选“显示 Silly Game 悬浮按钮”时，才恢复悬浮球。
+        restore.addEventListener('click', () => openCenter());
         restore.addEventListener('keydown', event => {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                setLauncherHidden(false);
+                openCenter();
             }
         });
         document.body.append(launcher, restore);
