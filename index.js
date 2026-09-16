@@ -44,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.1';
+    const CURRENT_VERSION = '2.2.2';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1984,8 +1984,8 @@
             });
             backBtn.innerHTML = '<i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>Silly Game</span>';
             backBtn.addEventListener('click', () => {
-                state.lastGame = null;
-                openCenter();
+                persistCurrentGame();
+                renderHome();
             });
             header.append(backBtn);
         } else {
@@ -2391,7 +2391,7 @@
         state.doudizhu = loadedDdz || ddzDeal();
         const cs = getCharacterCompanionSettings();
         const savedCompanions = resolveCharacterCompanions(cs, 3);
-        if (state.characterCompanion) {
+        if (!loadedDdz && state.characterCompanion) {
             state.doudizhu.companion = { enabled: resolveCharacterCompanions(state.characterCompanion, 3).length > 0, settings: { ...cs, ...state.characterCompanion } };
         } else if (!loadedDdz && savedCompanions.length) {
             state.doudizhu.companion = { enabled: true, settings: cs };
@@ -2560,7 +2560,12 @@
                 }
             }
         });
-        restart.addEventListener('click',()=>{if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);ddzInvalidateSession();selected.clear();state.doudizhu=ddzDeal();const st=state.characterCompanion||cs;state.doudizhu.companion={enabled:resolveCharacterCompanions(st,3).length>0,settings:st};ddzSave();draw();});
+        restart.addEventListener('click',()=>{
+            const companion = { enabled: !!state.doudizhu.companion?.enabled, settings: getLiveCompanionSettings(state.doudizhu) };
+            if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);
+            ddzInvalidateSession();selected.clear();state.doudizhu=ddzDeal();
+            state.doudizhu.companion=companion;ddzSave();draw();
+        });
         state.cleanup=()=>{ddzInvalidateSession();if(state.doudizhuTimer)clearTimeout(state.doudizhuTimer);state.doudizhuTimer=null;if(state.characterCompanionTimer)clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;state.doudizhu?.companion&&(state.doudizhu.companionThinking=false);ddzSave(state.doudizhu);};
         state.characterCompanionTimer=window.setInterval(()=>rate.textContent=companionRateText('AI 请求'),250);
         draw();
@@ -3235,7 +3240,7 @@
         state.uno = loadedUno || unoNew();
         const companionSettings = getCharacterCompanionSettings();
         const savedCompanions = resolveCharacterCompanions(companionSettings, 3);
-        if (state.characterCompanion) {
+        if (!loadedUno && state.characterCompanion) {
             const latest = { ...companionSettings, ...state.characterCompanion };
             state.uno.companion = { enabled: resolveCharacterCompanions(latest, 3).length > 0, settings: latest };
         } else if (!loadedUno && savedCompanions.length) {
@@ -3284,8 +3289,26 @@
         deckBtn.addEventListener('click',()=>drawBtn.click());
         passBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||!g.drawnThisTurn||g.needsUno)return;g.message='你选择过牌';g.current=unoNextIndex(g);g.drawnThisTurn=false;g.drawnCardIndex=-1;unoSave();drawUno();scheduleNextAI();});
         unoBtn.addEventListener('click',()=>{const g=state.uno;if(!g.needsUno)return;if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}g.needsUno=false;g.message='你已喊 UNO';unoSave();drawUno();});
-        modeBtn.addEventListener('click',()=>{const g=state.uno;if(g.companionThinking)return;const settings=getCharacterCompanionSettings();const hasRole=resolveCharacterCompanions(settings).length>0;if(!hasRole){g.message='当前没有选中的酒馆角色；请先在“角色陪玩”页面选择 1～3 名角色';drawUno();return;}if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}state.uno=unoNew();state.uno.companion={enabled:!g.companion?.enabled,settings};state.characterCompanion=state.uno.companion.settings;unoSave();drawUno();scheduleNextAI();});
-        reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}const companionResetSettings=state.characterCompanion||getCharacterCompanionSettings();state.uno=unoNew();state.uno.companion={enabled:resolveCharacterCompanions(companionResetSettings,3).length>0,settings:companionResetSettings};unoSave();drawUno();scheduleNextAI();});
+        function restartUno(enabled = !!state.uno.companion?.enabled) {
+            const settings = getLiveCompanionSettings(state.uno);
+            state.unoSession++;
+            if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}
+            if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}
+            state.uno=unoNew();
+            state.uno.companion={enabled,settings};
+            unoSave();drawUno();scheduleNextAI();
+        }
+        modeBtn.addEventListener('click',()=>{
+            const g=state.uno;
+            if(g.companionThinking)return;
+            const enabled=!g.companion?.enabled;
+            if(enabled&&!resolveCharacterCompanions(getCharacterCompanionSettings()).length){
+                g.message='当前没有选中的酒馆角色；请先在“角色陪玩”页面选择 1～3 名角色';
+                drawUno();return;
+            }
+            restartUno(enabled);
+        });
+        reset.addEventListener('click',()=>restartUno());
         state.cleanup=()=>{state.unoSession++;if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}if(state.characterCompanionTimer){clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;}state.uno.companionThinking=false;unoSave(state.uno);};
         state.characterCompanionTimer=window.setInterval(()=>{rateInfo.textContent=companionRateText('AI 请求');},250);
         drawUno();scheduleNextAI();
