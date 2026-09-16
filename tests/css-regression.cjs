@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const dir=process.argv[2]||path.join(__dirname,'..');
 const css=fs.readFileSync(path.join(dir,'style.css'),'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
-const rules=[];
+const rules=[];let viewport=390;
 function parse(text,conditions=[]){let start=0;
  while(start<text.length){const open=text.indexOf('{',start);if(open<0)break;const pre=text.slice(start,open).trim();let i=open+1,depth=1,quote=null;
   for(;i<text.length&&depth;i++){const c=text[i];if(quote){if(c==='\\')i++;else if(c===quote)quote=null;continue;}if(c==='"'||c==="'")quote=c;else if(c==='{')depth++;else if(c==='}')depth--;}
@@ -24,7 +24,7 @@ function compound(selector,node){if(!node||selector.includes(':'))return false;c
 }
 function matches(selector,node){const parts=selector.split(/\s+/);let i=parts.length-1;if(!compound(parts[i--],node))return false;let p=node.parent;for(;i>=0;i--){if(parts[i]==='>'){i--;if(!compound(parts[i],p))return false;p=p.parent;}else{while(p&&!compound(parts[i],p))p=p.parent;if(!p)return false;p=p.parent;}}return true;}
 function specificity(s){return (s.match(/#/g)||[]).length*10000+((s.match(/\./g)||[]).length+(s.match(/\[/g)||[]).length)*100+(s.match(/(^|\s)[a-z][\w-]*/g)||[]).length;}
-function property(node,prop){let winner=null;for(const rule of rules){if(rule.conditions.some(c=>/prefers-color-scheme:\s*light/.test(c)))continue;if(!matches(rule.selector,node))continue;for(const d of rule.decls)if(d.prop===prop){const score=(d.important?1e8:0)+specificity(rule.selector);if(!winner||score>winner.score||score===winner.score&&rule.order>=winner.order)winner={...d,score,order:rule.order};}}
+function property(node,prop){let winner=null;for(const rule of rules){if(rule.conditions.some(c=>/prefers-color-scheme:\s*light/.test(c)||(/max-width:\s*([\d.]+)px/.test(c)&&viewport>Number(c.match(/max-width:\s*([\d.]+)px/)[1]))||(/min-width:\s*([\d.]+)px/.test(c)&&viewport<Number(c.match(/min-width:\s*([\d.]+)px/)[1]))))continue;if(!matches(rule.selector,node))continue;for(const d of rule.decls)if(d.prop===prop){const score=(d.important?1e8:0)+specificity(rule.selector);if(!winner||score>winner.score||score===winner.score&&rule.order>=winner.order)winner={...d,score,order:rule.order};}}
  if(winner)return winner.val;if(prop.startsWith('--')&&node.parent)return property(node.parent,prop);return undefined;
 }
 function resolve(node,val){for(let i=0;i<12&&val?.includes('var(');i++)val=val.replace(/var\((--[\w-]+)\)/g,(_,key)=>property(node,key)||'UNRESOLVED');return val;}
@@ -34,5 +34,8 @@ assert.equal(resolve(label,property(label,'color')),'#ffffff');assert.equal(prop
 const body={tag:'div',classes:['match3-game-body'],attrs:{},parent:panel};assert.equal(property(body,'position'),'relative');
 assert(!css.includes('box-shadow: 66%'));
 assert.equal(rules.filter(r=>r.selector==='#st-mini-game-center .match3-board').length,1,'one authoritative candy board rule');
-console.log('PASS: CSS block balance, companion light/dark cascade, name contrast/click height, win overlay anchor, consolidated candy rules');
+const node=classes=>({tag:'div',classes,attrs:{},parent:panel});
+for(const width of [390,1000]){viewport=width;assert.equal(property(node(['uno-opponent-avatar']),'width'),width===390?'68px':'84px');assert.equal(property(node(['ddz-avatar']),'width'),width===390?'68px':'84px');assert.equal(property(node(['stgc-board-companion-avatar']),'width'),width===390?'80px':'96px');assert.equal(property(node(['uno-color-picker']),'position'),'static');assert.equal(property(node(['ddz-seat']),'position'),'relative');assert.equal(property(node(['ddz-center']),'position'),'relative');}
+const handle={tag:'div',id:'st-mini-game-center-restore',classes:[],attrs:{},parent:null};assert.equal(property(handle,'width'),'18px');assert.equal(property(handle,'height'),'40px');
+console.log('PASS: CSS blocks, theme cascade, controls, candy rules, desktop/mobile avatar sizes, non-overlapping grid positioning and small handle dimensions');
 fs.writeFileSync(path.join(__dirname,'css-test-results.json'),JSON.stringify({passed:true,scope:'Static cascade for targeted selectors; no browser hit-testing or visual rendering',rules:rules.length},null,2));

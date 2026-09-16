@@ -1,5 +1,5 @@
 {
-  "passed": 36,
+  "passed": 43,
   "tests": [
     "UNO deck has 108 cards and 8 wild cards",
     "UNO initial deal conserves every card",
@@ -30,6 +30,13 @@
     "Match3 extra moves and shuffle act on the tool button without a cell click",
     "Match3 art keeps special, jelly, ice and vine layers independent and labels cells",
     "Match3 hammer/clear path counts obstacles instead of silently deleting objectives",
+    "Player name/avatar persist without any selected companion slots",
+    "Character and worldbook names and avatars are saved independently",
+    "Profile save button persists text, reset clears only player profile",
+    "Full storage reports profile save failure without a false success",
+    "UNO player identity and color picker have their own layout positions",
+    "Chess profile strip is before the board and reflects custom character identity",
+    "Small handle docks on either edge and remembers the side on reload",
     "Mouse drag saves once, suppresses click, and releases pointer",
     "Touch tap and keyboard open normally after a drag",
     "Pointer cancellation never opens the game",
