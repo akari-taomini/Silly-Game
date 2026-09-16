@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "scope": "Static cascade for targeted selectors; no browser hit-testing or visual rendering",
+  "rules": 1205
+}

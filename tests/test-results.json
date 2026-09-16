@@ -1,5 +1,5 @@
 {
-  "passed": 29,
+  "passed": 36,
   "tests": [
     "UNO deck has 108 cards and 8 wild cards",
     "UNO initial deal conserves every card",
@@ -23,6 +23,13 @@
     "Restart UNO preserves companion mode, while explicit mode toggle controls it",
     "Doudizhu restart and reopen also preserve explicitly selected local AI",
     "Duplicate launcher activation keeps the open game intact but back still works",
+    "Spider stock is outside and before the horizontally scrolling tableau",
+    "Spider stack sizing tracks every card after a stock deal",
+    "Spider restart keeps its timer attached to the new game",
+    "Match3 save/load retains jelly, ice, vine and extra moves",
+    "Match3 extra moves and shuffle act on the tool button without a cell click",
+    "Match3 art keeps special, jelly, ice and vine layers independent and labels cells",
+    "Match3 hammer/clear path counts obstacles instead of silently deleting objectives",
     "Mouse drag saves once, suppresses click, and releases pointer",
     "Touch tap and keyboard open normally after a drag",
     "Pointer cancellation never opens the game",
