@@ -1,0 +1,27 @@
+{
+  "passed": 21,
+  "tests": [
+    "UNO deck has 108 cards and 8 wild cards",
+    "UNO initial deal conserves every card",
+    "UNO color and number matching",
+    "UNO +4 cannot bypass a matching color",
+    "UNO rejects wrong-turn, finished-game and invalid-index plays without mutation",
+    "UNO rejects stale pre-draw card selection",
+    "UNO rejects invalid wildcard color",
+    "UNO valid play advances the turn and conserves cards",
+    "UNO reset hides stale wildcard picker; stale color cannot play",
+    "UNO draw pile and toolbar share disabled state",
+    "UNO finished hand does not expose playable buttons",
+    "UNO persisted card text is not interpreted as HTML",
+    "Collapsed handle clamps to phone bounds and stores independent position",
+    "Corrupted launcher position is ignored",
+    "Mouse drag saves once, suppresses click, and releases pointer",
+    "Touch tap and keyboard open normally after a drag",
+    "Pointer cancellation never opens the game",
+    "Secondary pointer cannot replace an active drag",
+    "Rejected UNO request after leaving cannot mutate or save old game",
+    "Second UNO response after exit cannot play, save, redraw or schedule",
+    "Theme selectors do not globally override semantic span/strong/b colors"
+  ],
+  "scope": "Node VM + DOM stubs; no browser visual or live SillyTavern/API verification"
+}

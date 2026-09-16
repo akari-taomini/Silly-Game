@@ -4,6 +4,7 @@
     const APP_ID = 'st-mini-game-center';
     const LAUNCHER_POSITION_KEY = 'stgc-launcher-position-v1';
     const LAUNCHER_HIDDEN_KEY = 'stgc-launcher-hidden-v1';
+    const RESTORE_POSITION_KEY = 'stgc-restore-position-v1';
 
     const state = {
         currentGame: null,
@@ -28,6 +29,7 @@
         xiangqi: null,
         uno: null,
         match3: null,
+        unoSession: 0,
         unoTimer: null,
         unoPenaltyTimer: null,
         chessAiTimer: null,
@@ -42,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.0';
+    const CURRENT_VERSION = '2.2.1';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1039,7 +1041,9 @@
     }
 
     async function unoCompanionTurn(g, onUpdate) {
-        if (!g || g.over || g.current === 0 || !g.companion?.enabled) return;
+        if (!g || g.over || g.current === 0 || !g.companion?.enabled || g.companionThinking) return;
+        const session = state.unoSession;
+        const isActive = () => state.uno === g && state.currentGame === 'uno' && state.unoSession === session;
         const p = g.current;
         const companion = resolveCharacterCompanionForPlayer(g, p);
         if (!companion) {
@@ -1056,7 +1060,7 @@
                 settings,
                 gameSnapshot: companionGameSnapshot(g, p),
             });
-            if (state.uno !== g || state.currentGame !== 'uno') return;
+            if (!isActive()) return;
             const hand = g.hands[p] || [];
             const validPlayables = hand.map((card, index) => ({ card, index }))
                 .filter(({ card }) => unoPlayable(card, g, p));
@@ -1082,6 +1086,7 @@
                         settings,
                         gameSnapshot: companionGameSnapshot(g, p),
                     }).catch(() => null);
+                    if (!isActive()) return;
                     if (secondAction?.action === 'play' && Number(secondAction.cardIndex) === drawnIndex) {
                         const chosenColor = drawn.color === 'wild' || drawn.color === 'wild4'
                             ? (UNO_COLORS.includes(secondAction.color) ? secondAction.color : unoBestWildColor(g.hands[p]))
@@ -1120,6 +1125,7 @@
             unoSave(g);
             onUpdate();
         } catch (error) {
+            if (!isActive()) return;
             console.warn('[Silly Game] character companion UNO generation failed:', error);
             g.companionThinking = false;
             g.message = `${companion.name} 暂时没想好怎么出，交给本地 AI 帮它完成这一回合`;
@@ -1141,8 +1147,9 @@
             onUpdate();
         }
 
-        if (!g.over && g.current !== 0) {
+        if (isActive() && !g.over && g.current !== 0) {
             state.unoTimer = setTimeout(() => {
+                if (!isActive()) return;
                 const nextCompanion = g.companion?.enabled ? resolveCharacterCompanionForPlayer(g, g.current) : null;
                 if (nextCompanion) unoCompanionTurn(state.uno, onUpdate);
                 else unoAiTurn(state.uno, onUpdate);
@@ -1666,9 +1673,9 @@
         };
     }
 
-    function getStoredLauncherPosition() {
+    function getStoredLauncherPosition(key = LAUNCHER_POSITION_KEY) {
         try {
-            const raw = localStorage.getItem(LAUNCHER_POSITION_KEY);
+            const raw = localStorage.getItem(key);
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!Number.isFinite(parsed?.x) || !Number.isFinite(parsed?.y)) return null;
@@ -1739,6 +1746,67 @@
         setLauncherHidden(!isLauncherHidden());
     }
 
+    function setRestorePosition(x, y, save = true) {
+        const handle = document.getElementById(APP_ID + '-restore');
+        if (!handle) return;
+        const viewport = getViewportSize();
+        const position = {
+            x: Math.min(Math.max(x, 8), Math.max(8, viewport.width - 28 - 8)),
+            y: Math.min(Math.max(y, 8), Math.max(8, viewport.height - 56 - 8)),
+        };
+        handle.style.left = position.x + 'px';
+        handle.style.top = position.y + 'px';
+        if (save) {
+            try { localStorage.setItem(RESTORE_POSITION_KEY, JSON.stringify(position)); } catch { /* session only */ }
+        }
+    }
+
+    // Both floating controls use the same pointer lifecycle; dragging never opens a game.
+    function bindFloatingDrag(control, setPosition) {
+        let drag = null;
+        let suppressClick = false;
+        control.addEventListener('pointerdown', event => {
+            if (drag || event.isPrimary === false || event.button !== 0) return;
+            const rect = control.getBoundingClientRect();
+            suppressClick = false;
+            drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
+                left: rect.left, top: rect.top, moved: false };
+            control.setPointerCapture?.(event.pointerId);
+        });
+        control.addEventListener('pointermove', event => {
+            if (!drag || drag.id !== event.pointerId) return;
+            const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+            if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+            drag.moved = true;
+            control.classList.add('is-dragging');
+            setPosition(drag.left + dx, drag.top + dy, false);
+            event.preventDefault();
+        });
+        const finish = event => {
+            if (!drag || drag.id !== event.pointerId) return;
+            suppressClick = drag.moved || event.type !== 'pointerup';
+            if (drag.moved) {
+                setPosition(parseFloat(control.style.left), parseFloat(control.style.top));
+            }
+            drag = null;
+            control.classList.remove('is-dragging');
+            if (control.hasPointerCapture?.(event.pointerId)) control.releasePointerCapture(event.pointerId);
+        };
+        control.addEventListener('pointerup', finish);
+        control.addEventListener('pointercancel', finish);
+        control.addEventListener('lostpointercapture', finish);
+        control.addEventListener('click', event => {
+            if (suppressClick && event.detail !== 0) { event.preventDefault(); return; }
+            openCenter();
+        });
+        control.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openCenter();
+            }
+        });
+    }
+
     function injectLauncher() {
         if (document.getElementById(`${APP_ID}-launcher`)) return;
 
@@ -1752,74 +1820,20 @@
         });
         launcher.innerHTML = '<svg class="stgc-launcher-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 3.8 2.8l1.1 4a3 3 0 0 1-5.7 1.8L15 14H9l-1.2 2.6a3 3 0 0 1-5.7-1.8l1.1-4A4 4 0 0 1 7 8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5v4M6 12.5h4M16.5 11.5h.01M19 14h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
-        let drag = null;
-        launcher.addEventListener('pointerdown', event => {
-            if (event.button !== undefined && event.button !== 0) return;
-            const rect = launcher.getBoundingClientRect();
-            drag = {
-                pointerId: event.pointerId,
-                startX: event.clientX,
-                startY: event.clientY,
-                originX: rect.left,
-                originY: rect.top,
-                moved: false,
-            };
-            launcher.setPointerCapture?.(event.pointerId);
-        });
-
-        launcher.addEventListener('pointermove', event => {
-            if (!drag || event.pointerId !== drag.pointerId) return;
-            const dx = event.clientX - drag.startX;
-            const dy = event.clientY - drag.startY;
-            if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-            drag.moved = true;
-            setLauncherPosition(drag.originX + dx, drag.originY + dy, false);
-            event.preventDefault();
-        });
-
-        const endDrag = event => {
-            if (!drag || event.pointerId !== drag.pointerId) return;
-            const wasMoved = drag.moved;
-            drag = null;
-            if (wasMoved) {
-                const rect = launcher.getBoundingClientRect();
-                setLauncherPosition(rect.left, rect.top, true);
-                event.preventDefault();
-                return;
-            }
-            openCenter();
-        };
-
-        launcher.addEventListener('pointerup', endDrag);
-        launcher.addEventListener('pointercancel', event => {
-            if (!drag || event.pointerId !== drag.pointerId) return;
-            drag = null;
-        });
-        launcher.addEventListener('keydown', event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                openCenter();
-            }
-        });
+        bindFloatingDrag(launcher, setLauncherPosition);
 
         const restore = el('div', {
             id: `${APP_ID}-restore`,
             class: 'stgc-restore-handle',
             role: 'button',
             tabindex: '0',
-            title: '显示 Silly Game 悬浮按钮',
-            'aria-label': '显示 Silly Game 悬浮按钮',
+            title: '打开 Silly Game · 可拖动',
+            'aria-label': '打开 Silly Game，拖动可移动收纳把手',
             text: 'S',
         });
         // 收纳状态本身是持久设置：点小把手只打开 Silly Game，不自动把小把手恢复成悬浮球。
         // 只有在酒馆扩展设置里重新勾选“显示 Silly Game 悬浮按钮”时，才恢复悬浮球。
-        restore.addEventListener('click', () => openCenter());
-        restore.addEventListener('keydown', event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                openCenter();
-            }
-        });
+        bindFloatingDrag(restore, setRestorePosition);
         document.body.append(launcher, restore);
 
         const stored = getStoredLauncherPosition();
@@ -1829,6 +1843,9 @@
             requestAnimationFrame(resetLauncherPosition);
         }
         setLauncherHidden(isLauncherHidden());
+        const restorePosition = getStoredLauncherPosition(RESTORE_POSITION_KEY);
+        const viewport = getViewportSize();
+        setRestorePosition(restorePosition?.x ?? 8, restorePosition?.y ?? (viewport.height - 56) / 2, false);
     }
 
     function ensureRoot() {
@@ -1851,6 +1868,7 @@
     }
 
     function openCenter() {
+        if (document.getElementById(APP_ID)?.classList.contains('show')) return;
         cleanupGame();
         const root = ensureRoot();
         applySillyGameUiSettings();
@@ -2021,7 +2039,7 @@
         const copy = el('div', { class: 'stgc-setting-copy' });
         copy.append(
             el('div', { class: 'stgc-setting-name', text: '隐藏悬浮按钮' }),
-            el('div', { class: 'stgc-setting-desc', text: '隐藏后会收成屏幕边缘的小把手；电脑也可用 Alt + G 恢复。' }),
+            el('div', { class: 'stgc-setting-desc', text: '收纳后的小把手仍可拖动；点击打开游戏，Alt + G 可恢复悬浮球。' }),
         );
         const toggle = el('button', {
             class: `stgc-btn stgc-toggle ${currentHidden ? 'active' : ''}`,
@@ -2038,9 +2056,12 @@
 
         const reset = el('button', { class: 'stgc-btn', type: 'button' });
         reset.innerHTML = '<i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i><span>恢复悬浮按钮默认位置</span>';
-        reset.addEventListener('click', resetLauncherPosition);
+        reset.addEventListener('click', () => {
+            resetLauncherPosition();
+            setRestorePosition(8, (getViewportSize().height - 56) / 2);
+        });
 
-        const shortcut = el('div', { class: 'stgc-setting-note', text: '提示：悬浮按钮可以直接拖到任意位置，手机和电脑都支持；位置会自动记住。' });
+        const shortcut = el('div', { class: 'stgc-setting-note', text: '提示：悬浮球和收纳把手都支持手机、鼠标拖动，并分别记住位置；拖动不会打开游戏。' });
         box.append(header, row, reset, shortcut);
         dialog.append(box);
         dialog.addEventListener('click', event => {
@@ -3176,6 +3197,9 @@
     function unoAddDraw(g,p,count){for(let i=0;i<count;i++){if(!g.deck.length)unoRecycleDiscard(g);if(g.deck.length)g.hands[p].push(g.deck.pop());}}
     function unoBestWildColor(hand){const count=Object.fromEntries(UNO_COLORS.map(c=>[c,0]));for(const card of hand)if(UNO_COLORS.includes(card.color))count[card.color]++;return UNO_COLORS.reduce((best,c)=>count[c]>count[best]?c:best,'red');}
     function unoApplyPlay(g,p,index,chosenColor=null){
+        if(g.over||p!==g.current||!Number.isInteger(index)||index<0)return false;
+        if(p===0&&(g.needsUno||(g.drawnThisTurn&&index!==g.drawnCardIndex)))return false;
+        if(chosenColor!==null&&!UNO_COLORS.includes(chosenColor))return false;
         const card=g.hands[p]?.[index];if(!card||!unoPlayable(card,g,p)){ if(p===0 && card) g.message='这张牌不能出：必须同颜色、同数字或同功能牌'; return false; }
         g.hands[p].splice(index,1);g.discard.push(card);g.currentColor=(card.type==='wild'||card.type==='wild4')?(chosenColor||'red'):card.color;g.lastPlayedBy=p;g.needsUno=p===0&&g.hands[p].length===1;
         if(g.hands[p].length===0){g.over=true;g.winner=p;g.message=p===0?'你赢了！':'AI 赢了';if(p===0)recordGameWin('uno');return true;}
@@ -3184,7 +3208,7 @@
         if(card.type==='skip')steps=2;
         if(card.type==='draw2'||card.type==='wild4'){const target=unoNextIndex(g,1);unoAddDraw(g,target,card.type==='draw2'?2:4);steps=2;}
         const who = unoPlayerName(g, p);
-        g.message = `${who}出了 ${card.type==='number'?card.value:card.value}` + (card.color==='wild' ? ` · 颜色 ${UNO_COLOR_NAMES[g.currentColor]}` : '');
+        g.message = `${who}出了 ${card.value}` + (card.color==='wild' ? ` · 颜色 ${UNO_COLOR_NAMES[g.currentColor]}` : '');
         g.current=unoNextIndex(g,steps);
         g.drawnThisTurn=false;g.drawnCardIndex=-1;
         return true;
@@ -3231,7 +3255,7 @@
         deckArea.append(deckLabel,deckBtn);discardArea.append(discardLabel,discard);center.append(deckArea,discardArea,centerNotice);table.append(topArea,leftAI,center,rightAI);body.append(bar,table,hand,hint);
         UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
-        function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable&&isPlayable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.disabled=false;node.innerHTML=`<span class="uno-card-corner">${cardText(card)}</span><strong>${cardText(card)}</strong><span class="uno-card-corner bottom">${cardText(card)}</span>`;if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
+        function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&!g.over&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable&&isPlayable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.append(el('span',{class:'uno-card-corner',text:cardText(card)}),el('strong',{text:cardText(card)}),el('span',{class:'uno-card-corner bottom',text:cardText(card)}));if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
         function drawUnoOpponent(target,p){
             const g=state.uno;
             target.replaceChildren();
@@ -3248,12 +3272,12 @@
             if(speech) card.append(el('div',{class:'uno-opponent-bubble',text:speech}));
             target.append(card);
         }
-        function drawUno(){const g=state.uno;unoSyncCurrentColor(g);const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
+        function drawUno(){colorPicker.hidden=true;delete colorPicker.dataset.index;const g=state.uno;unoSyncCurrentColor(g);const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
             rateInfo.textContent=companionRateText('AI 请求');
             status.textContent=g.over?(g.winner===0?'你获胜！':`${unoPlayerName(g,g.winner)} 获胜`):(g.current===0?'你的回合':`${unoPlayerName(g,g.current)} 的回合`)+` · 当前颜色 ${UNO_COLOR_NAMES[g.currentColor]||'—'}`;
             modeBtn.textContent=g.companion?.enabled?`角色陪玩 · ${companions.map(c=>c.name).join('、') || '未选择角色'}`:'普通 AI';
             modeBtn.classList.toggle('active',!!g.companion?.enabled);
-            modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);drawUnoOpponent(topAI,2);drawUnoOpponent(leftAI,1);drawUnoOpponent(rightAI,3);discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
+            modeBtn.disabled=!!g.companionThinking;drawBtn.disabled=g.over||g.current!==0||g.needsUno||g.drawnThisTurn;deckBtn.disabled=drawBtn.disabled;passBtn.disabled=g.over||g.current!==0||g.needsUno||!g.drawnThisTurn;unoBtn.disabled=g.over||!g.needsUno;unoBtn.classList.toggle('active',g.needsUno);drawUnoOpponent(topAI,2);drawUnoOpponent(leftAI,1);drawUnoOpponent(rightAI,3);discard.replaceChildren(makeCard(g.discard.at(-1),0,false));discard.classList.remove('uno-played');void discard.offsetWidth;discard.classList.add('uno-played');hand.replaceChildren(...g.hands[0].map((card,i)=>makeCard(card,i,true)));centerNotice.textContent=g.message||'等待出牌';table.classList.toggle('uno-your-turn',g.current===0);table.classList.toggle('uno-ai-turn',g.current!==0);if(!g.over&&g.current===0&&g.drawnThisTurn&&!hasPlayable&&g.needsUno===false)passBtn.disabled=false;}
         function scheduleNextAI(){const g=state.uno;if(!g.over&&g.current!==0){if(state.unoTimer)clearTimeout(state.unoTimer);state.unoTimer=setTimeout(()=>{if(state.uno!==g||state.currentGame!=='uno')return;if(g.companion?.enabled && resolveCharacterCompanionForPlayer(g, g.current))unoCompanionTurn(g,drawUno);else unoAiTurn(g,drawUno);},1300);}}
         function onPlayerCard(index){const g=state.uno;if(g.over||g.current!==0||g.needsUno)return;if(g.drawnThisTurn&&index!==g.drawnCardIndex)return;const card=g.hands[0][index];if(!unoPlayable(card,g,0)){g.message='这张牌不能出';drawUno();return;}if(card.type==='wild'||card.type==='wild4'){colorPicker.hidden=false;colorPicker.dataset.index=String(index);centerNotice.textContent='请选择这张万能牌的颜色';return;}unoApplyPlay(g,0,index);unoSave();drawUno();scheduleNextAI();}
         drawBtn.addEventListener('click',()=>{const g=state.uno;if(g.over||g.current!==0||g.needsUno||g.drawnThisTurn)return;unoAddDraw(g,0,1);g.drawnThisTurn=true;g.drawnCardIndex=g.hands[0].length-1;const drawn=g.hands[0].at(-1);g.message=drawn&&unoPlayable(drawn,g,0)?'你摸了 1 张牌 · 这张牌可以出':'你摸了 1 张牌 · 这回合过牌';unoSave();drawUno();});
@@ -3262,7 +3286,7 @@
         unoBtn.addEventListener('click',()=>{const g=state.uno;if(!g.needsUno)return;if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}g.needsUno=false;g.message='你已喊 UNO';unoSave();drawUno();});
         modeBtn.addEventListener('click',()=>{const g=state.uno;if(g.companionThinking)return;const settings=getCharacterCompanionSettings();const hasRole=resolveCharacterCompanions(settings).length>0;if(!hasRole){g.message='当前没有选中的酒馆角色；请先在“角色陪玩”页面选择 1～3 名角色';drawUno();return;}if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}state.uno=unoNew();state.uno.companion={enabled:!g.companion?.enabled,settings};state.characterCompanion=state.uno.companion.settings;unoSave();drawUno();scheduleNextAI();});
         reset.addEventListener('click',()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}const companionResetSettings=state.characterCompanion||getCharacterCompanionSettings();state.uno=unoNew();state.uno.companion={enabled:resolveCharacterCompanions(companionResetSettings,3).length>0,settings:companionResetSettings};unoSave();drawUno();scheduleNextAI();});
-        state.cleanup=()=>{if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}if(state.characterCompanionTimer){clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;}state.uno.companionThinking=false;unoSave(state.uno);};
+        state.cleanup=()=>{state.unoSession++;if(state.unoTimer){clearTimeout(state.unoTimer);state.unoTimer=null;}if(state.unoPenaltyTimer){clearTimeout(state.unoPenaltyTimer);state.unoPenaltyTimer=null;}if(state.characterCompanionTimer){clearInterval(state.characterCompanionTimer);state.characterCompanionTimer=null;}state.uno.companionThinking=false;unoSave(state.uno);};
         state.characterCompanionTimer=window.setInterval(()=>{rateInfo.textContent=companionRateText('AI 请求');},250);
         drawUno();scheduleNextAI();
     }
@@ -8058,9 +8082,11 @@
         }, true);
         window.addEventListener('resize', () => {
             const launcher = document.getElementById(`${APP_ID}-launcher`);
-            if (!launcher || launcher.classList.contains('is-hidden')) return;
-            const rect = launcher.getBoundingClientRect();
-            setLauncherPosition(rect.left, rect.top, true);
+            if (launcher) {
+                setLauncherPosition(parseFloat(launcher.style.left) || 8, parseFloat(launcher.style.top) || 8);
+            }
+            const restore = document.getElementById(APP_ID + '-restore');
+            if (restore) setRestorePosition(parseFloat(restore.style.left) || 8, parseFloat(restore.style.top) || 8);
         });
 
         // 页面切到后台 / 酒馆刷新或关闭时，再保存一次正在进行的数独。
