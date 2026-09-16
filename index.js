@@ -44,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.3';
+    const CURRENT_VERSION = '2.2.4';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -483,6 +483,8 @@
         speak: true,
         rateLimitPerMinute: COMPANION_DEFAULT_RATE_LIMIT,
         avatarOverrides: {},
+        nameOverrides: {},
+        playerProfile: { name: '', avatar: '' },
     });
 
     // 角色陪玩 API 频率保护：上限可在界面设置，范围 1~60 次/滚动 60 秒。
@@ -591,12 +593,12 @@
                 } else merged.companionSlots = null;
             }
             merged.companionSlots = normalizeCompanionSlots(merged.companionSlots);
-            merged.characterIndices = merged.companionSlots
-                .filter(slot => slot.source === 'character')
-                .map(slot => slot.characterIndex);
+            merged.characterIndices = merged.companionSlots?.filter(slot => slot.source === 'character').map(slot => slot.characterIndex) || null;
             merged.connectionProfile = typeof merged.connectionProfile === 'string' ? merged.connectionProfile : '';
             merged.speak = merged.speak !== false;
             merged.avatarOverrides = merged.avatarOverrides && typeof merged.avatarOverrides === 'object' ? merged.avatarOverrides : {};
+            merged.nameOverrides = merged.nameOverrides && typeof merged.nameOverrides === 'object' ? merged.nameOverrides : {};
+            merged.playerProfile = normalizeIdentityProfile(merged.playerProfile);
             const configuredRate = Number(merged.rateLimitPerMinute);
             merged.rateLimitPerMinute = Number.isFinite(configuredRate)
                 ? Math.min(60, Math.max(1, Math.round(configuredRate)))
@@ -629,7 +631,7 @@
         return out.length ? out : null;
     }
 
-    function saveCharacterCompanionSettings(patch = {}) {
+    function saveCharacterCompanionSettings(patch = {}, { requirePersistence = false } = {}) {
         const next = { ...getCharacterCompanionSettings(), ...patch };
         if (Array.isArray(next.companionSlots)) next.companionSlots = normalizeCompanionSlots(next.companionSlots);
         if (!Array.isArray(next.companionSlots) && Array.isArray(next.characterIndices)) {
@@ -641,8 +643,110 @@
         next.connectionProfile = typeof next.connectionProfile === 'string' ? next.connectionProfile : '';
         next.speak = next.speak !== false;
         next.avatarOverrides = next.avatarOverrides && typeof next.avatarOverrides === 'object' ? next.avatarOverrides : {};
-        try { localStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        next.nameOverrides = next.nameOverrides && typeof next.nameOverrides === 'object' ? next.nameOverrides : {};
+        next.playerProfile = normalizeIdentityProfile(next.playerProfile);
+        try { localStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch {
+            if (requirePersistence) throw new Error('保存失败：浏览器存储不可用或空间不足，请缩小头像后重试。');
+        }
         return next;
+    }
+
+    function normalizeIdentityProfile(raw = {}) {
+        return {
+            name: typeof raw?.name === 'string' ? Array.from(raw.name.trim()).slice(0, 40).join('') : '',
+            avatar: typeof raw?.avatar === 'string' ? raw.avatar : '',
+        };
+    }
+    function getPlayerProfile() {
+        const profile = normalizeIdentityProfile(getCharacterCompanionSettings().playerProfile);
+        return { ...profile, name: profile.name || '你' };
+    }
+    function getCompanionDisplayName(slot, fallback, settings = getCharacterCompanionSettings()) {
+        return normalizeIdentityProfile({ name: settings.nameOverrides?.[companionSlotIdentityKey(slot)] }).name || fallback;
+    }
+    function saveIdentityProfile(slot, patch = {}, reset = false) {
+        const settings = getCharacterCompanionSettings();
+        if (!slot) {
+            const playerProfile = reset ? { name: '', avatar: '' } : normalizeIdentityProfile({ ...settings.playerProfile, ...patch });
+            return saveCharacterCompanionSettings({ playerProfile }, { requirePersistence: true });
+        }
+        const key = companionSlotIdentityKey(slot);
+        const nameOverrides = { ...settings.nameOverrides }, avatarOverrides = { ...settings.avatarOverrides };
+        if (reset) { delete nameOverrides[key]; delete avatarOverrides[key]; }
+        else {
+            if (Object.hasOwn(patch, 'name')) {
+                const name = normalizeIdentityProfile(patch).name;
+                if (name) nameOverrides[key] = name; else delete nameOverrides[key];
+            }
+            if (Object.hasOwn(patch, 'avatar')) {
+                if (patch.avatar) avatarOverrides[key] = patch.avatar; else delete avatarOverrides[key];
+            }
+        }
+        return saveCharacterCompanionSettings({ nameOverrides, avatarOverrides }, { requirePersistence: true });
+    }
+    function createPlayerIdentity() {
+        const profile = getPlayerProfile();
+        const card = el('div', { class: 'stgc-player-identity', 'aria-label': `玩家：${profile.name}` });
+        const avatar = el('div', { class: 'stgc-player-avatar', text: profile.name.slice(0, 1) });
+        if (profile.avatar) avatar.replaceChildren(el('img', { src: profile.avatar, alt: '', class: 'stgc-player-avatar-img' }));
+        card.append(avatar, el('strong', { class: 'stgc-player-name', text: profile.name }), el('small', { text: '玩家' }));
+        return card;
+    }
+    function createIdentityEditor({ slot = null, character = null, fallbackName = '你', onSaved = () => {} } = {}) {
+        const editor = el('details', { class: 'stgc-identity-editor' });
+        const summary = el('summary', { text: slot ? '编辑名字与头像' : '我的名字与头像' });
+        const fields = el('div', { class: 'stgc-identity-fields' });
+        const preview = el('div', { class: 'stgc-identity-preview' });
+        const label = el('label', { class: 'stgc-identity-name-label', text: '显示名字' });
+        const input = el('input', { type: 'text', class: 'text_pole', maxlength: '40', placeholder: fallbackName, 'aria-label': '自定义显示名字' });
+        label.append(input);
+        const file = el('input', { type: 'file', accept: 'image/*', hidden: 'hidden' });
+        const upload = el('button', { type: 'button', class: 'stgc-btn', text: '选择头像' });
+        const save = el('button', { type: 'button', class: 'stgc-btn', text: '保存名字与头像' });
+        const reset = el('button', { type: 'button', class: 'stgc-btn', text: '恢复默认' });
+        const status = el('div', { class: 'stgc-identity-status', role: 'status', text: '保存后用于小游戏，并在刷新后保留。' });
+        const actions = el('div', { class: 'stgc-identity-actions' }, [upload, save, reset]);
+        let draftAvatar = '', avatarChanged = false, revision = 0;
+        const renderPreview = () => {
+            preview.replaceChildren();
+            if (draftAvatar) preview.append(el('img', { src: draftAvatar, alt: '头像预览' }));
+            else preview.append(el('span', { text: (input.value || fallbackName).slice(0, 1) }));
+        };
+        const refresh = () => {
+            const settings = getCharacterCompanionSettings();
+            input.value = slot ? (settings.nameOverrides?.[companionSlotIdentityKey(slot)] || '') : (settings.playerProfile?.name || '');
+            draftAvatar = slot ? getCompanionAvatarSourceBySlot(slot, character, settings) : (settings.playerProfile?.avatar || '');
+            avatarChanged = false;
+            renderPreview();
+        };
+        upload.addEventListener('click', () => file.click());
+        input.addEventListener('input', () => { status.textContent = '有未保存的修改'; renderPreview(); });
+        file.addEventListener('change', async () => {
+            const chosen = file.files?.[0]; file.value = '';
+            if (!chosen) return;
+            const request = ++revision; save.disabled = true; status.textContent = '正在处理头像…';
+            try {
+                const data = await fileToCompressedDataUrl(chosen);
+                if (request !== revision) return;
+                draftAvatar = data; avatarChanged = true; renderPreview(); status.textContent = '头像已准备好，点击保存即可应用';
+            } catch (error) { if (request === revision) status.textContent = error?.message || '头像处理失败'; }
+            finally { if (request === revision) save.disabled = false; }
+        });
+        save.addEventListener('click', () => {
+            try {
+                const patch = { name: input.value };
+                if (avatarChanged) patch.avatar = draftAvatar;
+                saveIdentityProfile(slot, patch); refresh(); onSaved(); status.textContent = '已保存';
+            } catch (error) { status.textContent = error?.message || '保存失败，请重试'; }
+        });
+        reset.addEventListener('click', () => {
+            try {
+                saveIdentityProfile(slot, {}, true); revision++; save.disabled = false;
+                refresh(); onSaved(); status.textContent = '已恢复默认并保存';
+            } catch (error) { status.textContent = error?.message || '保存失败，请重试'; }
+        });
+        fields.append(preview, label, file, actions, status); editor.append(summary, fields); refresh();
+        return editor;
     }
 
     function companionSlotIdentityKey(slot) {
@@ -797,7 +901,7 @@
                     characterIndex: slot.characterIndex,
                     entryIndex: entry.index,
                     entryId: entry.id,
-                    name: entry.title,
+                    name: getCompanionDisplayName(slot, entry.title, settings),
                     sourceCharacterName: base.name || `角色 ${slot.characterIndex + 1}`,
                     active: slot.characterIndex === activeIndex,
                     character: base,
@@ -812,7 +916,7 @@
             return {
                 source: 'character',
                 characterIndex: slot.characterIndex,
-                name: character.name || `角色 ${slot.characterIndex + 1}`,
+                name: getCompanionDisplayName(slot, character.name || `角色 ${slot.characterIndex + 1}`, settings),
                 active: slot.characterIndex === activeIndex,
                 character,
                 identityKey: companionSlotIdentityKey(slot),
@@ -834,7 +938,7 @@
     }
 
     function unoPlayerName(g, playerIndex) {
-        if (playerIndex === 0) return '你';
+        if (playerIndex === 0) return getPlayerProfile().name;
         return resolveCharacterCompanionForPlayer(g, playerIndex)?.name || `AI ${playerIndex}`;
     }
 
@@ -1331,19 +1435,21 @@
             const avatarImg = el('img', { class: 'stgc-companion-avatar-img', alt: '' });
             const avatarFallback = el('span', { class: 'stgc-companion-avatar-fallback', text: name.slice(0, 1) || '？' });
             avatarButton.append(avatarImg, avatarFallback);
-            const syncMainAvatar = () => { const src = getCompanionAvatarSourceBySlot(mainSlot, c, getCharacterCompanionSettings()); avatarImg.hidden = !src; avatarFallback.hidden = !!src; if (src) avatarImg.src = src; else avatarImg.removeAttribute('src'); };
+            const syncMainAvatar = () => { const src = getCompanionAvatarSourceBySlot(mainSlot, c, getCharacterCompanionSettings()); avatarFallback.textContent = getCompanionDisplayName(mainSlot, name).slice(0, 1); avatarImg.hidden = !src; avatarFallback.hidden = !!src; if (src) avatarImg.src = src; else avatarImg.removeAttribute('src'); };
             syncMainAvatar();
-            mainLabel.append(checkbox, avatarButton, el('label', { class: 'stgc-companion-character-option-name', for: `stgc-role-check-${index}`, text: name }));
+            const nameLabel = el('label', { class: 'stgc-companion-character-option-name', for: `stgc-role-check-${index}`, text: getCompanionDisplayName(mainSlot, name) });
+            mainLabel.append(checkbox, avatarButton, nameLabel);
             if (Number.isInteger(activeIndex) && index === activeIndex) mainLabel.append(el('em', { class: 'stgc-companion-current-badge', text: '当前' }));
             const avatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
             avatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); avatarInput.click(); });
-            avatarInput.addEventListener('change', async () => { const file = avatarInput.files?.[0]; avatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [mainSlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncMainAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
+            avatarInput.addEventListener('change', async () => { const file = avatarInput.files?.[0]; avatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [mainSlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }, { requirePersistence: true }); syncMainAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
             mainCell.append(avatarInput);
             const wbToggle = el('button', { class: 'menu_button stgc-companion-worldbook-toggle', type: 'button', title: '查看这张卡的世界书条目', 'aria-label': `查看${name}的世界书条目` });
             wbToggle.innerHTML = '<i class="fa-solid fa-book-open" aria-hidden="true"></i><span>世界书</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>';
             mainCell.append(mainLabel);
             head.append(mainCell, wbToggle);
             itemWrap.append(head);
+            itemWrap.append(createIdentityEditor({ slot: mainSlot, character: c, fallbackName: name, onSaved: () => { nameLabel.textContent = getCompanionDisplayName(mainSlot, name); syncMainAvatar(); updateCharacterPicker(); } }));
 
             const entryBox = el('div', { class: 'stgc-companion-worldbook-list collapsed' });
             entryBox.append(el('div', { class: 'stgc-companion-worldbook-loading', text: '点击世界书按钮读取……' }));
@@ -1405,13 +1511,15 @@
                     const entryAvatarFallback = el('span', { class: 'stgc-companion-entry-avatar-fallback', text: entry.title.slice(0, 1) || '？' });
                     entryAvatarButton.append(entryAvatarImg, entryAvatarFallback);
                     const entrySlotKey = companionSlotIdentityKey(slot);
-                    const syncEntryAvatar = () => { const src = getCompanionAvatarSourceBySlot(slot, loaded || c, getCharacterCompanionSettings()); entryAvatarImg.hidden = !src; entryAvatarFallback.hidden = !!src; if (src) entryAvatarImg.src = src; else entryAvatarImg.removeAttribute('src'); };
+                    const syncEntryAvatar = () => { const src = getCompanionAvatarSourceBySlot(slot, loaded || c, getCharacterCompanionSettings()); entryAvatarFallback.textContent = getCompanionDisplayName(slot, entry.title).slice(0, 1); entryAvatarImg.hidden = !src; entryAvatarFallback.hidden = !!src; if (src) entryAvatarImg.src = src; else entryAvatarImg.removeAttribute('src'); };
                     syncEntryAvatar();
                     const entryAvatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
                     entryAvatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); entryAvatarInput.click(); });
-                    entryAvatarInput.addEventListener('change', async () => { const file = entryAvatarInput.files?.[0]; entryAvatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [entrySlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncEntryAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
+                    entryAvatarInput.addEventListener('change', async () => { const file = entryAvatarInput.files?.[0]; entryAvatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [entrySlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }, { requirePersistence: true }); syncEntryAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
                     cb.setAttribute('id', `stgc-entry-check-${index}-${entry.index}`);
-                    row.append(cb, entryAvatarButton, entryAvatarInput, el('label', { class: 'stgc-companion-worldbook-entry-name', for: `stgc-entry-check-${index}-${entry.index}`, text: entry.title }), el('small', { text: '1条目=1角色' }));
+                    const entryNameLabel = el('label', { class: 'stgc-companion-worldbook-entry-name', for: `stgc-entry-check-${index}-${entry.index}`, text: getCompanionDisplayName(slot, entry.title) });
+                    row.append(cb, entryAvatarButton, entryAvatarInput, entryNameLabel, el('small', { text: '1条目=1角色' }));
+                    row.append(createIdentityEditor({ slot, character: loaded || c, fallbackName: entry.title, onSaved: () => { entryNameLabel.textContent = getCompanionDisplayName(slot, entry.title); syncEntryAvatar(); updateCharacterPicker(); } }));
                     entryBox.append(row);
                     cb.addEventListener('change', () => {
                         if (cb.checked && pickedSlots.length >= 3 && !hasSlot(slot)) {
@@ -1461,7 +1569,8 @@
                     badge.hidden = true;
                 }
 
-                const ownMatch = !query || item.name.toLocaleLowerCase().includes(query);
+                const alias = getCompanionDisplayName({ source: 'character', characterIndex: item.index }, item.name);
+                const ownMatch = !query || item.name.toLocaleLowerCase().includes(query) || alias.toLocaleLowerCase().includes(query);
                 let anyEntryMatch = false;
                 item.entryBox.querySelectorAll('.stgc-companion-worldbook-entry').forEach(row => {
                     const label = row.querySelector('.stgc-companion-worldbook-entry-name')?.textContent?.toLocaleLowerCase() || '';
@@ -1625,7 +1734,7 @@
             openGame('doudizhu');
         });
 
-        panel.append(hero, currentBox, options, saveCompanion, launchUno, launchDdz,
+        panel.append(hero, currentBox, createIdentityEditor(), options, saveCompanion, launchUno, launchDdz,
             el('div', { class: 'stgc-companion-note', html: '<strong>读取规则：</strong>普通角色只读取<strong>角色简介</strong>；不会把 personality、scenario、示例对话或整本世界书塞进提示词。若展开某张卡的“世界书”，你可以单独选择某个启用条目；<strong>一个条目就是一个独立角色</strong>，只发送这个条目的内容。<br><strong>API：</strong>选择的是酒馆保存的 API 连接配置，不跟随当前 RP；RP 用 Pro，打牌可以单独用轻量配置。<br><strong>限流：</strong>可自行设置每分钟最多请求次数（1～60）；请求最短间隔会随上限自动计算，倒计时会显示在界面上。非法行动由 Silly Game 规则引擎拦截，失败后自动回退本地 AI。' }));
         if (!panel.isConnected) body.append(panel);
         state.characterCompanionTimer = window.setInterval(() => notifyCompanionRate(), 250);
@@ -1681,7 +1790,7 @@
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!Number.isFinite(parsed?.x) || !Number.isFinite(parsed?.y)) return null;
-            return { x: parsed.x, y: parsed.y };
+            return { x: parsed.x, y: parsed.y, ...(['left', 'right'].includes(parsed.edge) ? { edge: parsed.edge } : {}) };
         } catch {
             return null;
         }
@@ -1748,18 +1857,19 @@
         setLauncherHidden(!isLauncherHidden());
     }
 
-    function setRestorePosition(x, y, save = true) {
+    function setRestorePosition(x, y, save = true, dock = save) {
         const handle = document.getElementById(APP_ID + '-restore');
         if (!handle) return;
         const viewport = getViewportSize();
         const position = {
-            x: Math.min(Math.max(x, 8), Math.max(8, viewport.width - 28 - 8)),
-            y: Math.min(Math.max(y, 8), Math.max(8, viewport.height - 56 - 8)),
+            x: dock ? (x + 9 < viewport.width / 2 ? -6 : viewport.width - 12) : Math.min(Math.max(x, 0), Math.max(0, viewport.width - 18)),
+            y: Math.min(Math.max(y, 8), Math.max(8, viewport.height - 40 - 8)),
         };
+        handle.dataset.edge = position.x < viewport.width / 2 ? 'left' : 'right';
         handle.style.left = position.x + 'px';
         handle.style.top = position.y + 'px';
         if (save) {
-            try { localStorage.setItem(RESTORE_POSITION_KEY, JSON.stringify(position)); } catch { /* session only */ }
+            try { localStorage.setItem(RESTORE_POSITION_KEY, JSON.stringify({ ...position, edge: handle.dataset.edge })); } catch { /* session only */ }
         }
     }
 
@@ -1831,7 +1941,7 @@
             tabindex: '0',
             title: '打开 Silly Game · 可拖动',
             'aria-label': '打开 Silly Game，拖动可移动收纳把手',
-            text: 'S',
+            text: '',
         });
         // 收纳状态本身是持久设置：点小把手只打开 Silly Game，不自动把小把手恢复成悬浮球。
         // 只有在酒馆扩展设置里重新勾选“显示 Silly Game 悬浮按钮”时，才恢复悬浮球。
@@ -1847,7 +1957,8 @@
         setLauncherHidden(isLauncherHidden());
         const restorePosition = getStoredLauncherPosition(RESTORE_POSITION_KEY);
         const viewport = getViewportSize();
-        setRestorePosition(restorePosition?.x ?? 8, restorePosition?.y ?? (viewport.height - 56) / 2, false);
+        const restoreX = restorePosition?.edge === 'right' ? viewport.width : restorePosition?.edge === 'left' ? 0 : (restorePosition?.x ?? 8);
+        setRestorePosition(restoreX, restorePosition?.y ?? (viewport.height - 40) / 2, false, true);
     }
 
     function ensureRoot() {
@@ -2369,7 +2480,7 @@
         g.hands[p]=g.hands[p].filter((_,i)=>!ids.has(i)); g.hands[p]=ddzSortCards(g.hands[p]); g.lastMove={player:p,cards,type};g.passes=0;g.current=(p+1)%3;g.message=`${ddzPlayerName(g,p)} 出牌：${cards.map(ddzCardLabel).join(' ')}`; if(!g.hands[p].length){g.over=true;g.winner=p;recordGameWin('doudizhu');}
         return true;
     }
-    function ddzPlayerName(g,p){if(p===0)return '你';return resolveCharacterCompanionForPlayer(g,p)?.name||`AI ${p}`;}
+    function ddzPlayerName(g,p){if(p===0)return getPlayerProfile().name;return resolveCharacterCompanionForPlayer(g,p)?.name||`AI ${p}`;}
     function ddzSnapshot(g,p){
         const legal=ddzLegalMoves(g,p).filter(m=>!m.pass).slice(0,80).map(m=>({indices:m.indices,cards:m.cards.map(ddzCardLabel),type:m.type.kind,main:m.type.main,len:m.type.len}));
         return { game:'斗地主', playerIndex:p, playerName:ddzPlayerName(g,p), phase:g.phase, landlord:g.landlord, currentPlayer:g.current, yourHand:g.hands[p], otherHandCounts:g.hands.map((h,i)=>({player:i,name:ddzPlayerName(g,i),count:h.length})), lastMove:g.lastMove?{player:g.lastMove.player,cards:g.lastMove.cards.map(ddzCardLabel),type:g.lastMove.type}:null, legalMoves:legal, bottom:g.landlord===p?g.bottom:[], message:g.message||'' };
@@ -2445,7 +2556,7 @@
                 nameNode=el('strong',{class:'ddz-seat-name',text:name}),
                 sub=el('span',{class:'ddz-seat-sub',text:p===0?`${count} 张 · 你的手牌`:`剩 ${count} 张`});
             const seatCompanion = p > 0 ? resolveCharacterCompanionForPlayer(g, p) : null;
-            const seatAvatarSrc = seatCompanion ? getCompanionAvatarSource(seatCompanion, getLiveCompanionSettings(g)) : '';
+            const seatAvatarSrc = p === 0 ? getPlayerProfile().avatar : (seatCompanion ? getCompanionAvatarSource(seatCompanion, getLiveCompanionSettings(g)) : '');
             if (seatAvatarSrc) {
                 avatar.innerHTML = '';
                 avatar.append(el('img', { class: 'ddz-avatar-img', src: seatAvatarSrc, alt: '' }));
@@ -2458,7 +2569,7 @@
             if(tags.childElementCount) target.append(tags);
             if(p!==0) target.append(makeMiniBacks(count));
             const speech=g.companionSpeech?.player===p?String(g.companionSpeech.text||'').trim():'';
-            if(p!==0&&speech) target.append(el('div',{class:'ddz-seat-speech',text:speech}));
+            if(p!==0&&speech) target.append(el('div',{class:'ddz-seat-speech',text:speech,title:speech}));
         }
         function makeCard(card,index,clickable=true){
             const g=state.doudizhu, rank=rankText(card), suit=card.suit||'';
@@ -3281,8 +3392,8 @@
         bar.append(status,rateInfo,modeBtn,drawBtn,passBtn,unoBtn,reset);
         const table=el('div',{class:'uno-table'}),topAI=el('div',{class:'uno-ai-hand uno-ai-top'}),leftAI=el('div',{class:'uno-ai-hand uno-ai-left'}),rightAI=el('div',{class:'uno-ai-hand uno-ai-right'}),center=el('div',{class:'uno-center'}),deckArea=el('div',{class:'uno-pile-area uno-deck-area'}),discardArea=el('div',{class:'uno-pile-area uno-discard-area'}),deckBtn=el('button',{class:'uno-deck',type:'button'}),discard=el('div',{class:'uno-discard'}),deckLabel=el('span',{class:'uno-pile-label',text:'牌堆 · 点击摸牌'}),discardLabel=el('span',{class:'uno-pile-label',text:'出牌区'}),hand=el('div',{class:'uno-player-hand'}),hint=el('div',{class:'stgc-game-hint',text:'同色、同数字或同功能牌可以出牌。没有可出的牌就摸 1 张；若摸到的牌能出，可以直接打出，否则点击“过牌”。+4 仅在你手里没有当前颜色的牌时可用。'}),colorPicker=el('div',{class:'uno-color-picker',hidden:true}),centerNotice=el('div',{class:'uno-center-notice'});
         deckBtn.innerHTML='<span class="uno-deck-mark">UNO</span>';
-        const topArea=el('div',{class:'uno-top-area'});topArea.append(topAI,colorPicker);
-        deckArea.append(deckLabel,deckBtn);discardArea.append(discardLabel,discard);center.append(deckArea,discardArea,centerNotice);table.append(topArea,leftAI,center,rightAI);body.append(bar,table,hand,hint);
+        const topArea=el('div',{class:'uno-top-area'});topArea.append(topAI);
+        deckArea.append(deckLabel,deckBtn);discardArea.append(discardLabel,discard);center.append(deckArea,discardArea,centerNotice);table.append(topArea,leftAI,center,rightAI,colorPicker);body.append(bar,table,createPlayerIdentity(),hand,hint);
         UNO_COLORS.forEach(c=>{const b=el('button',{class:`uno-color-btn ${c}`,type:'button',text:UNO_COLOR_NAMES[c]});b.addEventListener('click',()=>{const g=state.uno,index=Number(colorPicker.dataset.index);colorPicker.hidden=true;if(unoApplyPlay(g,0,index,c)){unoSave();drawUno();scheduleNextAI();}});colorPicker.append(b);});
         function cardText(card){if(card.color==='wild')return card.type==='wild4'?'+4':'变色';return card.type==='number'?String(card.value):card.value;}
         function makeCard(card,index,clickable){const g=state.uno;const isPlayable=clickable&&!g.over&&g.current===0&&!g.needsUno&&(!g.drawnThisTurn||index===g.drawnCardIndex)&&unoPlayable(card,g,0);const node=el(clickable&&isPlayable?'button':'div',{class:`uno-card ${card.color}${isPlayable?' playable':''}${clickable&&!isPlayable?' unplayable':''}`,type:'button'});node.append(el('span',{class:'uno-card-corner',text:cardText(card)}),el('strong',{text:cardText(card)}),el('span',{class:'uno-card-corner bottom',text:cardText(card)}));if(clickable&&isPlayable)node.addEventListener('click',()=>onPlayerCard(index));return node;}
@@ -3299,7 +3410,7 @@
             meta.append(el('strong',{text:name}),el('span',{text:`${g.hands[p]?.length||0} 张`}));
             card.append(avatar,meta);
             const speech=g.companionSpeech?.player===p?String(g.companionSpeech.text||'').trim():'';
-            if(speech) card.append(el('div',{class:'uno-opponent-bubble',text:speech}));
+            if(speech) card.append(el('div',{class:'uno-opponent-bubble',text:speech,title:speech}));
             target.append(card);
         }
         function drawUno(){colorPicker.hidden=true;delete colorPicker.dataset.index;const g=state.uno;unoSyncCurrentColor(g);const hasPlayable=g.hands[0].some((c,i)=>unoPlayable(c,g,0)&&(!g.drawnThisTurn||i===g.drawnCardIndex));const companions = g.companion?.enabled ? resolveCharacterCompanions(getLiveCompanionSettings(g)) : [];
@@ -5709,21 +5820,22 @@
         const identityFallback = el('span', { class: 'stgc-board-companion-avatar-fallback', text: '陪' });
         const speechBubble = el('div', { class: 'stgc-companion-speech-bubble' });
         speechBubble.hidden = true;
-        identityAvatarWrap.append(identityAvatar, identityFallback, speechBubble);
+        identityAvatarWrap.append(identityAvatar, identityFallback);
         const title = el('span', { class: 'stgc-board-companion-title', text: options.title || '和陪玩说两句' });
-        identity.append(identityAvatarWrap, title);
+        identity.append(identityAvatarWrap, el('div', { class: 'stgc-board-identity-copy' }, [title, speechBubble]));
         const headerActions = el('div', { class: 'stgc-board-companion-header-actions' });
         const switcher = el('button', { class: 'stgc-btn stgc-board-companion-switcher', type: 'button', text: '换陪玩' });
         const rate = el('span', { class: 'stgc-board-companion-rate', text: companionRateText('AI 请求') });
         headerActions.append(switcher, rate);
-        header.append(identity, headerActions);
+        header.append(identity, createPlayerIdentity(), headerActions);
         const transcript = el('div', { class: 'stgc-board-companion-transcript', text: '对局中可以直接和对手说话。' });
         const row = el('div', { class: 'stgc-board-companion-input-row' });
         const input = el('input', { class: 'text_pole stgc-board-companion-input', type: 'text', placeholder: '比如：别下那么狠，放我一马？' });
         const ask = el('button', { class: 'stgc-btn stgc-board-companion-send', type: 'button', text: '发送' });
         const mercy = el('button', { class: 'stgc-btn stgc-board-companion-mercy', type: 'button', text: '求放水' });
         row.append(input, ask, mercy);
-        wrap.append(header, transcript, row);
+        wrap.append(transcript, row);
+        body.prepend(header);
         body.append(wrap);
 
         let unsubscribe = subscribeCompanionRateStatus(() => { rate.textContent = companionRateText('AI 请求'); });
@@ -5733,7 +5845,7 @@
             const message = String(text || '').trim().slice(0, 260);
             if (!message) { speechBubble.hidden = true; speechBubble.textContent = ''; return; }
             speechBubble.hidden = false;
-            speechBubble.textContent = message;
+            speechBubble.textContent = message; speechBubble.title = message;
             if (bubbleTimer) clearTimeout(bubbleTimer);
             bubbleTimer = setTimeout(() => { speechBubble.hidden = true; }, 9000);
         };
@@ -5773,6 +5885,9 @@
             switcher.disabled = companions.length <= 1 || !!game?.aiThinking;
             switcher.textContent = companions.length > 1 ? `换陪玩 · ${companion?.name || '当前'}` : '换陪玩';
             mercy.disabled = !game?.companion?.enabled || !companion || game?.over || !!game?.aiThinking;
+            const enabled = !!game?.companion?.enabled;
+            title.textContent = enabled ? (companion?.name || '陪玩角色') : (game?.mode === 'pvp' ? '双人对局' : '本地对局');
+            identityAvatarWrap.hidden = !enabled;
             const avatarSrc = companion ? getCompanionAvatarSource(companion, settings) : '';
             identityAvatar.hidden = !avatarSrc; identityFallback.hidden = !!avatarSrc;
             if (avatarSrc) identityAvatar.src = avatarSrc; else identityAvatar.removeAttribute('src');
@@ -8134,7 +8249,7 @@
                 setLauncherPosition(parseFloat(launcher.style.left) || 8, parseFloat(launcher.style.top) || 8);
             }
             const restore = document.getElementById(APP_ID + '-restore');
-            if (restore) setRestorePosition(parseFloat(restore.style.left) || 8, parseFloat(restore.style.top) || 8);
+            if (restore) setRestorePosition(restore.dataset.edge === 'right' ? getViewportSize().width : 0, parseFloat(restore.style.top) || 8);
         });
 
         // 页面切到后台 / 酒馆刷新或关闭时，再保存一次正在进行的数独。

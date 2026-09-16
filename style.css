@@ -8921,3 +8921,104 @@ n
 #st-mini-game-center .stgc-header > button:focus-visible,
 #st-mini-game-center .stgc-game-toolbar > button:focus-visible,
 #st-mini-game-center .stgc-status-row > button:focus-visible { outline: 2px solid #ae7ae7; outline-offset: 2px; }
+/* v2.2.4: a quiet docked grip; only 12px of its 18px width remains on-screen. */
+#st-mini-game-center-restore {
+    width: 18px !important; height: 40px !important; opacity: .38;
+    border-radius: 0 7px 7px 0 !important; box-shadow: none !important;
+    transition: opacity .15s ease;
+}
+#st-mini-game-center-restore[data-edge="right"] { border-radius: 7px 0 0 7px !important; }
+#st-mini-game-center-restore::before { content: ''; display: block; width: 2px; height: 13px; border-radius: 2px; background: currentColor; }
+#st-mini-game-center-restore:hover,
+#st-mini-game-center-restore:focus-visible,
+#st-mini-game-center-restore.is-dragging { opacity: .95; }
+
+/* Name/avatar editors use normal flow and persist only on explicit save. */
+#st-mini-game-center .stgc-identity-editor { min-width: 0; grid-column: 1 / -1; flex: 1 0 100%; margin: 6px 0; border: 1px solid var(--stgc-border); border-radius: 10px; background: var(--stgc-surface); color: var(--stgc-text); }
+#st-mini-game-center .stgc-identity-editor > summary { cursor: pointer; padding: 11px 12px; min-height: 44px; font-size: 13px; }
+#st-mini-game-center .stgc-identity-fields { padding: 12px; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: center; }
+#st-mini-game-center .stgc-identity-preview { width: 76px; height: 96px; display: grid; place-items: center; overflow: hidden; background: var(--stgc-surface-2); border: 1px solid var(--stgc-border); border-radius: 12px; font-size: 28px; }
+#st-mini-game-center .stgc-identity-preview img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+#st-mini-game-center .stgc-identity-name-label { display: grid; gap: 8px; min-width: 0; font-size: 13px; }
+#st-mini-game-center .stgc-identity-name-label input { width: 100%; min-width: 0; min-height: 44px; }
+#st-mini-game-center .stgc-identity-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+#st-mini-game-center .stgc-identity-actions button { min-height: 44px; }
+#st-mini-game-center .stgc-identity-status { grid-column: 1 / -1; font-size: 12px; color: var(--stgc-muted); overflow-wrap: anywhere; }
+#st-mini-game-center .stgc-companion-worldbook-entry { flex-wrap: wrap !important; }
+#st-mini-game-center .stgc-companion-worldbook-entry > .stgc-identity-editor { width: 100%; }
+#st-mini-game-center .stgc-player-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 8px 0; min-width: 0; color: var(--stgc-text); }
+#st-mini-game-center .stgc-player-avatar { width: 48px; height: 60px; flex: 0 0 48px; overflow: hidden; border: 1px solid var(--stgc-border); border-radius: 10px; background: var(--stgc-surface-2); display: grid; place-items: center; font-size: 20px; }
+#st-mini-game-center .stgc-player-avatar-img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+#st-mini-game-center .stgc-player-name { overflow-wrap: anywhere; max-width: 12em; font-size: 14px; }
+
+/* Three large UNO identities get a whole row; neither faces nor bubbles cover cards. */
+#st-mini-game-center .uno-table {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    grid-template-areas: 'left top right' 'center center center' 'picker picker picker';
+    min-height: 0; gap: 16px 10px; padding: 16px;
+}
+#st-mini-game-center .uno-ai-hand { opacity: 1; writing-mode: horizontal-tb; align-items: flex-start; letter-spacing: normal; min-width: 0; width: 100%; }
+#st-mini-game-center .uno-opponent-player { display: flex; flex-direction: column; width: 100%; gap: 8px; }
+#st-mini-game-center .uno-opponent-avatar { width: 84px; height: 104px; flex: 0 0 104px; max-width: 100%; border: 2px solid #ad89d3; border-radius: 13px; box-shadow: 0 3px 10px #0002; font-size: 28px; color: var(--stgc-text); background: var(--stgc-surface-2); }
+#st-mini-game-center .uno-opponent-avatar-img { object-position: center 25%; }
+#st-mini-game-center .uno-opponent-meta { text-align: center; align-items: center; max-width: 100%; }
+#st-mini-game-center .uno-opponent-meta strong { font-size: 14px; max-width: 100%; }
+#st-mini-game-center .uno-opponent-meta span { font-size: 12px; opacity: .85; }
+#st-mini-game-center .uno-center { width: 100%; min-width: 0; min-height: 160px; gap: 24px; padding: 8px 0 36px; }
+#st-mini-game-center .uno-color-picker { grid-area: picker; position: static; width: 100%; max-width: 100%; transform: none; margin: 0; flex-wrap: wrap; justify-content: center; }
+#st-mini-game-center .uno-color-btn { min-width: 48px; min-height: 44px; }
+
+/* Opponent seats and the played cards occupy distinct grid rows. */
+#st-mini-game-center .ddz-table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'left right' 'center center' 'me me'; gap: 14px; padding: 16px; min-height: 0; }
+#st-mini-game-center .ddz-seat { position: relative; inset: auto; width: 100%; max-width: 100%; transform: none; padding: 12px; background: var(--stgc-surface-2); }
+#st-mini-game-center .ddz-seat-left { grid-area: left; }
+#st-mini-game-center .ddz-seat-right { grid-area: right; }
+#st-mini-game-center .ddz-seat-me { grid-area: me; justify-self: center; width: min(320px, 100%); }
+#st-mini-game-center .ddz-seat.is-current,
+#st-mini-game-center .ddz-seat-me.is-current { transform: none; border-color: #ad89d3; }
+#st-mini-game-center .ddz-seat-head { flex-direction: column; width: 100%; }
+#st-mini-game-center .ddz-seat-me .ddz-seat-head { flex-direction: row; }
+#st-mini-game-center .ddz-avatar { width: 84px; height: 104px; flex: 0 0 104px; border: 2px solid #ad89d3; border-radius: 13px; box-shadow: 0 3px 10px #0002; font-size: 28px; background: var(--stgc-surface); color: var(--stgc-text); }
+#st-mini-game-center .ddz-avatar-img { object-position: center 25%; }
+#st-mini-game-center .ddz-seat-me .ddz-avatar { width: 48px; height: 60px; flex-basis: 48px; }
+#st-mini-game-center .ddz-seat-meta { max-width: 100%; align-items: center; text-align: center; }
+#st-mini-game-center .ddz-seat-name { font-size: 14px; max-width: 100%; }
+#st-mini-game-center .ddz-seat-sub { font-size: 12px; opacity: .85; }
+#st-mini-game-center .ddz-center { position: relative; grid-area: center; inset: auto; transform: none; width: 100%; min-width: 0; padding: 8px; }
+#st-mini-game-center .ddz-move-cards { max-width: 100%; justify-content: flex-start; overflow-x: auto; }
+
+/* Chess identities have a prominent strip above the board, outside its click area. */
+#st-mini-game-center .stgc-board-companion-header { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 12px; margin-bottom: 12px; background: var(--stgc-surface-2); border: 1px solid var(--stgc-border); border-radius: 14px; }
+#st-mini-game-center .stgc-board-companion-identity { display: flex; flex: 1 1 210px; align-items: center; gap: 12px; min-width: 0; }
+#st-mini-game-center .stgc-board-companion-avatar-wrap { width: 96px; height: 120px; flex: 0 0 96px; }
+#st-mini-game-center .stgc-board-companion-avatar,
+#st-mini-game-center .stgc-board-companion-avatar-fallback { width: 96px !important; height: 120px !important; border-radius: 14px !important; border: 2px solid #ad89d3; box-shadow: 0 3px 12px #0002; object-position: center 25%; }
+#st-mini-game-center .stgc-board-companion-avatar-fallback { font-size: 32px; color: var(--stgc-text); background: var(--stgc-surface); }
+#st-mini-game-center .stgc-board-identity-copy { min-width: 0; flex: 1; }
+#st-mini-game-center .stgc-board-companion-title { display: block; font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+#st-mini-game-center .stgc-board-companion-header-actions { flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; }
+#st-mini-game-center .stgc-board-companion-switcher { white-space: normal; overflow-wrap: anywhere; }
+#st-mini-game-center .stgc-companion-speech-bubble,
+#st-mini-game-center .uno-opponent-bubble,
+#st-mini-game-center .ddz-seat-speech { position: static; inset: auto; transform: none; width: auto; max-width: 100%; margin-top: 6px; background: var(--stgc-surface); color: var(--stgc-text); animation: none; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+#st-mini-game-center .stgc-companion-speech-bubble::after,
+#st-mini-game-center .uno-opponent-bubble::after,
+#st-mini-game-center .ddz-seat-speech::after { content: none; }
+#st-mini-game-center .stgc-companion-speech-bubble,
+#st-mini-game-center .uno-opponent-bubble,
+#st-mini-game-center .ddz-seat-speech { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+@media (max-width: 700px) {
+    #st-mini-game-center .uno-table { padding: 10px; gap: 12px 6px; }
+    #st-mini-game-center .uno-opponent-avatar,
+    #st-mini-game-center .ddz-avatar { width: 68px; height: 86px; flex-basis: 86px; }
+    #st-mini-game-center .uno-opponent-meta strong,
+    #st-mini-game-center .ddz-seat-name { font-size: 13px; }
+    #st-mini-game-center .ddz-table { padding: 10px; gap: 10px; }
+    #st-mini-game-center .ddz-seat { padding: 8px; }
+    #st-mini-game-center .stgc-board-companion-header { flex-direction: row; }
+    #st-mini-game-center .stgc-board-companion-avatar-wrap { width: 80px; height: 100px; flex-basis: 80px; }
+    #st-mini-game-center .stgc-board-companion-avatar,
+    #st-mini-game-center .stgc-board-companion-avatar-fallback { width: 80px !important; height: 100px !important; }
+}
+
