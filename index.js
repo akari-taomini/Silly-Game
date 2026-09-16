@@ -44,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.2';
+    const CURRENT_VERSION = '2.2.3';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -1322,7 +1322,7 @@
             // 不直接让 checkbox_label 与世界书按钮共享一整行的点击区域，避免酒馆原生样式造成覆盖/重叠。
             const mainCell = el('div', { class: 'stgc-companion-character-main-cell' });
             const mainLabel = el('div', { class: 'stgc-companion-character-option stgc-companion-main-option' });
-            const checkbox = el('input', { type: 'checkbox', class: 'checkbox' });
+            const checkbox = el('input', { type: 'checkbox', class: 'checkbox', id: `stgc-role-check-${index}` });
             const name = String(c.name || `角色 ${index + 1}`);
             const mainSlot = { source: 'character', characterIndex: index };
             checkbox.checked = hasSlot(mainSlot);
@@ -1333,7 +1333,8 @@
             avatarButton.append(avatarImg, avatarFallback);
             const syncMainAvatar = () => { const src = getCompanionAvatarSourceBySlot(mainSlot, c, getCharacterCompanionSettings()); avatarImg.hidden = !src; avatarFallback.hidden = !!src; if (src) avatarImg.src = src; else avatarImg.removeAttribute('src'); };
             syncMainAvatar();
-            mainLabel.append(checkbox, avatarButton, el('span', { class: 'stgc-companion-character-option-name', text: name }), Number.isInteger(activeIndex) && index === activeIndex ? el('em', { class: 'stgc-companion-current-badge', text: '当前' }) : null);
+            mainLabel.append(checkbox, avatarButton, el('label', { class: 'stgc-companion-character-option-name', for: `stgc-role-check-${index}`, text: name }));
+            if (Number.isInteger(activeIndex) && index === activeIndex) mainLabel.append(el('em', { class: 'stgc-companion-current-badge', text: '当前' }));
             const avatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
             avatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); avatarInput.click(); });
             avatarInput.addEventListener('change', async () => { const file = avatarInput.files?.[0]; avatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [mainSlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncMainAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
@@ -1409,7 +1410,8 @@
                     const entryAvatarInput = el('input', { type: 'file', accept: 'image/*', class: 'stgc-companion-avatar-input', hidden: 'hidden' });
                     entryAvatarButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); entryAvatarInput.click(); });
                     entryAvatarInput.addEventListener('change', async () => { const file = entryAvatarInput.files?.[0]; entryAvatarInput.value = ''; if (!file) return; try { const dataUrl = await fileToCompressedDataUrl(file); const currentSettings = getCharacterCompanionSettings(); currentSettings.avatarOverrides = { ...(currentSettings.avatarOverrides || {}), [entrySlotKey]: dataUrl }; saveCharacterCompanionSettings({ avatarOverrides: currentSettings.avatarOverrides }); syncEntryAvatar(); } catch (error) { notify(error?.message || '头像设置失败', 'Silly Game'); } });
-                    row.append(cb, entryAvatarButton, entryAvatarInput, el('span', { class: 'stgc-companion-worldbook-entry-name', text: entry.title }), el('small', { text: '1条目=1角色' }));
+                    cb.setAttribute('id', `stgc-entry-check-${index}-${entry.index}`);
+                    row.append(cb, entryAvatarButton, entryAvatarInput, el('label', { class: 'stgc-companion-worldbook-entry-name', for: `stgc-entry-check-${index}-${entry.index}`, text: entry.title }), el('small', { text: '1条目=1角色' }));
                     entryBox.append(row);
                     cb.addEventListener('change', () => {
                         if (cb.checked && pickedSlots.length >= 3 && !hasSlot(slot)) {
@@ -2740,7 +2742,7 @@
         if(!tile)return null;
         const type=MATCH3_TYPES.includes(tile.type)?tile.type:(MATCH3_TYPE_MIGRATION[tile.type]||MATCH3_TYPES[Math.floor(Math.random()*MATCH3_TYPES.length)]);
         const special=['row','col','bomb','color'].includes(tile.special)?tile.special:null;
-        return {type,color:MATCH3_GUMMIES[type].color,special,ice:tile.ice?1:0,vine:tile.vine?1:0};
+        return {type,color:MATCH3_GUMMIES[type].color,special,jelly:tile.jelly?1:0,ice:tile.ice?1:0,vine:tile.vine?1:0};
     }
     function match3NormalizeStats(g){
         g.score=Math.max(0,Number(g.score)||0); g.moves=Math.max(0,Number(g.moves)||0);
@@ -2755,7 +2757,9 @@
         g.selected=null; g.tool=null;
         g.tools={...MATCH3_TOOLS_DEFAULT,...(g.tools&&typeof g.tools==='object'?g.tools:{})};
         Object.keys(g.tools).forEach(k=>g.tools[k]=Math.max(0,Number(g.tools[k])||0));
-        const level=match3LevelById(g.level); g.maxMoves=level.moves;
+        const level=match3LevelById(g.level);
+        const savedMaxMoves=Number(g.maxMoves);
+        g.maxMoves=Number.isFinite(savedMaxMoves)?Math.max(level.moves,Math.floor(savedMaxMoves)):level.moves;
         return g;
     }
     function match3Load(){
@@ -2950,8 +2954,8 @@
     }
     function match3RemoveCells(g,cells,scoreMultiplier=1){
         const unique=[...new Map(cells.map(([r,c])=>[`${r},${c}`,[r,c]])).values()];
-        for(const [r,c] of unique){const tile=g.board[r][c];if(!tile)continue;g.collected[tile.type]=(g.collected[tile.type]||0)+1;if(tile.jelly)g.jellyCleared++;g.board[r][c]=null;}
-        const n=unique.length;g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board, g.level);return n;
+        const n=match3CollectAndClear(g,unique);
+        g.score+=Math.round(n*n*5*scoreMultiplier);match3Collapse(g.board, g.level);return n;
     }
     function match3ShuffleBoard(g){
         const shape=match3ShapeByLevel(g.level);
@@ -2993,7 +2997,22 @@
         }
         return !match3HasInitialMatch(g.board)&&match3HasMove(g.board);
     }
+    function match3CandyLabel(tile) {
+        const specials={row:'横向消除',col:'纵向消除',bomb:'炸弹',color:'彩虹'};
+        return [MATCH3_GUMMIES[tile.type]?.name||'软糖',specials[tile.special],tile.jelly?'果冻目标':'',tile.ice?'冰块':'',tile.vine?'藤蔓':''].filter(Boolean).join('，');
+    }
+    function makeMatch3CandyArt(tile) {
+        const art=el('span',{class:'match3-candy-art','aria-hidden':'true'});
+        art.append(el('span',{class:'match3-candy-shape'}),el('span',{class:'match3-candy-shine'}));
+        const layers=[['jelly','match3-jelly-layer'],['ice','match3-ice-layer'],['vine','match3-vine-layer']];
+        const fragment=el('span',{class:'match3-candy-visual','aria-hidden':'true'});
+        fragment.append(art);
+        if(tile.special) fragment.append(el('span',{class:'match3-special-mark',text:({row:'↔',col:'↕',bomb:'✦',color:'✧'})[tile.special]||''}));
+        for(const [key,cls] of layers)if(tile[key])fragment.append(el('span',{class:cls}));
+        return fragment;
+    }
     function renderMatch3(body){
+        body.classList.add('match3-game-body');
         cleanupGame();
         state.match3=match3Load()||match3New(1,1,[]);
         if(!state.match3.won&&!state.match3.over&&!match3HasMove(state.match3.board)){
@@ -3035,7 +3054,15 @@
         }
         function selectTool(id){
             const g=state.match3;if(g.over||!(g.tools[id]>0))return;
-            g.tool=g.tool===id?null:id;g.selected=null;draw();
+            g.selected=null;
+            if(id==='shuffle'){
+                if(match3ShuffleBoard(g)){g.tools.shuffle--;g.notice='已重新排列软糖';}
+                else g.notice='当前棋盘无法洗牌';
+                g.tool=null;match3Save(g);
+            }else if(id==='extraMoves'){
+                g.tools.extraMoves--;g.maxMoves+=5;g.tool=null;g.notice='已增加 5 步';match3Save(g);
+            }else g.tool=g.tool===id?null:id;
+            draw();
         }
         function useTool(r,c){
             const g=state.match3;if(!g.tool||!(g.tools[g.tool]>0)||!g.board[r][c])return false;
@@ -3051,7 +3078,7 @@
                 const type=g.board[r][c].type;const cells=[];for(let rr=0;rr<MATCH3_SIZE;rr++)for(let cc=0;cc<MATCH3_SIZE;cc++)if(g.board[rr][cc]?.type===type)cells.push([rr,cc]);
                 match3RemoveCells(g,cells,1.15);g.tools.colorClear--;
             }else return false;
-            g.tool=null;match3FinishCheck(g);match3Save(g);return true;
+            g.tool=null;match3Resolve(g);match3Save(g);return true;
         }
         function draw(){
             const g=state.match3,level=match3LevelById(g.level);board.innerHTML='';
@@ -3063,7 +3090,7 @@
             for(let r=0;r<MATCH3_SIZE;r++)for(let c=0;c<MATCH3_SIZE;c++){
                 const t=g.board[r][c], open=match3IsOpen(level.id,r,c);
                 const cell=el('button',{class:`match3-cell ${open?'':'candy-hole '}${t?`candy-${t.type}`:'candy-empty'}${g.selected?.r===r&&g.selected?.c===c?' selected':''}`,type:'button'});
-                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';if(t.ice)cell.dataset.ice='1';if(t.vine)cell.dataset.vine='1';cell.innerHTML='<span class="match3-candy-art" aria-hidden="true"></span>';cell.addEventListener('click',()=>select(r,c));}
+                if(t){cell.dataset.type=t.type;cell.dataset.color=MATCH3_GUMMIES[t.type].color;if(t.special)cell.dataset.special=t.special;if(t.jelly)cell.dataset.jelly='1';if(t.ice)cell.dataset.ice='1';if(t.vine)cell.dataset.vine='1';cell.append(makeMatch3CandyArt(t));cell.setAttribute('aria-label',`第 ${r+1} 行第 ${c+1} 列，${match3CandyLabel(t)}`);cell.setAttribute('aria-pressed',g.selected?.r===r&&g.selected?.c===c?'true':'false');cell.disabled=g.over;cell.addEventListener('click',()=>select(r,c));}
                 else cell.disabled=true;board.append(cell);
             }
             result.innerHTML='';
@@ -3091,8 +3118,6 @@
         function select(r,c){
             const g=state.match3;if(g.over||!g.board[r][c])return;
             if(g.tool){
-                if(g.tool==='shuffle'){g.tools.shuffle--;match3ShuffleBoard(g);g.tool=null;match3Save(g);draw();return;}
-                if(g.tool==='extraMoves'){g.tools.extraMoves--;g.maxMoves+=5;g.tool=null;match3Save(g);draw();return;}
                 if(useTool(r,c)){draw();return;}
             }
             if(!g.selected){g.selected={r,c};draw();return;}
@@ -7906,8 +7931,6 @@
 
     function renderSpider(body) {
         state.spider = state.spider || newSpiderGame('one');
-        const game = state.spider;
-
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar spider-level-bar' });
         const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '模式' });
         const levelSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '蜘蛛纸牌模式' });
@@ -7963,17 +7986,17 @@
             text: '点击一张牌选中，再点击目标列移动；只有同花色连续的牌可以整组移动。电脑和手机都一样。',
         });
 
-        area.append(tableau, bottom, help);
-        body.append(difficultyBar, toolbar, area);
+        area.append(tableau);
+        body.append(difficultyBar, toolbar, bottom, area, help);
 
         stockButton.addEventListener('click', () => {
-            if (spiderDealStock()) draw();
-            else draw();
+            spiderDealStock();
+            draw();
         });
 
         let timer = null;
         timer = window.setInterval(() => {
-            if (state.currentGame !== 'spider' || state.spider !== game) return;
+            if (state.currentGame !== 'spider' || !state.spider) return;
             if (!state.spider.won) {
                 state.spider.time = Math.floor((Date.now() - state.spider.startedAt) / 1000);
                 drawInfo();
@@ -7996,9 +8019,10 @@
                 ? `<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>发牌 ${Math.floor(current.stock.length / 10)} 轮</span>`
                 : '<i class="fa-solid fa-check" aria-hidden="true"></i><span>发牌堆空了</span>';
 
+            stockButton.title = current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : '给每列发一张牌';
             status.textContent = current.won
                 ? `🎉 通关！${formatTime(current.time)} · ${current.moves} 次操作`
-                : (current.message || `剩余发牌 ${Math.floor(current.stock.length / 10)} 轮`);
+                : (current.message || (current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : `剩余发牌 ${Math.floor(current.stock.length / 10)} 轮`));
         }
 
         function draw() {
@@ -8009,6 +8033,7 @@
             for (let col = 0; col < 10; col++) {
                 const pileWrap = el('div', { class: 'spider-column' });
                 const pile = current.tableau[col];
+                pileWrap.style.setProperty('--spider-stack-steps', String(Math.max(0, pile.length - 1)));
                 if (!pile.length) {
                     const empty = el('button', { class: 'spider-empty', type: 'button', text: '空' });
                     empty.setAttribute('aria-label', `第 ${col + 1} 列为空`);
@@ -8029,7 +8054,7 @@
                             type: 'button',
                             'aria-label': card.faceUp ? `${card.suit}${card.rank}` : '背面朝上',
                         });
-                        button.style.setProperty('--card-offset', `${index * 27}px`);
+                        button.style.setProperty('--card-offset', `calc(${index} * var(--spider-card-step))`);
                         button.style.zIndex = String(index + 1);
                         if (card.faceUp) {
                             button.innerHTML = `<span class="spider-rank">${card.rank === 1 ? 'A' : card.rank === 11 ? 'J' : card.rank === 12 ? 'Q' : card.rank === 13 ? 'K' : card.rank}</span><span class="spider-suit">${card.suit}</span>`;
