@@ -9022,3 +9022,108 @@ n
     #st-mini-game-center .stgc-board-companion-avatar-fallback { width: 80px !important; height: 100px !important; }
 }
 
+
+
+/* v2.2.5 — touch-friendly star selection and crisp water bottles */
+#st-mini-game-center .star-pop-board .star-pop-cell.star-pop-selected {
+    outline: 2px solid #fff;
+    outline-offset: -3px;
+    box-shadow: inset 0 0 0 4px #26334b, 0 0 0 1px #26334b;
+}
+
+#st-mini-game-center .water-sort-board {
+    box-sizing: border-box;
+    padding: 18px 6px 12px;
+    gap: 20px 8px;
+    grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+    touch-action: manipulation;
+}
+
+#st-mini-game-center .water-sort-board .water-tube-wrap {
+    width: 100%;
+    max-width: 76px;
+    gap: 10px;
+}
+
+#st-mini-game-center .water-sort-board .water-tube {
+    box-sizing: border-box;
+    width: 58px;
+    max-width: calc(100% - 8px);
+    height: 160px;
+    border: 3px solid #60748e;
+    border-top: 5px solid #445a77;
+    border-radius: 9px 9px 20px 20px;
+    background: #edf2f8;
+    box-shadow: 0 0 0 2px #f8fbff, 0 3px 0 2px #26364d;
+    isolation: isolate;
+}
+
+#st-mini-game-center .water-sort-board .water-tube::before {
+    inset: 4px auto 10px 4px;
+    width: 3px;
+    height: auto;
+    border-radius: 2px;
+    background: rgba(255,255,255,.46);
+}
+
+#st-mini-game-center .water-sort-board .water-liquid {
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    background: var(--water-color);
+    border-top: 2px solid rgba(255,255,255,.92);
+    box-shadow: inset 0 1px 0 rgba(24,36,54,.45);
+    opacity: 1;
+}
+
+#st-mini-game-center .water-sort-board .water-color-mark {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: #fff;
+    color: #182436;
+    border: 1px solid #44546a;
+    font: 700 12px/1 system-ui, sans-serif;
+    text-shadow: none;
+    pointer-events: none;
+}
+
+#st-mini-game-center .water-sort-board .water-tube.empty::after {
+    content: "空";
+    color: #445a77;
+    opacity: 1;
+    font: 600 14px/1 system-ui, sans-serif;
+}
+
+#st-mini-game-center .water-sort-board .water-tube-wrap.selected .water-tube {
+    transform: translateY(-7px);
+    outline: 3px solid #f5b52e;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 7px #26364d;
+}
+
+#st-mini-game-center .water-sort-board .water-tube-number {
+    min-width: 26px;
+    padding: 3px 7px;
+    border: 1px solid #60748e;
+    border-radius: 6px;
+    background: #edf2f8;
+    color: #182436;
+    text-align: center;
+    font: 700 12px/1.2 system-ui, sans-serif;
+    text-shadow: none;
+    opacity: 1;
+}
+
+@media (max-width: 600px) {
+    #st-mini-game-center .water-sort-board {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 20px 6px;
+    }
+    #st-mini-game-center .water-sort-board .water-tube {
+        width: 54px;
+        height: 152px;
+    }
+}

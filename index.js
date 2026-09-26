@@ -44,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.4';
+    const CURRENT_VERSION = '2.2.5';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -3626,11 +3626,33 @@
         toolbar.append(info, paletteWrap, reset);
 
         const board = el('div', { class: 'star-pop-board', role: 'grid', 'aria-label': '消灭星星棋盘' });
-        const hint = el('div', { class: 'stgc-game-hint', text: '双击两个以上相连的同色星星即可消除。消除后上方星星会下落，空列会向左收拢。' });
+        const hint = el('div', { class: 'stgc-game-hint', text: '点一下选中相连的同色星星，再点高亮区域即可消除；也支持快速双击。至少两颗才能消除。' });
         const result = el('div', { class: 'star-pop-result' });
         body.append(toolbar, board, result, hint);
 
+        // Use ordinary clicks for both mouse and touch; mobile browsers may
+        // never dispatch dblclick. Selection is visual only, not saved gameplay.
+        let selected = new Set();
+        function selectGroup(r, c) {
+            const game = state.starPop;
+            if (!game || game.over || game.won) return;
+            if (selected.has(`${r},${c}`)) {
+                starPopClick(r, c);
+                draw();
+                return;
+            }
+            const group = starPopGroup(game.board, r, c);
+            selected = new Set(group.length >= 2 ? group.map(([gr, gc]) => `${gr},${gc}`) : []);
+            // Keep the same DOM nodes between the two clicks.
+            Array.from(board.children).forEach((cell, index) => {
+                const on = selected.has(`${Math.floor(index / STARPOP_SIZE)},${index % STARPOP_SIZE}`);
+                cell.classList.toggle('star-pop-selected', on);
+                if (cell.getAttribute('role') === 'button') cell.setAttribute('aria-pressed', String(on));
+            });
+        }
+
         function draw() {
+            selected.clear();
             const game = state.starPop;
             board.innerHTML = '';
             board.dataset.palette = paletteSelect.value;
@@ -3655,11 +3677,11 @@
                         'aria-label': v < 0 ? '空位' : `${STARPOP_COLORS[v]}星星`,
                     });
                     if (v >= 0) {
-                        cell.addEventListener('dblclick', event => {
+                        cell.setAttribute('aria-pressed', 'false');
+                        cell.addEventListener('click', event => {
                             event.preventDefault();
                             event.stopPropagation();
-                            starPopClick(r, c);
-                            draw();
+                            selectGroup(r, c);
                         });
                         cell.addEventListener('keydown', event => {
                             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); starPopClick(r,c); draw(); }
@@ -6788,7 +6810,7 @@
         const board = el('div', { class: 'water-sort-board', 'aria-label': '倒水瓶棋盘' });
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '点一个瓶子选中，再点目标瓶倒水。每两关增加一种颜色；无尽模式会一直生成新局。刷新后自动保存。',
+            text: '点一个瓶子选中，再点目标瓶倒水。同字母代表同一种颜色，瓶底数字是瓶号。每两关增加一种颜色；支持无尽模式，进度自动保存。',
         });
         body.append(top, modeRow, levelRow, board, hint);
 
@@ -6892,6 +6914,11 @@
                     const liquid = el('div', { class: 'water-liquid' });
                     liquid.style.setProperty('--water-color', WATER_COLORS[colorIndex % WATER_COLORS.length]);
                     liquid.style.bottom = `${layer * 25}%`;
+                    liquid.append(el('span', {
+                        class: 'water-color-mark',
+                        text: String.fromCharCode(65 + colorIndex % WATER_COLORS.length),
+                        'aria-label': `颜色 ${colorIndex + 1}`,
+                    }));
                     tubeEl.append(liquid);
                 });
                 if (!tube.length) tubeEl.classList.add('empty');
