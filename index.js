@@ -1,6 +1,156 @@
 (() => {
     'use strict';
 
+    // TauriTavern public host contract; keep native internals behind the host.
+    const hostCompat = { contextGetter: null, connectionService: null, preparing: null, profileError: '', hiddenProfiles: 0 };
+    const activeCompanionRequests = new Set();
+    const characterDataCache = new Map();
+    const linkedWorldbooks = new Map();
+    function isTauriTavern() {
+        return window.__TAURI_RUNNING__ === true || !!window.__TAURITAVERN__;
+    }
+    function deadline(promise, ms, message) {
+        let timer;
+        return Promise.race([
+            Promise.resolve(promise),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); }),
+        ]).finally(() => clearTimeout(timer));
+    }
+    async function waitForNativeHost() {
+        if (!isTauriTavern()) return;
+        const ready = window.__TAURITAVERN__?.ready ?? window.__TAURITAVERN_MAIN_READY__;
+        if (ready) await deadline(ready, 15000, 'Tauri Tavern 初始化尚未完成，请稍后重新打开小游戏。');
+    }
+    async function prepareCompanionHost() {
+        if (hostCompat.preparing) return hostCompat.preparing;
+        hostCompat.preparing = (async () => {
+            await waitForNativeHost();
+            if (!getSTContext()) {
+                const mod = await deadline(import('/scripts/st-context.js'), 10000, '酒馆接口加载超时');
+                hostCompat.contextGetter = mod.getContext || mod.default;
+            }
+            if (!getSTContext()?.ConnectionManagerRequestService && !hostCompat.connectionService) {
+                const mod = await deadline(import('/scripts/extensions/shared.js'), 10000, '陪玩连接服务加载超时');
+                hostCompat.connectionService = mod.ConnectionManagerRequestService || null;
+            }
+        })().finally(() => { hostCompat.preparing = null; });
+        return hostCompat.preparing;
+    }
+    async function hostJson(path, body) {
+        await waitForNativeHost();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            // Dynamic window.fetch preserves the TT route interceptor and receiver.
+            const response = await window.fetch(path, {
+                method: 'POST', headers: await getSTRequestHeaders(),
+                body: JSON.stringify(body), signal: controller.signal,
+            });
+            if (!response.ok) throw new Error(`读取酒馆数据失败（${response.status}）`);
+            return await response.json();
+        } finally { clearTimeout(timer); }
+    }
+    function companionErrorMessage(error) {
+        let current = error;
+        for (let i = 0; i < 5 && current?.cause; i++) current = current.cause;
+        const message = String(current?.message || current || '未知错误');
+        if (/Text Completion|textgenerationwebui/i.test(message)) return 'Tauri Tavern 当前不支持此文本补全配置，请选择聊天补全配置。';
+        if (/Connection Manager is not available/i.test(message)) return '请先在酒馆扩展管理中启用 Connection Manager（连接管理器）。';
+        if (/profile not found|could not find profile/i.test(message)) return '已保存的 API 连接配置不存在，请重新选择。';
+        if (/401|403|unauthorized|invalid.*key|bad credentials/i.test(message)) return 'API 鉴权失败，请在酒馆 API 设置里检查密钥和访问权限。';
+        if (/429|rate.?limit/i.test(message)) return 'API 请求过于频繁，请降低陪玩请求速率。';
+        if (/timeout|timed out|超时|abort/i.test(message)) return '陪玩请求超时或已取消，请检查网络与 API。';
+        if (/fetch|network|connect|API request failed/i.test(message)) return '陪玩 API 连接失败，请先确认同一连接配置能在酒馆正常出字。';
+        // Do not put arbitrary provider payloads, URLs or credentials in the UI.
+        return '陪玩请求失败，请检查连接配置、模型及 API 服务状态。';
+    }
+    function linkedWorldName(character) {
+        return character?.data?.extensions?.world || character?.extensions?.world || '';
+    }
+
+    // Native snapshot is a backup of this extension only, not a replacement for
+    // browser storage. Never intercept the host's localStorage implementation.
+    const nativeBackup = { store: null, items: new Map(), timer: null, queue: Promise.resolve(), warned: false };
+    function ownStorageKey(key) { return /^(?:silly-game[:\-]|stgc-|st-mini-game-center:)/.test(key); }
+    function scheduleNativeBackup() {
+        if (!nativeBackup.store) return;
+        clearTimeout(nativeBackup.timer);
+        nativeBackup.timer = setTimeout(() => { void flushNativeBackup(); }, 450);
+    }
+    function flushNativeBackup() {
+        clearTimeout(nativeBackup.timer);
+        if (!nativeBackup.store) return nativeBackup.queue;
+        const value = { schema: 1, items: Object.fromEntries(nativeBackup.items), savedAt: Date.now() };
+        // Serialize writes so an old slow write cannot overwrite new progress.
+        nativeBackup.queue = nativeBackup.queue.then(() => nativeBackup.store.setJson({
+            namespace: 'silly-game', key: 'snapshot-v1', value,
+        })).catch(() => {
+            if (!nativeBackup.warned) {
+                nativeBackup.warned = true;
+                notify('游戏已写入网页存档，但 Tauri 本地备份失败。请检查应用存储空间。', 'Silly Game');
+            }
+        });
+        return nativeBackup.queue;
+    }
+    const gameStorage = {
+        getItem(key) { return localStorage.getItem(key); },
+        setItem(key, value) {
+            localStorage.setItem(key, value); // Preserve quota failures for callers.
+            if (nativeBackup.store && ownStorageKey(key)) {
+                nativeBackup.items.set(key, String(value)); scheduleNativeBackup();
+            }
+        },
+        removeItem(key) {
+            localStorage.removeItem(key);
+            if (nativeBackup.store && ownStorageKey(key)) {
+                nativeBackup.items.delete(key); scheduleNativeBackup();
+            }
+        },
+    };
+    async function initializeNativeBackup() {
+        const store = window.__TAURITAVERN__?.api?.extension?.store;
+        if (!store?.tryGetJson || !store?.setJson) return;
+        try {
+            const saved = await deadline(store.tryGetJson({ namespace: 'silly-game', key: 'snapshot-v1' }), 8000, '备份读取超时');
+            const current = new Map();
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && ownStorageKey(key)) current.set(key, localStorage.getItem(key));
+            }
+            // Restore only when the whole extension storage is absent. Individual
+            // absent keys may be deliberate resets and must not be resurrected.
+            if (!current.size && saved?.found && saved.value?.schema === 1) {
+                for (const [key, value] of Object.entries(saved.value.items || {})) {
+                    if (ownStorageKey(key) && typeof value === 'string') {
+                        localStorage.setItem(key, value); current.set(key, value);
+                    }
+                }
+            }
+            nativeBackup.items = current;
+            nativeBackup.store = store;
+            scheduleNativeBackup();
+        } catch {
+            // A failed read must never overwrite an existing native backup.
+            notify('Tauri 本地备份暂不可用，继续使用原有网页存档。', 'Silly Game');
+        }
+    }
+    function updateNativeViewport(snapshot) {
+        if (!isTauriTavern()) return;
+        const vv = window.visualViewport;
+        const viewport = snapshot?.viewport;
+        const height = Math.max(160, viewport?.height || vv?.height || window.innerHeight || 640);
+        const root = document.documentElement;
+        const set = (key, value) => { if (root.style.getPropertyValue(key) !== value) root.style.setProperty(key, value); };
+        set('--stgc-visible-height', `${height}px`);
+        set('--stgc-visible-top', `${viewport?.top ?? vv?.offsetTop ?? 0}px`);
+        if (snapshot?.safeInsets) {
+            for (const side of ['top', 'right', 'bottom', 'left']) set(`--stgc-safe-${side}`, `${snapshot.safeInsets[side] || 0}px`);
+        }
+    }
+    function expireCompanionRequests() {
+        for (const request of activeCompanionRequests) if (Date.now() >= request.expiresAt) request.expire();
+    }
+
     const APP_ID = 'st-mini-game-center';
     const LAUNCHER_POSITION_KEY = 'stgc-launcher-position-v1';
     const LAUNCHER_HIDDEN_KEY = 'stgc-launcher-hidden-v1';
@@ -44,7 +194,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.6';
+    const CURRENT_VERSION = '2.3.0';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -58,7 +208,7 @@
     const SILLY_GAME_UI_DEFAULTS = Object.freeze({ fontFamily: 'system', fontSize: 14, themeMode: 'follow' });
     function getSillyGameUiSettings() {
         try {
-            const raw = JSON.parse(localStorage.getItem(SILLY_GAME_UI_SETTINGS_KEY) || 'null');
+            const raw = JSON.parse(gameStorage.getItem(SILLY_GAME_UI_SETTINGS_KEY) || 'null');
             const merged = { ...SILLY_GAME_UI_DEFAULTS, ...(raw && typeof raw === 'object' ? raw : {}) };
             merged.fontFamily = ['st', 'system', 'serif'].includes(merged.fontFamily) ? merged.fontFamily : 'system';
             const n = Number(merged.fontSize);
@@ -72,7 +222,7 @@
         next.fontFamily = ['st', 'system', 'serif'].includes(next.fontFamily) ? next.fontFamily : 'system';
         next.fontSize = Math.min(20, Math.max(12, Math.round(Number(next.fontSize) || 14)));
         next.themeMode = ['follow', 'light', 'dark'].includes(next.themeMode) ? next.themeMode : 'follow';
-        try { localStorage.setItem(SILLY_GAME_UI_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        try { gameStorage.setItem(SILLY_GAME_UI_SETTINGS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
         applySillyGameUiSettings();
         return next;
     }
@@ -123,13 +273,13 @@
 
     function loadGameWins() {
         try {
-            const raw = JSON.parse(localStorage.getItem(GAME_WINS_STORAGE_KEY) || '[]');
+            const raw = JSON.parse(gameStorage.getItem(GAME_WINS_STORAGE_KEY) || '[]');
             return new Set(Array.isArray(raw) ? raw.filter(key => typeof key === 'string') : []);
         } catch { return new Set(); }
     }
 
     function saveGameWins(wins) {
-        try { localStorage.setItem(GAME_WINS_STORAGE_KEY, JSON.stringify([...wins])); } catch { /* ignore */ }
+        try { gameStorage.setItem(GAME_WINS_STORAGE_KEY, JSON.stringify([...wins])); } catch { /* ignore */ }
     }
 
     function recordGameWin(gameId) {
@@ -158,7 +308,7 @@
 
     function farmLoad() {
         try {
-            const raw = JSON.parse(localStorage.getItem(FARM_STORAGE_KEY) || 'null');
+            const raw = JSON.parse(gameStorage.getItem(FARM_STORAGE_KEY) || 'null');
             if (!raw || !Array.isArray(raw.plots) || raw.plots.length !== 12) return null;
             return {
                 ...farmDefaultState(),
@@ -170,7 +320,7 @@
 
     function farmSave(game = state.farm) {
         try {
-            if (game) localStorage.setItem(FARM_STORAGE_KEY, JSON.stringify(game));
+            if (game) gameStorage.setItem(FARM_STORAGE_KEY, JSON.stringify(game));
         } catch { /* ignore */ }
     }
 
@@ -213,7 +363,7 @@
 
     function getSTContext() {
         try {
-            return window.SillyTavern?.getContext?.() || window.TavernAI?.getContext?.() || null;
+            return window.SillyTavern?.getContext?.() || window.TavernAI?.getContext?.() || hostCompat.contextGetter?.() || null;
         } catch {
             return null;
         }
@@ -254,6 +404,8 @@
 
     async function getSTRequestHeaders() {
         try {
+            const ctx = getSTContext();
+            if (typeof ctx?.getRequestHeaders === 'function') return ctx.getRequestHeaders();
             const core = await import('/script.js');
             return core.getRequestHeaders?.() || { 'Content-Type': 'application/json' };
         } catch {
@@ -304,7 +456,7 @@
 
                 updateButtonText('更新中…', true);
                 const headers = await getSTRequestHeaders();
-                const response = await fetch('/api/extensions/update', {
+                const response = await window.fetch('/api/extensions/update', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
@@ -358,8 +510,9 @@
     }
 
     async function discoverInstallScope() {
+        await waitForNativeHost();
         const headers = await getSTRequestHeaders();
-        const response = await fetch('/api/extensions/discover', {
+        const response = await window.fetch('/api/extensions/discover', {
             method: 'GET',
             headers,
         });
@@ -401,7 +554,7 @@
 
     async function getRemoteExtensionVersion(scope) {
         const headers = await getSTRequestHeaders();
-        const response = await fetch('/api/extensions/version', {
+        const response = await window.fetch('/api/extensions/version', {
             method: 'POST',
             headers,
             body: JSON.stringify({ extensionName: scope.extensionName, global: !!scope.global }),
@@ -431,6 +584,7 @@
                 const scope = await discoverInstallScope();
                 if (!scope) {
                     updateButtonText('检查更新');
+                    if (!startup) notify('未找到可管理的安装目录，请覆盖安装更新包。', 'Silly Game');
                     return { skipped: false, updated: false, available: false, unmanaged: true };
                 }
 
@@ -449,6 +603,7 @@
                 console.error('[Silly Game] update check failed:', error);
                 updateButtonText(settings.updateAvailable ? '有新版本' : '检查更新');
                 console.warn('[Silly Game] 更新检查失败：', error?.message || error);
+                if (!startup) notify('无法检查更新。若为 ZIP 安装，请覆盖更新；Git 安装可到酒馆扩展管理中更新。', 'Silly Game');
                 return { skipped: false, updated: false, available: !!settings.updateAvailable, error };
             }
         })().finally(() => {
@@ -576,9 +731,9 @@
     function getCharacterCompanionSettings() {
         try {
             const raw = JSON.parse(
-                localStorage.getItem(CHARACTER_COMPANION_SETTINGS_KEY)
-                || localStorage.getItem(CHARACTER_COMPANION_LEGACY_SETTINGS_KEY)
-                || localStorage.getItem(CHARACTER_COMPANION_OLD_SETTINGS_KEY)
+                gameStorage.getItem(CHARACTER_COMPANION_SETTINGS_KEY)
+                || gameStorage.getItem(CHARACTER_COMPANION_LEGACY_SETTINGS_KEY)
+                || gameStorage.getItem(CHARACTER_COMPANION_OLD_SETTINGS_KEY)
                 || 'null',
             );
             const merged = { ...CHARACTER_COMPANION_DEFAULTS, ...(raw && typeof raw === 'object' ? raw : {}) };
@@ -645,7 +800,7 @@
         next.avatarOverrides = next.avatarOverrides && typeof next.avatarOverrides === 'object' ? next.avatarOverrides : {};
         next.nameOverrides = next.nameOverrides && typeof next.nameOverrides === 'object' ? next.nameOverrides : {};
         next.playerProfile = normalizeIdentityProfile(next.playerProfile);
-        try { localStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch {
+        try { gameStorage.setItem(CHARACTER_COMPANION_SETTINGS_KEY, JSON.stringify(next)); } catch {
             if (requirePersistence) throw new Error('保存失败：浏览器存储不可用或空间不足，请缩小头像后重试。');
         }
         return next;
@@ -774,9 +929,10 @@
     }
     function fileToCompressedDataUrl(file, maxW = 300, maxH = 600) {
         return new Promise((resolve, reject) => {
-            if (!file || !String(file.type || '').startsWith('image/')) { reject(new Error('请选择图片文件')); return; }
+            if (!file || (!String(file.type || '').startsWith('image/') && !(!file.type && /\.(png|jpe?g|webp|gif|bmp|avif|heic|heif)$/i.test(file.name || '')))) { reject(new Error('请选择图片文件')); return; }
             const reader = new FileReader();
             reader.onerror = () => reject(reader.error || new Error('图片读取失败'));
+            reader.onabort = () => reject(new Error('图片读取已取消'));
             reader.onload = () => {
                 const image = new Image();
                 image.onerror = () => reject(new Error('图片解析失败'));
@@ -809,19 +965,29 @@
         return Number.isInteger(ctx?.characterId) ? ctx.characterId : null;
     }
 
-    async function ensureCharacterData(index) {
+    async function ensureCharacterData(index, { includeWorldbook = false } = {}) {
         const ctx = getCharacterCompanionContext();
-        if (!ctx || !Number.isInteger(index) || !ctx.characters?.[index]) return null;
-        let character = ctx.characters[index];
-        // 角色陪玩默认只需要角色简介，不读取 personality/scenario/示例对话。
-        const hasUsefulText = typeof character.description === 'string' && character.description.trim();
-        // 普通角色只需要 description。不要因为角色带/不带世界书而主动展开整张卡。
-        if (!hasUsefulText && typeof ctx.unshallowCharacter === 'function') {
-            try {
-                await ctx.unshallowCharacter(index);
+        let character = ctx?.characters?.[index];
+        if (!character) return null;
+        const avatar = character.avatar;
+        character = characterDataCache.get(avatar) || character;
+        if (includeWorldbook || !(character.description || character.data?.description)) {
+            if (typeof ctx.unshallowCharacter === 'function') {
+                await deadline(ctx.unshallowCharacter(index), 15000, '角色资料读取超时');
                 character = getCharacterCompanionContext()?.characters?.[index] || character;
-            } catch (error) {
-                console.warn('[Silly Game] failed to load character card data:', error);
+            } else if (avatar) {
+                const full = await hostJson('/api/characters/get', { avatar_url: avatar });
+                if (full && typeof full === 'object') character = { ...character, ...full };
+            }
+            if (avatar) characterDataCache.set(avatar, character);
+        }
+        if (includeWorldbook) {
+            const name = linkedWorldName(character);
+            if (name) {
+                const book = typeof ctx.loadWorldInfo === 'function'
+                    ? await deadline(ctx.loadWorldInfo(name), 15000, '世界书读取超时')
+                    : await hostJson('/api/worldinfo/get', { name });
+                if (book?.entries) linkedWorldbooks.set(name, book);
             }
         }
         return character;
@@ -831,7 +997,8 @@
         if (!character) return '';
         // 默认只读取角色简介（description），不主动读取 personality/scenario/示例对话/世界书。
         const name = typeof character.name === 'string' ? character.name.trim() : '';
-        const description = typeof character.description === 'string' ? character.description.trim() : '';
+        const descriptionValue = character.description || character.data?.description;
+        const description = typeof descriptionValue === 'string' ? descriptionValue.trim() : '';
         const parts = [];
         if (name) parts.push(`角色名：${name}`);
         if (description) parts.push(`角色简介：${description.slice(0, 6000)}`);
@@ -840,7 +1007,9 @@
 
     function getCharacterBook(character) {
         if (!character || typeof character !== 'object') return null;
+        character = characterDataCache.get(character.avatar) || character;
         const candidates = [
+            linkedWorldbooks.get(linkedWorldName(character)),
             character.character_book,
             character.data?.character_book,
             character.raw?.data?.character_book,
@@ -948,7 +1117,7 @@
     function getCharacterCompanionConnectionService() {
         const ctx = getCharacterCompanionContext();
         try {
-            return ctx?.ConnectionManagerRequestService || null;
+            return ctx?.ConnectionManagerRequestService || hostCompat.connectionService || null;
         } catch {
             return null;
         }
@@ -956,38 +1125,36 @@
 
     function getCharacterCompanionConnectionProfiles() {
         const service = getCharacterCompanionConnectionService();
-        if (service && typeof service.getSupportedProfiles === 'function') {
-            try {
-                const profiles = service.getSupportedProfiles();
-                if (Array.isArray(profiles)) {
-                    return profiles
-                        .filter(profile => profile && typeof profile === 'object' && profile.id && (profile.name || profile.id))
-                        .map(profile => ({
-                            id: String(profile.id),
-                            name: String(profile.name || profile.id),
-                            api: String(profile.api || ''),
-                            model: String(profile.model || ''),
-                        }));
+        hostCompat.profileError = '';
+        hostCompat.hiddenProfiles = 0;
+        if (!service?.getSupportedProfiles || !service?.sendRequest) {
+            hostCompat.profileError = '陪玩连接服务尚未就绪，请点刷新；旧版应用可能需要升级。';
+            return [];
+        }
+        try {
+            const context = getSTContext();
+            if (context?.extensionSettings?.disabledExtensions?.includes('connection-manager')) throw new Error('Connection Manager is not available');
+            const rawProfiles = context?.extensionSettings?.connectionManager?.profiles;
+            const profiles = Array.isArray(rawProfiles) && typeof service.isProfileSupported === 'function'
+                ? rawProfiles.filter(profile => { try { return service.isProfileSupported(profile); } catch { return false; } })
+                : service.getSupportedProfiles();
+            if (!Array.isArray(profiles)) return [];
+            return profiles.filter(profile => {
+                if (!profile?.id) return false;
+                if (isTauriTavern()) {
+                    let api;
+                    try { api = getSTContext()?.CONNECT_API_MAP?.[profile.api]
+                        || (typeof service.validateProfile === 'function' ? service.validateProfile(profile) : null); }
+                    catch { hostCompat.hiddenProfiles++; return false; }
+                    if (api?.selected !== 'openai') { hostCompat.hiddenProfiles++; return false; }
                 }
-            } catch (error) {
-                console.warn('[Silly Game] failed to read SillyTavern API connection profiles:', error);
-            }
+                return true;
+            }).map(profile => ({ id: String(profile.id), name: String(profile.name || profile.id),
+                api: String(profile.api || ''), model: String(profile.model || '') }));
+        } catch (error) {
+            hostCompat.profileError = companionErrorMessage(error);
+            return [];
         }
-
-        // 仅作为老版本/加载时序的 UI 兜底。真正请求仍然要求 CMR 服务，
-        // 因此不会偷偷使用当前 RP 配置。
-        const select = document.querySelector('#connection_profiles');
-        if (select) {
-            return Array.from(select.options || [])
-                .filter(option => option && option.value)
-                .map(option => ({
-                    id: String(option.value),
-                    name: String(option.textContent || option.value).trim(),
-                    api: '',
-                    model: '',
-                }));
-        }
-        return [];
     }
 
     function normalizeCompanionConnectionSetting(value) {
@@ -1006,31 +1173,48 @@
     }
 
     async function generateViaCharacterCompanionProfile(profileId, prompt, maxTokens = 220) {
-        await acquireCompanionRateSlot();
+        await prepareCompanionHost();
         const service = getCharacterCompanionConnectionService();
-        if (!service || typeof service.sendRequest !== 'function') {
-            throw new Error('当前 SillyTavern 未提供 ConnectionManagerRequestService；请更新到支持 API 连接配置的版本。');
+        if (!service?.sendRequest) throw new Error('陪玩连接服务不可用，请启用连接管理器或升级酒馆。');
+        if (!getCharacterCompanionConnectionProfiles().some(profile => profile.id === String(profileId))) {
+            throw new Error(hostCompat.profileError || '该连接配置不可用；Tauri Tavern 请使用聊天补全配置。');
         }
-        const response = await service.sendRequest(
-            String(profileId),
-            prompt,
-            maxTokens,
-            {
-                stream: false,
-                extractData: true,
-                includePreset: true,
-                includeInstruct: false,
-            },
-        );
-        if (response && typeof response === 'object' && 'content' in response) {
-            return String(response.content ?? '');
+        await acquireCompanionRateSlot();
+        const controller = new AbortController();
+        let timer;
+        let expire;
+        const timedOut = new Promise((_, reject) => {
+            expire = () => { controller.abort(); reject(new Error('陪玩请求超时')); };
+            timer = setTimeout(expire, 90000);
+        });
+        const request = { expiresAt: Date.now() + 90000, expire };
+        activeCompanionRequests.add(request);
+        try {
+            const response = await Promise.race([service.sendRequest(String(profileId), prompt, maxTokens, {
+                stream: false, extractData: true, includePreset: true, includeInstruct: false,
+                signal: controller.signal,
+            }), timedOut]);
+            if (Date.now() >= request.expiresAt) throw new Error('陪玩请求超时');
+            const content = typeof response === 'string' ? response : response?.content ?? response?.choices?.[0]?.message?.content;
+            const text = typeof content === 'string' ? content
+                : Array.isArray(content) ? content.filter(part => part?.type === 'text').map(part => part.text || '').join('\n') : '';
+            if (!text.trim()) throw new Error('API 没有返回可用文本');
+            return text;
+        } catch (error) {
+            const message = companionErrorMessage(error);
+            notify(message, '角色陪玩');
+            throw new Error(message, { cause: error });
+        } finally {
+            clearTimeout(timer);
+            activeCompanionRequests.delete(request);
         }
-        return String(response ?? '');
     }
 
     async function generateCharacterCompanionWithSelectedProfile(settings, prompt, maxTokens = 220) {
+        await prepareCompanionHost();
         const profile = findCompanionConnectionProfile(settings);
         if (!profile) {
+            notify(hostCompat.profileError || '已选 API 配置不可用，请在角色陪玩中重新选择。', '角色陪玩');
             throw new Error('未选择有效的 Silly Game API 连接配置。请在“角色陪玩”中选择一个酒馆 API 连接配置。');
         }
         return generateViaCharacterCompanionProfile(profile.id, prompt, maxTokens);
@@ -1320,6 +1504,8 @@
     }
 
     async function renderCharacterCompanion(body) {
+        try { await prepareCompanionHost(); } catch { /* local role settings still available */ }
+        if (!body.isConnected) return;
         const ctx = getCharacterCompanionContext();
         const settings = getCharacterCompanionSettings();
         const activeIndex = getActiveCharacterIndex();
@@ -1417,6 +1603,7 @@
             if (state.chess?.companion?.enabled) state.chess.companion.settings = { ...saved };
             if (state.xiangqi?.companion?.enabled) state.xiangqi.companion.settings = { ...saved };
             if (state.go?.companion?.enabled) state.go.companion.settings = { ...saved };
+            renderPresetOptions();
             return saved;
         }
 
@@ -1485,13 +1672,12 @@
                 entryBox.replaceChildren(el('div', { class: 'stgc-companion-worldbook-loading', text: '正在读取这张角色卡的世界书……' }));
                 let loaded = c;
                 try {
-                    const stCtx = getCharacterCompanionContext();
-                    if (typeof stCtx?.unshallowCharacter === 'function') {
-                        await stCtx.unshallowCharacter(index);
-                        loaded = getCharacterCompanionContext()?.characters?.[index] || c;
-                    }
+                    loaded = await ensureCharacterData(index, { includeWorldbook: true }) || c;
                 } catch (error) {
                     console.warn('[Silly Game] failed to load character worldbook:', error);
+                    item.loaded = false;
+                    entryBox.replaceChildren(el('div', { class: 'stgc-companion-worldbook-empty', text: '世界书读取失败，请收起后重新展开。' }));
+                    return;
                 }
                 item.entries = normalizeCharacterBookEntries(loaded || c);
                 entryBox.replaceChildren();
@@ -1612,7 +1798,7 @@
         const presetHint = el('div', { class: 'stgc-companion-preset-hint', text: '正在读取酒馆 API 连接配置……' });
         let presetOptions = [];
         const renderPresetOptions = () => {
-            const current = normalizeCompanionConnectionSetting(settings.connectionProfile);
+            const current = normalizeCompanionConnectionSetting(getCharacterCompanionSettings().connectionProfile);
             presetOptions = getCharacterCompanionConnectionProfiles();
             presetSelect.replaceChildren();
             if (!presetOptions.length) {
@@ -1620,18 +1806,20 @@
                 presetSelect.value = '';
             } else {
                 presetOptions.forEach(profile => presetSelect.append(el('option', { value: profile.id, text: readCompanionConnectionDisplay(profile) })));
-                const preferred = current && presetOptions.some(profile => profile.id === current) ? current : presetOptions[0].id;
-                presetSelect.value = preferred;
-                if (preferred !== settings.connectionProfile) saveCharacterCompanionSettings({ connectionProfile: preferred });
+                if (!current || !presetOptions.some(profile => profile.id === current)) {
+                    presetSelect.prepend(el('option', { value: '', text: current ? '原配置不可用，请重新选择' : '请选择陪玩 API 连接配置' }));
+                }
+                presetSelect.value = presetOptions.some(profile => profile.id === current) ? current : '';
             }
             const hasProfiles = presetOptions.length > 0;
-            presetRefresh.disabled = !getCharacterCompanionConnectionService();
+            presetRefresh.disabled = false;
             presetRefresh.classList.remove('is-loading');
-            presetHint.textContent = hasProfiles
-                ? `独立于当前 RP 使用；这里共读取到 ${presetOptions.length} 个酒馆 API 连接配置。`
-                : '还没有读取到 API 连接配置。请先在酒馆“API 连接配置”中保存配置，再点刷新。';
-            launchUno.disabled = pickedSlots.length === 0 || !hasProfiles;
-            launchDdz.disabled = pickedSlots.length === 0 || !hasProfiles;
+            presetHint.textContent = hostCompat.profileError || (hasProfiles
+                ? `已读取 ${presetOptions.length} 个连接配置，独立于当前 RP 使用。${current && !presetSelect.value ? '原配置不可用，请重新选择。' : ''}`
+                : '请先在酒馆 API 连接配置中保存配置，再点刷新。');
+            if (isTauriTavern()) presetHint.textContent += ` Tauri Tavern 使用聊天补全配置${hostCompat.hiddenProfiles ? `，已隐藏 ${hostCompat.hiddenProfiles} 个不支持的配置` : ''}。`;
+            launchUno.disabled = pickedSlots.length === 0 || !hasProfiles || !presetSelect.value;
+            launchDdz.disabled = pickedSlots.length === 0 || !hasProfiles || !presetSelect.value;
         };
         presetControls.append(presetSelect, presetRefresh);
         presetRow.append(presetLabel, presetControls);
@@ -1679,11 +1867,16 @@
         const launchDdz = el('button', { class: 'stgc-btn stgc-companion-start stgc-companion-secondary-start', type: 'button' });
         launchDdz.innerHTML = '<i class="fa-solid fa-clubs" aria-hidden="true"></i><span>开始斗地主角色陪玩</span>';
 
-        presetRefresh.addEventListener('click', () => {
+        presetRefresh.addEventListener('click', async () => {
+            presetRefresh.disabled = true;
             presetRefresh.classList.add('is-loading');
-            setTimeout(renderPresetOptions, 50);
+            try { await prepareCompanionHost(); } catch { /* render actionable status below */ }
+            if (body.isConnected) renderPresetOptions();
         });
-        presetSelect.addEventListener('change', () => saveCharacterCompanionSettings({ connectionProfile: presetSelect.value }));
+        presetSelect.addEventListener('change', () => {
+            saveCharacterCompanionSettings({ connectionProfile: presetSelect.value });
+            renderPresetOptions();
+        });
         speak.addEventListener('change', () => saveCharacterCompanionSettings({ speak: speak.checked }));
         rateInput.addEventListener('change', () => {
             const value = Math.min(60, Math.max(1, Number(rateInput.value) || COMPANION_DEFAULT_RATE_LIMIT));
@@ -1786,7 +1979,7 @@
 
     function getStoredLauncherPosition(key = LAUNCHER_POSITION_KEY) {
         try {
-            const raw = localStorage.getItem(key);
+            const raw = gameStorage.getItem(key);
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!Number.isFinite(parsed?.x) || !Number.isFinite(parsed?.y)) return null;
@@ -1806,7 +1999,7 @@
         launcher.style.bottom = 'auto';
         if (save) {
             try {
-                localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify(position));
+                gameStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify(position));
             } catch { /* localStorage unavailable: position still works for this session */ }
         }
     }
@@ -1824,7 +2017,7 @@
         const settings = getExtensionSettings();
         if (settings) return settings.launcherEnabled === false;
         try {
-            return localStorage.getItem(LAUNCHER_HIDDEN_KEY) === '1';
+            return gameStorage.getItem(LAUNCHER_HIDDEN_KEY) === '1';
         } catch {
             return false;
         }
@@ -1847,7 +2040,7 @@
         }
         if (persist) {
             try {
-                localStorage.setItem(LAUNCHER_HIDDEN_KEY, hidden ? '1' : '0');
+                gameStorage.setItem(LAUNCHER_HIDDEN_KEY, hidden ? '1' : '0');
             } catch { /* ignore */ }
         }
         updateExtensionSettingsUI();
@@ -1869,7 +2062,7 @@
         handle.style.left = position.x + 'px';
         handle.style.top = position.y + 'px';
         if (save) {
-            try { localStorage.setItem(RESTORE_POSITION_KEY, JSON.stringify({ ...position, edge: handle.dataset.edge })); } catch { /* session only */ }
+            try { gameStorage.setItem(RESTORE_POSITION_KEY, JSON.stringify({ ...position, edge: handle.dataset.edge })); } catch { /* session only */ }
         }
     }
 
@@ -1975,6 +2168,11 @@
             if (event.target === root) closeCenter();
         });
 
+        if (isTauriTavern()) {
+            root.dataset.stgcHost = 'tauri';
+            root.setAttribute('data-tt-mobile-surface', 'fullscreen-window');
+            updateNativeViewport();
+        }
         document.body.append(root);
         applySillyGameUiSettings();
         return root;
@@ -1993,15 +2191,18 @@
     }
 
     function persistCurrentGame() {
-        // 关闭 / 切换界面前，再主动落盘一次当前局面。
-        // 数独尤其需要这一层兜底，避免依赖定时器或 DOM 清理顺序。
-        try {
-            if (state.currentGame === 'sudoku' && state.sudoku) {
-                sudokuSave(state.sudoku);
-            }
-        } catch (error) {
-            console.warn('[Silly Game] failed to persist current game:', error);
-        }
+        const saves = {
+            sudoku: () => sudokuSave(), mines: saveMines, '2048': save2048,
+            puzzle15: save15Puzzle, tetris: saveTetris, go: saveGo,
+            chess: chessSave, xiangqi: xqSave, uno: unoSave, doudizhu: ddzSave,
+            starPop: starPopSave, waterSort: () => waterSave(state.waterSort),
+            linkMatch: () => linkSave(state.linkMatch), match3: () => match3Save(state.match3),
+            shikaku: () => shikakuSave(state.shikaku), farm: farmSave,
+        };
+        const field = state.currentGame === '2048' ? 'game2048' : state.currentGame;
+        try { if (state[field] && saves[state.currentGame]) saves[state.currentGame](); }
+        catch (error) { console.warn('[Silly Game] failed to persist current game:', error); }
+        void flushNativeBackup();
     }
 
     function closeCenter() {
@@ -2275,7 +2476,7 @@
         root.append(panel);
     }
 
-    function openGame(game) {
+    async function openGame(game) {
         cleanupGame();
         state.currentGame = game;
         state.lastGame = game;
@@ -2312,6 +2513,18 @@
         const body = el('div', { class: 'stgc-game-body' });
         panel.append(body);
         root.append(panel);
+
+        if (['characterCompanion', 'uno', 'doudizhu', 'gomoku', 'chess', 'xiangqi', 'go'].includes(game)) {
+            body.append(el('div', { class: 'stgc-game-hint', text: '正在读取陪玩配置……' }));
+            try {
+                await prepareCompanionHost();
+                const slots = getCharacterCompanionSettings().companionSlots || [];
+                const indices = [...new Set(slots.filter(slot => slot.source === 'worldbook').map(slot => slot.characterIndex))];
+                await Promise.all(indices.map(index => ensureCharacterData(index, { includeWorldbook: true })));
+            } catch { notify('部分陪玩资料暂未就绪，可在角色陪玩页面重新读取。', 'Silly Game'); }
+            if (!body.isConnected || state.currentGame !== game) return;
+            body.replaceChildren();
+        }
 
         if (game === 'characterCompanion') renderCharacterCompanion(body);
         else if (game === 'mines') renderMinesweeper(body);
@@ -2362,7 +2575,7 @@
         const deck = ddzShuffle(ddzBuildDeck());
         return { deck: [], hands: [ddzSortCards(deck.slice(0,17)), ddzSortCards(deck.slice(17,34)), ddzSortCards(deck.slice(34,51))], bottom: deck.slice(51), current: 0, landlord: null, bids: [null,null,null], highestBid: 0, bidRound: 0, phase: 'bid', lastMove: null, passes: 0, winner: null, over: false, message: '开始叫地主', companion: { enabled: false, settings: getCharacterCompanionSettings() }, companionSpeech:null };
     }
-    function ddzSave(g = state.doudizhu) { try { if (g) localStorage.setItem(DOUDIZHU_KEY, JSON.stringify(g)); } catch {} }
+    function ddzSave(g = state.doudizhu) { try { if (g) gameStorage.setItem(DOUDIZHU_KEY, JSON.stringify(g)); } catch {} }
 
     // 斗地主运行会话令牌：关闭窗口、切换游戏或重新开始后，旧的定时器/异步 API
     // 即使稍后返回，也不得继续修改/保存旧牌局。这样可以彻底避免
@@ -2385,7 +2598,7 @@
 
     function ddzLoad() {
         try {
-            const g = JSON.parse(localStorage.getItem(DOUDIZHU_KEY) || 'null');
+            const g = JSON.parse(gameStorage.getItem(DOUDIZHU_KEY) || 'null');
             if (!g || !Array.isArray(g.hands) || g.hands.length !== 3 || g.hands.some(h => !Array.isArray(h))) return null;
             g.phase = ['bid','play'].includes(g.phase) ? g.phase : 'bid';
             g.current = Math.max(0, Math.min(2, Number(g.current) || 0));
@@ -2848,7 +3061,7 @@
             }
         }
     }
-    function match3Save(g){try{localStorage.setItem(MATCH3_KEY,JSON.stringify(g));}catch{}}
+    function match3Save(g){try{gameStorage.setItem(MATCH3_KEY,JSON.stringify(g));}catch{}}
     function match3NormalizeTile(tile){
         if(!tile)return null;
         const type=MATCH3_TYPES.includes(tile.type)?tile.type:(MATCH3_TYPE_MIGRATION[tile.type]||MATCH3_TYPES[Math.floor(Math.random()*MATCH3_TYPES.length)]);
@@ -2875,9 +3088,9 @@
     }
     function match3Load(){
         try{
-            let g=JSON.parse(localStorage.getItem(MATCH3_KEY)||'null');
-            if(!g)g=JSON.parse(localStorage.getItem(MATCH3_LEGACY_KEY)||'null');
-            if(!g)g=JSON.parse(localStorage.getItem(MATCH3_OLD_KEY)||'null');
+            let g=JSON.parse(gameStorage.getItem(MATCH3_KEY)||'null');
+            if(!g)g=JSON.parse(gameStorage.getItem(MATCH3_LEGACY_KEY)||'null');
+            if(!g)g=JSON.parse(gameStorage.getItem(MATCH3_OLD_KEY)||'null');
             if(!g||!Array.isArray(g.board)||g.board.length!==MATCH3_SIZE||!g.board.every(r=>Array.isArray(r)&&r.length===MATCH3_SIZE))return null;
             if(!g.level)g.level=1;
             g.board=g.board.map((r,ri)=>r.map((tile,ci)=>match3IsOpen(g.level,ri,ci)?match3NormalizeTile(tile):null));
@@ -3294,8 +3507,8 @@
         const first=deck.pop();
         return {hands,deck,discard:[first],currentColor:first.color,current:0,direction:1,needsUno:false,over:false,winner:null,message:'你的回合',lastPlayedBy:3,drawnThisTurn:false,drawnCardIndex:-1,companion:{enabled:false,settings:getCharacterCompanionSettings()},companionThinking:false};
     }
-    function unoSave(g=state.uno){try{if(g)localStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
-    function unoLoad(){try{const g=JSON.parse(localStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionSpeech=g.companionSpeech&&typeof g.companionSpeech==='object'?g.companionSpeech:null;g.companionThinking=false;unoSyncCurrentColor(g);return g;}catch{return null;}}
+    function unoSave(g=state.uno){try{if(g)gameStorage.setItem(UNO_KEY,JSON.stringify(g));}catch{}}
+    function unoLoad(){try{const g=JSON.parse(gameStorage.getItem(UNO_KEY)||'null');if(!g||!Array.isArray(g.hands)||g.hands.length!==4||!Array.isArray(g.discard)||!g.discard.length)return null;g.current=Math.max(0,Math.min(3,Number(g.current)||0));g.direction=g.direction===-1?-1:1;g.currentColor=UNO_COLORS.includes(g.currentColor)?g.currentColor:'red';g.deck=Array.isArray(g.deck)?g.deck:[];g.needsUno=!!g.needsUno;g.over=!!g.over;g.winner=Number.isInteger(g.winner)?g.winner:null;g.drawnThisTurn=!!g.drawnThisTurn;g.drawnCardIndex=Number.isInteger(g.drawnCardIndex)?g.drawnCardIndex:-1;g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.companionSpeech=g.companionSpeech&&typeof g.companionSpeech==='object'?g.companionSpeech:null;g.companionThinking=false;unoSyncCurrentColor(g);return g;}catch{return null;}}
     function unoSyncCurrentColor(g){
         const top=g?.discard?.at(-1);
         if(!top)return;
@@ -3466,7 +3679,7 @@
 
     function starPopPaletteLoad() {
         try {
-            const value = localStorage.getItem(STARPOP_PALETTE_KEY);
+            const value = gameStorage.getItem(STARPOP_PALETTE_KEY);
             return Object.hasOwn(STARPOP_PALETTES, value) ? value : 'morandi';
         } catch {
             return 'morandi';
@@ -3474,7 +3687,7 @@
     }
 
     function starPopPaletteSave(value) {
-        try { localStorage.setItem(STARPOP_PALETTE_KEY, Object.hasOwn(STARPOP_PALETTES, value) ? value : 'morandi'); } catch { /* ignore */ }
+        try { gameStorage.setItem(STARPOP_PALETTE_KEY, Object.hasOwn(STARPOP_PALETTES, value) ? value : 'morandi'); } catch { /* ignore */ }
     }
 
     function starPopNewBoard() {
@@ -3505,9 +3718,9 @@
 
     function starPopLoad() {
         try {
-            const current = JSON.parse(localStorage.getItem(STARPOP_STORAGE_KEY) || 'null');
+            const current = JSON.parse(gameStorage.getItem(STARPOP_STORAGE_KEY) || 'null');
             if (current && Array.isArray(current.board)) return starPopNormalize(current);
-            const legacy = JSON.parse(localStorage.getItem(STARPOP_LEGACY_STORAGE_KEY) || 'null');
+            const legacy = JSON.parse(gameStorage.getItem(STARPOP_LEGACY_STORAGE_KEY) || 'null');
             const next = starPopNewBoard();
             if (legacy && Number.isFinite(legacy.best)) next.best = Math.max(0, legacy.best);
             return next;
@@ -3515,7 +3728,7 @@
     }
 
     function starPopSave(game = state.starPop) {
-        try { if (game) localStorage.setItem(STARPOP_STORAGE_KEY, JSON.stringify(game)); } catch { /* ignore */ }
+        try { if (game) gameStorage.setItem(STARPOP_STORAGE_KEY, JSON.stringify(game)); } catch { /* ignore */ }
     }
 
     function starPopNeighbors(r, c, board) {
@@ -3721,8 +3934,8 @@
 
     function linkEmptyBoard(){return Array.from({length:LINK_ROWS},()=>Array(LINK_COLS).fill(null));}
     function linkShuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-    function linkLoad(){try{const x=JSON.parse(localStorage.getItem(LINKMATCH_KEY)||'null');if(x?.board?.length===LINK_ROWS&&x.board.every(r=>Array.isArray(r)&&r.length===LINK_COLS))return x;}catch{}return null;}
-    function linkSave(g){try{localStorage.setItem(LINKMATCH_KEY,JSON.stringify(g));}catch{}}
+    function linkLoad(){try{const x=JSON.parse(gameStorage.getItem(LINKMATCH_KEY)||'null');if(x?.board?.length===LINK_ROWS&&x.board.every(r=>Array.isArray(r)&&r.length===LINK_COLS))return x;}catch{}return null;}
+    function linkSave(g){try{gameStorage.setItem(LINKMATCH_KEY,JSON.stringify(g));}catch{}}
     function linkNew(){
         const board=linkEmptyBoard();
         const pairs=[];
@@ -3845,7 +4058,7 @@
 
     function cakeLoad() {
         try {
-            const raw = JSON.parse(localStorage.getItem(CAKE_STORAGE_KEY) || 'null');
+            const raw = JSON.parse(gameStorage.getItem(CAKE_STORAGE_KEY) || 'null');
             if (!raw || typeof raw !== 'object') return { best: 0, bestScore: 0 };
             return {
                 best: Number.isFinite(raw.best) ? raw.best : 0,
@@ -3857,7 +4070,7 @@
     }
 
     function cakeSave(record) {
-        try { localStorage.setItem(CAKE_STORAGE_KEY, JSON.stringify(record)); } catch { /* ignore */ }
+        try { gameStorage.setItem(CAKE_STORAGE_KEY, JSON.stringify(record)); } catch { /* ignore */ }
     }
 
     function renderCake(body) {
@@ -4301,7 +4514,7 @@
         const s = state.mines;
         if (!s) return;
         try {
-            localStorage.setItem(GAME_MINES_STORAGE_KEY, JSON.stringify({
+            gameStorage.setItem(GAME_MINES_STORAGE_KEY, JSON.stringify({
                 version: 2,
                 difficulty: s.difficulty,
                 size: s.size,
@@ -4323,7 +4536,7 @@
 
     function loadMines() {
         try {
-            const raw = localStorage.getItem(GAME_MINES_STORAGE_KEY);
+            const raw = gameStorage.getItem(GAME_MINES_STORAGE_KEY);
             if (!raw) return null;
             const saved = JSON.parse(raw);
             const config = MINES_DIFFICULTIES[saved.difficulty];
@@ -4358,7 +4571,7 @@
 
     function clearMinesSave() {
         try {
-            localStorage.removeItem(GAME_MINES_STORAGE_KEY);
+            gameStorage.removeItem(GAME_MINES_STORAGE_KEY);
         } catch { /* ignore */ }
     }
 
@@ -4708,7 +4921,7 @@
 
     function load2048() {
         try {
-            const raw = localStorage.getItem(GAME2048_STORAGE_KEY);
+            const raw = gameStorage.getItem(GAME2048_STORAGE_KEY);
             if (!raw) return null;
             const saved = JSON.parse(raw);
             if (!saved || !Array.isArray(saved.board) || saved.board.length !== 16) return null;
@@ -4729,7 +4942,7 @@
     function save2048() {
         if (!state.game2048) return;
         try {
-            localStorage.setItem(GAME2048_STORAGE_KEY, JSON.stringify(state.game2048));
+            gameStorage.setItem(GAME2048_STORAGE_KEY, JSON.stringify(state.game2048));
         } catch (error) {
             console.warn('[Silly Game] 保存 2048 存档失败', error);
         }
@@ -4737,7 +4950,7 @@
 
     function clear2048Save() {
         try {
-            localStorage.removeItem(GAME2048_STORAGE_KEY);
+            gameStorage.removeItem(GAME2048_STORAGE_KEY);
         } catch (error) {
             console.warn('[Silly Game] 清除 2048 存档失败', error);
         }
@@ -4937,7 +5150,7 @@
                 ? Number(game.time) || 0
                 : Math.max(0, Math.floor((Date.now() - Number(game.startedAt || Date.now())) / 1000));
             game.time = elapsed;
-            localStorage.setItem(SUDOKU_STORAGE_KEY, JSON.stringify({
+            gameStorage.setItem(SUDOKU_STORAGE_KEY, JSON.stringify({
                 puzzle: game.puzzle,
                 solution: game.solution,
                 fixed: game.fixed,
@@ -4953,7 +5166,7 @@
 
     function sudokuLoad() {
         try {
-            const raw = JSON.parse(localStorage.getItem(SUDOKU_STORAGE_KEY) || 'null');
+            const raw = JSON.parse(gameStorage.getItem(SUDOKU_STORAGE_KEY) || 'null');
             if (!raw || !Array.isArray(raw.puzzle) || raw.puzzle.length !== 81 || !Array.isArray(raw.solution) || raw.solution.length !== 81) {
                 return null;
             }
@@ -4981,7 +5194,7 @@
     }
 
     function sudokuClearSave() {
-        try { localStorage.removeItem(SUDOKU_STORAGE_KEY); } catch { /* ignore */ }
+        try { gameStorage.removeItem(SUDOKU_STORAGE_KEY); } catch { /* ignore */ }
     }
 
     function shuffleArray(array) {
@@ -6150,7 +6363,7 @@
     }
 
     function renderGomoku(body) {
-        state.gomoku = state.gomoku || newGomoku('ai', localStorage.getItem('silly-game:gomoku:palette') || 'qingstone');
+        state.gomoku = state.gomoku || newGomoku('ai', gameStorage.getItem('silly-game:gomoku:palette') || 'qingstone');
         state.gomoku.companionSlot = Number.isInteger(state.gomoku.companionSlot) ? state.gomoku.companionSlot : 0;
         state.gomoku.mercyTurns = Math.max(0, Number(state.gomoku.mercyTurns) || 0);
         const top = el('div', { class: 'stgc-game-toolbar' });
@@ -6246,7 +6459,7 @@
             if (!gomokuPlace(game, Number(cell.dataset.index), game.current)) return;
             draw(); playAI();
         });
-        palette.addEventListener('change', () => { state.gomoku.boardPalette = Object.hasOwn(BOARD_PALETTES, palette.value) ? palette.value : 'qingstone'; localStorage.setItem('silly-game:gomoku:palette', state.gomoku.boardPalette); draw(); });
+        palette.addEventListener('change', () => { state.gomoku.boardPalette = Object.hasOwn(BOARD_PALETTES, palette.value) ? palette.value : 'qingstone'; gameStorage.setItem('silly-game:gomoku:palette', state.gomoku.boardPalette); draw(); });
         undo.addEventListener('click', () => { const game = state.gomoku; if (game.aiThinking || game.history.length === 0) return; const steps = game.mode === 'pvp' ? 1 : Math.min(2, game.history.length); for (let i=0;i<steps;i++){ const previous=game.history.pop(); game.board=previous.board; game.current=previous.current; game.winner=previous.winner; game.over=previous.over; game.moves=previous.moves; } draw(); });
         mode.addEventListener('click', () => {
             if (state.gomokuAiTimer) { window.clearTimeout(state.gomokuAiTimer); state.gomokuAiTimer = null; }
@@ -6296,12 +6509,12 @@
     }
 
     function save15Puzzle() {
-        try { localStorage.setItem(PUZZLE15_KEY, JSON.stringify(state.puzzle15)); } catch {}
+        try { gameStorage.setItem(PUZZLE15_KEY, JSON.stringify(state.puzzle15)); } catch {}
     }
 
     function load15Puzzle() {
         try {
-            const raw = localStorage.getItem(PUZZLE15_KEY);
+            const raw = gameStorage.getItem(PUZZLE15_KEY);
             if (!raw) return null;
             const game = JSON.parse(raw);
             if (!game || !Array.isArray(game.board) || !Number.isInteger(game.size)) return null;
@@ -6310,7 +6523,7 @@
     }
 
     function clear15PuzzleSave() {
-        try { localStorage.removeItem(PUZZLE15_KEY); } catch {}
+        try { gameStorage.removeItem(PUZZLE15_KEY); } catch {}
     }
 
     function new15Puzzle(size = 4) {
@@ -6416,9 +6629,9 @@
         const g={board:Array.from({length:20},()=>Array(10).fill(0)),queue:[],current:null,score:0,lines:0,level:1,over:false,paused:false,startedAt:Date.now(),lastDropAt:0};
         g.queue.push(...tetrisBag(),...tetrisBag());tetrisSpawn(g);return g;
     }
-    function saveTetris(){try{localStorage.setItem(TETRIS_KEY,JSON.stringify(state.tetris));}catch{}}
-    function loadTetris(){try{const x=JSON.parse(localStorage.getItem(TETRIS_KEY)||'null');if(x?.board?.length===20)return x;}catch{}return null;}
-    function clearTetris(){try{localStorage.removeItem(TETRIS_KEY);}catch{}}
+    function saveTetris(){try{gameStorage.setItem(TETRIS_KEY,JSON.stringify(state.tetris));}catch{}}
+    function loadTetris(){try{const x=JSON.parse(gameStorage.getItem(TETRIS_KEY)||'null');if(x?.board?.length===20)return x;}catch{}return null;}
+    function clearTetris(){try{gameStorage.removeItem(TETRIS_KEY);}catch{}}
     function tetrisLock(g){
         for(const [x,y] of tetrisCells(g.current)){const nx=g.current.x+x,ny=g.current.y+y;if(ny>=0&&ny<20)g.board[ny][nx]=g.current.type;}
         let cleared=0;
@@ -6743,13 +6956,13 @@
 
     function waterSave(game) {
         try {
-            localStorage.setItem(WATER_SORT_KEY, JSON.stringify(game));
+            gameStorage.setItem(WATER_SORT_KEY, JSON.stringify(game));
         } catch { /* localStorage unavailable */ }
     }
 
     function waterLoad() {
         try {
-            const saved = JSON.parse(localStorage.getItem(WATER_SORT_KEY) || 'null');
+            const saved = JSON.parse(gameStorage.getItem(WATER_SORT_KEY) || 'null');
             if (!saved?.tubes || !Array.isArray(saved.tubes)) return null;
             if (!Number.isInteger(saved.capacity) || saved.capacity !== 4) return null;
             if (!saved.tubes.every(t => Array.isArray(t) && t.length <= 4)) return null;
@@ -6774,7 +6987,7 @@
     }
 
     function waterClearSave() {
-        try { localStorage.removeItem(WATER_SORT_KEY); } catch { /* ignore */ }
+        try { gameStorage.removeItem(WATER_SORT_KEY); } catch { /* ignore */ }
     }
 
     function waterFormatMode(game) {
@@ -7155,7 +7368,7 @@
 
     function shikakuLoad() {
         try {
-            const raw = JSON.parse(localStorage.getItem(SHIKAKU_KEY) || 'null');
+            const raw = JSON.parse(gameStorage.getItem(SHIKAKU_KEY) || 'null');
             if (!raw || !SHIKAKU_SIZES.includes(Number(raw.size)) || !Array.isArray(raw.regions)) return null;
             const size = Number(raw.size), list = SHIKAKU_PUZZLES[size] || [];
             const puzzleIndex = Math.max(0, Math.min(list.length - 1, Number(raw.puzzleIndex) || 0));
@@ -7168,7 +7381,7 @@
 
     function shikakuSave(game) {
         if (!game) return;
-        try { localStorage.setItem(SHIKAKU_KEY, JSON.stringify({
+        try { gameStorage.setItem(SHIKAKU_KEY, JSON.stringify({
             size: game.size, puzzleIndex: game.puzzleIndex, regions: game.regions,
             seconds: game.seconds, solved: game.solved,
         })); } catch { /* ignore */ }
@@ -7428,8 +7641,8 @@
     }
     function chessAllMoves(game,color){ const old=game.turn; game.turn=color; const out=[]; for(let y=0;y<8;y++)for(let x=0;x<8;x++){ if(chessColor(game.board[y][x])!==color)continue; for(const m of chessLegalMoves(game,x,y))out.push({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}); } game.turn=old; return out; }
     function chessNew(){ return {board:chessCloneBoard(CHESS_INIT),turn:1,history:[],selected:null,winner:0,over:false,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,companionSpeech:null,castling:{K:true,Q:true,k:true,q:true},enPassant:null}; }
-    function chessSave(){ try{localStorage.setItem(CHESS_KEY,JSON.stringify(state.chess));}catch{} }
-    function chessLoad(){ try{const g=JSON.parse(localStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai'; g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()}; g.companion.enabled=!!g.companion.enabled; g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})}; g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
+    function chessSave(){ try{gameStorage.setItem(CHESS_KEY,JSON.stringify(state.chess));}catch{} }
+    function chessLoad(){ try{const g=JSON.parse(gameStorage.getItem(CHESS_KEY)||'null'); if(!g||!Array.isArray(g.board)||g.board.length!==8)return null; g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai'; g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()}; g.companion.enabled=!!g.companion.enabled; g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})}; g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal'; g.over=!!g.over; g.turn=g.turn===2?2:1; g.castling={K:g.castling?.K!==false,Q:g.castling?.Q!==false,k:g.castling?.k!==false,q:g.castling?.q!==false}; g.history=Array.isArray(g.history)?g.history:[]; return g;}catch{return null;} }
     function chessApplyMove(game,m){
         const p=game.board[m.fromY][m.fromX], color=game.turn, cap=game.board[m.toY][m.toX];
         game.history.push({board:chessCloneBoard(game.board),turn:game.turn,castling:{...game.castling},enPassant:game.enPassant?{...game.enPassant}:null,over:game.over,winner:game.winner});
@@ -7541,8 +7754,8 @@
     function xqLegal(game,x,y){const p=game.board[y][x];if(!p||xqColor(p)!==game.turn)return[];return xqPseudo(game.board,x,y).filter(m=>!xqGeneralInCheck(xqApply(game.board,{fromX:x,fromY:y,toX:m.x,toY:m.y}),game.turn)).map(m=>({...m,fromX:x,fromY:y,toX:m.x,toY:m.y}));}
     function xqAll(game,color){const old=game.turn;game.turn=color;const out=[];for(let y=0;y<10;y++)for(let x=0;x<9;x++)if(xqColor(game.board[y][x])===color)out.push(...xqLegal(game,x,y));game.turn=old;return out;}
     function xqNew(){return{board:xqClone(XQ_INIT),turn:1,history:[],selected:null,over:false,winner:0,mode:'ai',difficulty:'normal',companion:{enabled:false,settings:getCharacterCompanionSettings()},companionSlot:0,mercyTurns:0,companionSpeech:null,palette:'warmwood'};}
-    function xqSave(){try{localStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
-    function xqLoad(){try{const g=JSON.parse(localStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10||g.board.some(row=>!Array.isArray(row)||row.length!==9))return null;g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai';g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
+    function xqSave(){try{gameStorage.setItem(XIANGQI_KEY,JSON.stringify(state.xiangqi));}catch{}}
+    function xqLoad(){try{const g=JSON.parse(gameStorage.getItem(XIANGQI_KEY)||'null');if(!g||!Array.isArray(g.board)||g.board.length!==10||g.board.some(row=>!Array.isArray(row)||row.length!==9))return null;g.mode=['ai','pvp','role'].includes(g.mode)?g.mode:'ai';g.companion=g.companion&&typeof g.companion==='object'?g.companion:{enabled:false,settings:getCharacterCompanionSettings()};g.companion.enabled=!!g.companion.enabled;g.companion.settings={...getCharacterCompanionSettings(),...(g.companion.settings||{})};g.difficulty=['easy','normal','hard'].includes(g.difficulty)?g.difficulty:'normal';g.palette=['qingstone','daigreen','warmwood','inkstone','ricepaper'].includes(g.palette)?g.palette:'warmwood';g.history=Array.isArray(g.history)?g.history:[];g.turn=g.turn===2?2:1;return g;}catch{return null;}}
     function xqApplyMove(g,m){g.history.push({board:xqClone(g.board),turn:g.turn,over:g.over,winner:g.winner});g.board=xqApply(g.board,m);g.turn=g.turn===1?2:1;const next=xqAll(g,g.turn);if(!next.length){g.over=true;g.winner=xqGeneralInCheck(g.board,g.turn)?(g.turn===1?2:1):3;if(g.winner===1)recordGameWin('xiangqi');}}
     function xqUndo(g){const h=g.history.pop();if(!h)return false;g.board=h.board;g.turn=h.turn;g.over=h.over;g.winner=h.winner;return true;}
     function xqEvalBoard(board){
@@ -7787,11 +8000,11 @@
         };
     }
     function saveGo(){
-        try { localStorage.setItem(GO_KEY, JSON.stringify(state.go)); } catch {}
+        try { gameStorage.setItem(GO_KEY, JSON.stringify(state.go)); } catch {}
     }
     function loadGo(){
         try {
-            const g = JSON.parse(localStorage.getItem(GO_KEY) || 'null');
+            const g = JSON.parse(gameStorage.getItem(GO_KEY) || 'null');
             if (!g || !GO_SIZE_OPTIONS.includes(Number(g.size))) return null;
             const size = Number(g.size);
             if (!Array.isArray(g.board) || g.board.length !== size * size) return null;
@@ -8256,7 +8469,17 @@
         }, 2500);
     }
 
-    function init() {
+    async function init() {
+        if (isTauriTavern()) {
+            try {
+                await waitForNativeHost();
+                await initializeNativeBackup();
+            } catch { notify('Tauri 接口尚未就绪，小游戏先使用网页模式。', 'Silly Game'); }
+            updateNativeViewport();
+            window.visualViewport?.addEventListener('resize', () => updateNativeViewport(), { passive: true });
+            window.visualViewport?.addEventListener('scroll', () => updateNativeViewport(), { passive: true });
+            try { await window.__TAURITAVERN__?.api?.layout?.subscribe(updateNativeViewport); } catch { /* visualViewport fallback */ }
+        }
         initExtensionUI();
         document.addEventListener('keydown', event => {
             if (event.altKey && event.key.toLowerCase() === 'g') {
@@ -8280,6 +8503,7 @@
         window.addEventListener('pagehide', persistCurrentGame);
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') persistCurrentGame();
+            else { expireCompanionRequests(); updateNativeViewport(); }
         });
 
         console.log('[Silly Game] loaded');

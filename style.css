@@ -9113,3 +9113,24 @@ n
         height: 152px;
     }
 }
+
+
+/* v2.3.0 — opt in to the Tauri host viewport/safe-area/IME contract */
+#st-mini-game-center[data-stgc-host="tauri"] {
+    top: var(--stgc-visible-top, 0px) !important;
+    bottom: auto !important;
+    height: min(var(--stgc-visible-height, 100dvh), calc(var(--tt-base-viewport-height, 100dvh) - var(--tt-ime-bottom, 0px))) !important;
+    min-height: 0 !important;
+    padding-top: max(8px, var(--stgc-safe-top, var(--tt-inset-top, env(safe-area-inset-top, 0px))));
+    padding-right: max(8px, var(--stgc-safe-right, var(--tt-inset-right, env(safe-area-inset-right, 0px))));
+    padding-bottom: max(8px, var(--stgc-safe-bottom, var(--tt-inset-bottom, env(safe-area-inset-bottom, 0px))));
+    padding-left: max(8px, var(--stgc-safe-left, var(--tt-inset-left, env(safe-area-inset-left, 0px))));
+}
+#st-mini-game-center[data-stgc-host="tauri"] .stgc-panel {
+    max-height: 100%;
+    min-height: 0;
+    overscroll-behavior: contain;
+}
+#st-mini-game-center[data-stgc-host="tauri"] .stgc-companion-character-grid {
+    max-height: min(46vh, calc(var(--stgc-visible-height, 100dvh) * .46));
+}
