@@ -9076,20 +9076,6 @@ n
     opacity: 1;
 }
 
-#st-mini-game-center .water-sort-board .water-color-mark {
-    display: grid;
-    place-items: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    background: #fff;
-    color: #182436;
-    border: 1px solid #44546a;
-    font: 700 12px/1 system-ui, sans-serif;
-    text-shadow: none;
-    pointer-events: none;
-}
-
 #st-mini-game-center .water-sort-board .water-tube.empty::after {
     content: "空";
     color: #445a77;

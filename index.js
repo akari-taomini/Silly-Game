@@ -44,7 +44,7 @@
     const EXTENSION_SETTINGS_KEY = 'silly-game';
     const DEFAULT_EXTENSION_FOLDER = 'st-game-center';
     const LOADED_SCRIPT_URL = document.currentScript?.src || '';
-    const CURRENT_VERSION = '2.2.5';
+    const CURRENT_VERSION = '2.2.6';
     const DEFAULT_EXTENSION_SETTINGS = Object.freeze({
         launcherEnabled: true,
         checkOnStartup: true,
@@ -6592,11 +6592,13 @@
     /* ==================== Water Sort ==================== */
 
     const WATER_SORT_KEY = 'silly-game:water-sort:v2';
+    // Separate similar hues by both saturation and lightness, especially red/pink.
+    // Keep color IDs and array length stable so existing puzzles still match.
     const WATER_COLORS = [
-        '#ef767a', '#5dade2', '#58d68d', '#f5b041', '#af7ac5',
-        '#48c9b0', '#ec7063', '#f7dc6f', '#95a5a6', '#ca6f1e',
-        '#7d7cff', '#9ccc65', '#ff8a65', '#9575cd', '#4db6ac',
-        '#f06292', '#64b5f6', '#81c784', '#ffca6b', '#ba68c8',
+        '#c62828', '#2563eb', '#15803d', '#f97316', '#7e22ce',
+        '#22d3ee', '#ff9bce', '#facc15', '#64748b', '#783f16',
+        '#172554', '#a3e635', '#f5dfb5', '#c4b5fd', '#0f766e',
+        '#d000b5', '#a5d8ff', '#86efac', '#fafafa', '#292524',
     ];
 
     function waterCloneTubes(tubes) {
@@ -6810,7 +6812,7 @@
         const board = el('div', { class: 'water-sort-board', 'aria-label': '倒水瓶棋盘' });
         const hint = el('div', {
             class: 'stgc-game-hint',
-            text: '点一个瓶子选中，再点目标瓶倒水。同字母代表同一种颜色，瓶底数字是瓶号。每两关增加一种颜色；支持无尽模式，进度自动保存。',
+            text: '点一个瓶子选中，再点目标瓶倒水。瓶底数字是瓶号。每两关增加一种颜色；支持无尽模式，进度自动保存。',
         });
         body.append(top, modeRow, levelRow, board, hint);
 
@@ -6914,11 +6916,6 @@
                     const liquid = el('div', { class: 'water-liquid' });
                     liquid.style.setProperty('--water-color', WATER_COLORS[colorIndex % WATER_COLORS.length]);
                     liquid.style.bottom = `${layer * 25}%`;
-                    liquid.append(el('span', {
-                        class: 'water-color-mark',
-                        text: String.fromCharCode(65 + colorIndex % WATER_COLORS.length),
-                        'aria-label': `颜色 ${colorIndex + 1}`,
-                    }));
                     tubeEl.append(liquid);
                 });
                 if (!tube.length) tubeEl.classList.add('empty');
