@@ -1854,10 +1854,11 @@
                 : `陪玩 API：本分钟 ${status.used}/${status.limit} · 可以请求`;
         });
 
-        const speakRow = el('label', { class: 'checkbox_label stgc-companion-check' });
+        const speakRow = el('div', { class: 'stgc-companion-check stgc-speak-control' });
         const speak = el('input', { type: 'checkbox', class: 'checkbox' });
         speak.checked = settings.speak !== false;
-        speakRow.append(speak, el('small', { text: '允许角色在游戏界面附带一句简短台词' }));
+        speak.id = 'stgc-companion-speak-toggle';
+        speakRow.append(speak, el('label', { for: speak.id, text: '允许角色在游戏界面附带一句简短台词' }));
         options.append(speakRow);
 
         const saveCompanion = el('button', { class: 'stgc-btn stgc-companion-save', type: 'button' });
@@ -8068,6 +8069,7 @@
     }
 
     function newSpiderGame(levelKey = 'one') {
+        if (!Object.prototype.hasOwnProperty.call(SPIDER_LEVELS, levelKey)) levelKey = 'one';
         const level = SPIDER_LEVELS[levelKey] || SPIDER_LEVELS.one;
         const deck = spiderBuildDeck(levelKey);
         const tableau = Array.from({ length: 10 }, () => []);
@@ -8113,31 +8115,44 @@
         });
     }
 
-    // 104 张牌守恒；防止不完整存档或意外操作继续污染对局。
-    function spiderIntegrity(game) {
-        if (!game || !Array.isArray(game.tableau) || game.tableau.length !== 10 || !Array.isArray(game.stock)) return false;
-        if (!Number.isInteger(game.completed) || game.completed < 0 || game.completed > 8) return false;
-        const cards = [...game.stock, ...game.tableau.flat()];
-        if (cards.length + game.completed * 13 !== 104) return false;
-        const ids = cards.map(card => card?.id);
-        return ids.every(id => Number.isInteger(id) && id >= 0 && id < 104) && new Set(ids).size === ids.length;
-    }
-    function spiderRepairFromHistory(game) {
-        if (spiderIntegrity(game)) return true;
-        // 只使用原始历史快照，不补造牌；优先选择最近的完整记录。
-        for (let i = (game.history?.length || 0) - 1; i >= 0; i--) {
-            try {
-                const saved = JSON.parse(game.history[i]);
-                if (!spiderIntegrity(saved)) continue;
-                const preservedHistory = game.history.slice(0, i);
-                Object.assign(game, saved, { history: preservedHistory, selected: null, hint: null });
-                game.message = '检测到牌数异常，已恢复到最近一次完整的历史记录。';
-                return true;
-            } catch (_) { /* 忽略损坏的历史快照 */ }
+    // A completed run removes exactly one of every rank in one suit.
+    // Check identities and suit/rank balance as well as the total: 104 alone
+    // cannot detect a missing card replaced by a duplicate.
+    function spiderAudit(game) {
+        const level = SPIDER_LEVELS[game?.level];
+        const result = { ok: false, tableau: 0, stock: 0, finished: 0, total: 0 };
+        if (!level || !Array.isArray(game.tableau) || game.tableau.length !== 10
+            || !game.tableau.every(Array.isArray) || !Array.isArray(game.stock)
+            || !Number.isInteger(game.completed) || game.completed < 0 || game.completed > 8) return result;
+        result.tableau = game.tableau.reduce((sum, pile) => sum + pile.length, 0);
+        result.stock = game.stock.length;
+        result.finished = game.completed * 13;
+        result.total = result.tableau + result.stock + result.finished;
+        if (result.total !== 104 || result.stock % 10 !== 0 || result.stock > 50) return result;
+        const copies = 8 / level.suitCount;
+        const counts = level.suits.map(() => Array(13).fill(0));
+        const ids = new Set();
+        for (const card of [...game.stock, ...game.tableau.flat()]) {
+            if (!card || !Number.isInteger(card.id) || card.id < 0 || card.id >= 104
+                || ids.has(card.id) || !Number.isInteger(card.rank) || card.rank < 1 || card.rank > 13
+                || typeof card.faceUp !== 'boolean') return result;
+            const suitIndex = Math.floor(card.id / (copies * 13));
+            if (card.suit !== level.suits[suitIndex] || card.rank !== card.id % 13 + 1) return result;
+            ids.add(card.id);
+            counts[suitIndex][card.rank - 1]++;
         }
-        game.message = '检测到牌数异常：当前牌数与104张不符。已暂停操作以保护现场，请保留存档。';
+        result.ok = counts.every(ranks => ranks[0] <= copies && ranks.every(count => count === ranks[0]));
+        return result;
+    }
+
+    function spiderRequireIntegrity(game) {
+        if (spiderAudit(game).ok) return true;
+        game.selected = null;
+        game.hint = null;
+        game.message = '检测到牌数或牌面异常，已暂停移牌和发牌。请尝试撤销；无法恢复时再重新开始。';
         return false;
     }
+
     function spiderSaveHistory(game) {
         game.history.push(spiderSnapshot(game));
         if (game.history.length > 60) game.history.shift();
@@ -8148,9 +8163,15 @@
     function spiderUndo() {
         const game = state.spider;
         if (!game || !game.history.length) return false;
-        const raw = game.history.pop();
-        const restored = JSON.parse(raw);
-        Object.assign(game, restored, { selected: null, hint: null });
+        let restored;
+        try { restored = JSON.parse(game.history[game.history.length - 1]); } catch { /* keep the current board */ }
+        if (!restored || !spiderAudit({ ...game, ...restored }).ok) {
+            game.message = '这一步的撤销记录也有异常，未改动当前牌局。';
+            return false;
+        }
+        game.history.pop();
+        Object.assign(game, restored, { selected: null, hint: null, message: '' });
+        game.startedAt = Date.now() - game.time * 1000;
         return true;
     }
 
@@ -8159,6 +8180,7 @@
     }
 
     function spiderCanMoveSequence(game, column, index) {
+        if (!Number.isInteger(column) || !Number.isInteger(index)) return false;
         const pile = game.tableau[column];
         if (!pile || index < 0 || index >= pile.length) return false;
         const first = pile[index];
@@ -8177,6 +8199,7 @@
     }
 
     function spiderCanPlace(game, fromColumn, index, toColumn) {
+        if (!Number.isInteger(toColumn)) return false;
         if (fromColumn === toColumn) return false;
         const source = game.tableau[fromColumn];
         const target = game.tableau[toColumn];
@@ -8213,7 +8236,8 @@
 
     function spiderMove(fromColumn, index, toColumn) {
         const game = state.spider;
-        if (!game || game.won || !spiderRepairFromHistory(game)) return false;
+        if (!game || game.won) return false;
+        if (!spiderRequireIntegrity(game)) return false;
         if (!spiderCanPlace(game, fromColumn, index, toColumn)) return false;
 
         spiderSaveHistory(game);
@@ -8223,8 +8247,10 @@
         spiderRevealTop(game, fromColumn);
         game.moves++;
         game.score = Math.max(0, game.score - 1);
-        spiderCheckCompleted(game, toColumn);
-        if (!spiderIntegrity(game)) { spiderRepairFromHistory(game); return false; }
+        // Moving a run can expose another complete run in either column.
+        while (spiderCheckCompleted(game, fromColumn)) { /* collect all exposed runs */ }
+        while (spiderCheckCompleted(game, toColumn)) { /* collect all exposed runs */ }
+        game.message = '';
         game.won = game.completed >= 8;
         if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
@@ -8233,7 +8259,8 @@
 
     function spiderDealStock() {
         const game = state.spider;
-        if (!game || game.won || !spiderRepairFromHistory(game)) return false;
+        if (!game || game.won) return false;
+        if (!spiderRequireIntegrity(game)) return false;
         if (!game.stock.length) {
             game.message = '发牌堆已经没有牌了。';
             return false;
@@ -8253,8 +8280,9 @@
         game.moves++;
         game.score = Math.max(0, game.score - 10);
         game.message = '';
-        for (let col = 0; col < 10; col++) spiderCheckCompleted(game, col);
-        if (!spiderIntegrity(game)) { spiderRepairFromHistory(game); return false; }
+        for (let col = 0; col < 10; col++) {
+            while (spiderCheckCompleted(game, col)) { /* collect all exposed runs */ }
+        }
         game.won = game.completed >= 8;
         if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
@@ -8264,6 +8292,7 @@
     function spiderClickCard(column, index) {
         const game = state.spider;
         if (!game || game.won) return;
+        if (!spiderRequireIntegrity(game)) return;
         game.message = '';
         const card = spiderFindCard(game, column, index);
         if (!card?.faceUp) return;
@@ -8293,6 +8322,7 @@
     }
 
     function spiderFindHint(game) {
+        if (!spiderRequireIntegrity(game)) return null;
         for (let from = 0; from < 10; from++) {
             const pile = game.tableau[from];
             for (let i = 0; i < pile.length; i++) {
@@ -8304,13 +8334,12 @@
                 }
             }
         }
-        if (game.stock.length) return { stock: true };
+        if (game.stock.length >= 10 && game.tableau.every(pile => pile.length)) return { stock: true };
         return null;
     }
 
     function renderSpider(body) {
         state.spider = state.spider || newSpiderGame('one');
-        spiderRepairFromHistory(state.spider);
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar spider-level-bar' });
         const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '模式' });
         const levelSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '蜘蛛纸牌模式' });
@@ -8318,6 +8347,7 @@
             const option = el('option', { value: key, text: value.label });
             levelSelect.append(option);
         });
+        levelSelect.value = state.spider.level;
         levelSelect.addEventListener('change', () => {
             state.spider = newSpiderGame(levelSelect.value);
             draw();
@@ -8333,11 +8363,12 @@
 
         const undo = el('button', { class: 'stgc-btn', type: 'button' });
         undo.innerHTML = '<i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>撤销</span>';
-        undo.addEventListener('click', () => { if (spiderUndo()) draw(); });
+        undo.addEventListener('click', () => { spiderUndo(); draw(); });
 
         const hint = el('button', { class: 'stgc-btn', type: 'button' });
         hint.innerHTML = '<i class="fa-solid fa-lightbulb" aria-hidden="true"></i><span>提示</span>';
         hint.addEventListener('click', () => {
+            if (!spiderRequireIntegrity(state.spider)) { draw(); return; }
             const suggestion = spiderFindHint(state.spider);
             state.spider.hint = suggestion;
             state.spider.message = suggestion
@@ -8361,13 +8392,26 @@
         stockButton.setAttribute('aria-label', '发牌');
         const status = el('div', { class: 'spider-status' });
         bottom.append(stockButton, status);
+        const inventory = el('div', { class: 'spider-inventory', 'aria-live': 'polite' });
+        const zoom = el('button', { class: 'stgc-btn', type: 'button', text: '放大牌面' });
+        zoom.setAttribute('aria-pressed', 'false');
+        let enlarged = false;
+        zoom.addEventListener('click', () => {
+            enlarged = !enlarged;
+            area.classList.toggle('spider-enlarged', enlarged);
+            zoom.textContent = enlarged ? '显示全部十列' : '放大牌面';
+            zoom.setAttribute('aria-pressed', String(enlarged));
+            area.scrollLeft = 0;
+            drawInfo();
+        });
+        bottom.append(zoom);
         const help = el('div', {
             class: 'stgc-game-hint spider-help',
             text: '点击一张牌选中，再点击目标列移动；只有同花色连续的牌可以整组移动。电脑和手机都一样。',
         });
 
         area.append(tableau);
-        body.append(difficultyBar, toolbar, bottom, area, help);
+        body.append(difficultyBar, toolbar, bottom, inventory, area, help);
 
         stockButton.addEventListener('click', () => {
             spiderDealStock();
@@ -8389,20 +8433,27 @@
 
         function drawInfo() {
             const current = state.spider;
+            const audit = spiderAudit(current);
             const time = formatTime(current.time);
             scorePill.textContent = `分数 ${current.score}`;
             timePill.textContent = `时间 ${time}`;
             completePill.textContent = current.won ? `完成 8 / 8 · 通关` : `完成 ${current.completed} / 8`;
             undo.disabled = current.history.length === 0;
-            stockButton.disabled = current.stock.length === 0 || current.won || current.tableau.some(pile => pile.length === 0);
+            stockButton.disabled = !audit.ok || current.stock.length === 0 || current.won || current.tableau.some(pile => pile.length === 0);
+            hint.disabled = !audit.ok || current.won;
+            inventory.textContent = `台面 ${audit.tableau} + 待发 ${audit.stock} + 已完成 ${audit.finished} = ${audit.total} / 104 张${audit.ok ? '' : ' · 牌局异常，请尝试撤销'}`;
+            inventory.classList.toggle('spider-integrity-error', !audit.ok);
+            help.textContent = enlarged
+                ? '已放大牌面：左右滑动查看全部 10 列，也可以点“显示全部十列”。点击牌选中，再点目标列移动。'
+                : '当前完整显示 10 列。点击牌选中，再点目标列移动；只有同花色连续的牌可以整组移动。牌面太小可点“放大牌面”。';
             stockButton.innerHTML = current.stock.length
                 ? `<i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>发牌 ${Math.floor(current.stock.length / 10)} 轮</span>`
                 : '<i class="fa-solid fa-check" aria-hidden="true"></i><span>发牌堆空了</span>';
 
-            stockButton.title = current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : '给每列发一张牌';
-            status.textContent = current.won
+            stockButton.title = !current.stock.length ? '发牌堆已用完，请继续整理台面，或撤销/重开' : current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : '给每列发一张牌';
+            status.textContent = !audit.ok ? (current.message || '检测到牌局异常，请尝试撤销；无法恢复时再重新开始。') : current.won
                 ? `🎉 通关！${formatTime(current.time)} · ${current.moves} 次操作`
-                : (current.message || (current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : `剩余发牌 ${Math.floor(current.stock.length / 10)} 轮`));
+                : (current.message || (!current.stock.length ? '发牌堆已用完。继续移动台面上的牌；无合法移动时可撤销或重新开始。' : current.tableau.some(pile => !pile.length) ? '先填满空列才能发牌' : `剩余发牌 ${Math.floor(current.stock.length / 10)} 轮`));
         }
 
         function draw() {
@@ -8413,13 +8464,15 @@
             for (let col = 0; col < 10; col++) {
                 const pileWrap = el('div', { class: 'spider-column' });
                 const pile = current.tableau[col];
+                pileWrap.append(el('span', { class: 'spider-column-label', text: String(col + 1), 'aria-hidden': 'true' }));
+                pileWrap.setAttribute('aria-label', `第 ${col + 1} 列，${pile.length} 张牌`);
                 pileWrap.style.setProperty('--spider-stack-steps', String(Math.max(0, pile.length - 1)));
                 if (!pile.length) {
                     const empty = el('button', { class: 'spider-empty', type: 'button', text: '空' });
                     empty.setAttribute('aria-label', `第 ${col + 1} 列为空`);
                     empty.addEventListener('click', () => {
-                        if (current.selected && spiderMove(current.selected.column, current.selected.index, col)) {
-                            current.selected = null;
+                        if (current.selected) {
+                            spiderMove(current.selected.column, current.selected.index, col);
                             draw();
                         }
                     });

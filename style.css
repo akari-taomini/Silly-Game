@@ -9134,3 +9134,56 @@ n
 #st-mini-game-center[data-stgc-host="tauri"] .stgc-companion-character-grid {
     max-height: min(46vh, calc(var(--stgc-visible-height, 100dvh) * .46));
 }
+
+#st-mini-game-center .stgc-speak-control {display:flex!important;align-items:center!important;gap:12px!important;position:relative;z-index:2;pointer-events:auto!important;}
+#st-mini-game-center .stgc-speak-control input[type="checkbox"] {appearance:auto!important;-webkit-appearance:checkbox!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;position:static!important;width:20px!important;height:20px!important;flex:none;cursor:pointer;}
+#st-mini-game-center .stgc-speak-control label {display:inline!important;position:static!important;pointer-events:auto!important;cursor:pointer;flex:1;}
+
+/* v2.3.2: show all ten Spider columns by default; zoom is explicit. */
+#st-mini-game-center .spider-area {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    padding-top: 24px;
+}
+#st-mini-game-center .spider-tableau {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: clamp(2px, .5vw, 6px);
+}
+#st-mini-game-center .spider-column { min-width: 0; box-sizing: border-box; }
+#st-mini-game-center .spider-column-label {
+    position: absolute;
+    top: -21px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    line-height: 18px;
+    color: var(--stgc-text);
+    opacity: .7;
+}
+#st-mini-game-center .spider-card {
+    box-sizing: border-box;
+    min-width: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: 5px 2px;
+}
+#st-mini-game-center .spider-rank { font-size: clamp(10px, 2.2vw, 16px); line-height: 1.2; }
+#st-mini-game-center .spider-suit { font-size: clamp(12px, 3vw, 23px); }
+#st-mini-game-center .spider-inventory {
+    margin: 0 0 8px;
+    color: var(--stgc-text);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+#st-mini-game-center .spider-integrity-error { font-weight: 700; }
+#st-mini-game-center .spider-bottom { flex-wrap: wrap; }
+#st-mini-game-center .spider-enlarged .spider-tableau { min-width: 720px; }
+#st-mini-game-center .spider-enlarged .spider-rank { font-size: 16px; }
+#st-mini-game-center .spider-enlarged .spider-suit { font-size: 23px; }
