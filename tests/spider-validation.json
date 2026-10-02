@@ -1,0 +1,8 @@
+{
+  "version": "2.3.2",
+  "syntax": "passed",
+  "spider_logic_groups": 7,
+  "existing_spider_dom_checks": 3,
+  "browser_visual": "not run: browser executable unavailable",
+  "live_sillytavern": "not run"
+}
