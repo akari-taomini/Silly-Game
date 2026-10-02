@@ -8113,6 +8113,31 @@
         });
     }
 
+    // 104 张牌守恒；防止不完整存档或意外操作继续污染对局。
+    function spiderIntegrity(game) {
+        if (!game || !Array.isArray(game.tableau) || game.tableau.length !== 10 || !Array.isArray(game.stock)) return false;
+        if (!Number.isInteger(game.completed) || game.completed < 0 || game.completed > 8) return false;
+        const cards = [...game.stock, ...game.tableau.flat()];
+        if (cards.length + game.completed * 13 !== 104) return false;
+        const ids = cards.map(card => card?.id);
+        return ids.every(id => Number.isInteger(id) && id >= 0 && id < 104) && new Set(ids).size === ids.length;
+    }
+    function spiderRepairFromHistory(game) {
+        if (spiderIntegrity(game)) return true;
+        // 只使用原始历史快照，不补造牌；优先选择最近的完整记录。
+        for (let i = (game.history?.length || 0) - 1; i >= 0; i--) {
+            try {
+                const saved = JSON.parse(game.history[i]);
+                if (!spiderIntegrity(saved)) continue;
+                const preservedHistory = game.history.slice(0, i);
+                Object.assign(game, saved, { history: preservedHistory, selected: null, hint: null });
+                game.message = '检测到牌数异常，已恢复到最近一次完整的历史记录。';
+                return true;
+            } catch (_) { /* 忽略损坏的历史快照 */ }
+        }
+        game.message = '检测到牌数异常：当前牌数与104张不符。已暂停操作以保护现场，请保留存档。';
+        return false;
+    }
     function spiderSaveHistory(game) {
         game.history.push(spiderSnapshot(game));
         if (game.history.length > 60) game.history.shift();
@@ -8188,7 +8213,7 @@
 
     function spiderMove(fromColumn, index, toColumn) {
         const game = state.spider;
-        if (!game || game.won) return false;
+        if (!game || game.won || !spiderRepairFromHistory(game)) return false;
         if (!spiderCanPlace(game, fromColumn, index, toColumn)) return false;
 
         spiderSaveHistory(game);
@@ -8199,6 +8224,7 @@
         game.moves++;
         game.score = Math.max(0, game.score - 1);
         spiderCheckCompleted(game, toColumn);
+        if (!spiderIntegrity(game)) { spiderRepairFromHistory(game); return false; }
         game.won = game.completed >= 8;
         if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
@@ -8207,7 +8233,7 @@
 
     function spiderDealStock() {
         const game = state.spider;
-        if (!game || game.won) return false;
+        if (!game || game.won || !spiderRepairFromHistory(game)) return false;
         if (!game.stock.length) {
             game.message = '发牌堆已经没有牌了。';
             return false;
@@ -8228,6 +8254,7 @@
         game.score = Math.max(0, game.score - 10);
         game.message = '';
         for (let col = 0; col < 10; col++) spiderCheckCompleted(game, col);
+        if (!spiderIntegrity(game)) { spiderRepairFromHistory(game); return false; }
         game.won = game.completed >= 8;
         if (game.won) recordGameWin('spider');
         if (game.won) game.time = Math.floor((Date.now() - game.startedAt) / 1000);
@@ -8283,6 +8310,7 @@
 
     function renderSpider(body) {
         state.spider = state.spider || newSpiderGame('one');
+        spiderRepairFromHistory(state.spider);
         const difficultyBar = el('div', { class: 'stgc-difficulty-bar spider-level-bar' });
         const difficultyLabel = el('span', { class: 'stgc-difficulty-label', text: '模式' });
         const levelSelect = el('select', { class: 'stgc-btn stgc-select', 'aria-label': '蜘蛛纸牌模式' });
