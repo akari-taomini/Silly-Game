@@ -9187,3 +9187,51 @@ n
 #st-mini-game-center .spider-enlarged .spider-tableau { min-width: 720px; }
 #st-mini-game-center .spider-enlarged .spider-rank { font-size: 16px; }
 #st-mini-game-center .spider-enlarged .spider-suit { font-size: 23px; }
+
+/* v2.3.3: phone overview cards keep a 5:7 width/height ratio.
+   Flow layout makes column height follow the cards, without a fixed 78px
+   card height or 176px minimum column. Vertical percentage margins resolve
+   against the column width, matching the card's 140%-of-width height. */
+@media (max-width: 700px) {
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-column {
+        min-height: 0;
+        --spider-card-step: 16px;
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-card {
+        position: relative;
+        top: auto;
+        left: auto;
+        right: auto;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 5 / 7;
+        margin: 0;
+        padding: 1px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-card + .spider-card {
+        margin-top: calc(var(--spider-card-step) - 140%);
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-rank {
+        font-size: clamp(9px, 2.2vw, 12px);
+        line-height: 1.1;
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-suit {
+        font-size: clamp(10px, 2.6vw, 16px);
+        line-height: 1;
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-empty {
+        box-sizing: border-box;
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 5 / 7;
+        margin: 0;
+        padding: 0;
+    }
+    #st-mini-game-center .spider-area:not(.spider-enlarged) .spider-card.face-down::after {
+        max-width: 60%;
+        max-height: 60%;
+    }
+}
